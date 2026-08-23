@@ -23,5 +23,6 @@ export const ES_NAVIGATION: Record<string, string> = {
 	"menu.commandPalette": "Paleta de comandos",
 	"menu.view": "Ver",
 	"menu.toggleSidepanel": "Mostrar/ocultar panel lateral",
+	"menu.toggleInspector": "Mostrar/ocultar panel inspector",
 	"menu.help": "Ayuda",
 };

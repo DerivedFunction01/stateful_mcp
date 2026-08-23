@@ -94,11 +94,9 @@ export interface EffectiveKeymapDto {
 	readonly name: string;
 	readonly description?: string;
 	readonly vim?: KeymapVimSectionDto;
-	readonly workbench?: KeymapWorkbenchSectionDto;
 	readonly normal?: Readonly<Record<string, string>>;
 	readonly visual?: Readonly<Record<string, string>>;
 	readonly sequences?: Readonly<Record<string, string>>;
-	readonly window?: Readonly<Record<string, string>>;
 	readonly aliases?: Readonly<Record<string, string>>;
 	readonly bindings: readonly KeymapBindingDto[];
 }

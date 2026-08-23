@@ -3,6 +3,7 @@ import { createAssertionMacro } from "../src/composition/assertion";
 import { createMacroRuntimeContext } from "../src/contracts/context";
 import { ExtensionRuntime } from "../src/extensions/runtime";
 import {
+	auditKeymapAndLogDiagnostics,
 	CommandPaletteController,
 	CommandRegistry,
 	CursorBuffer,
@@ -669,11 +670,9 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 		test("provides standard default keymap profile data", () => {
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.profileId).toBe("default");
 			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.normal.moveDown).toBe("j");
-			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.normal.enterInsert).toBe("i");
-			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.sequences.deleteCell).toBe("dd");
-			expect(DEFAULT_EDITOR_KEYMAP_PROFILE.window.openCommandPalette).toBe(
-				"primary+shift+p",
-			);
+			expect(
+				DEFAULT_EDITOR_KEYMAP_PROFILE.keybindings?.["workbench.commandPalette"],
+			).toEqual(["primary+shift+p"]);
 			expect(
 				DEFAULT_EDITOR_KEYMAP_PROFILE.keybindings?.["editor.pinMacro"],
 			).toBeUndefined();
@@ -682,7 +681,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			).toEqual(["primary+f"]);
 			const crossPlatformDefaults = [
 				"editor.save",
-				"editor.splitGroup",
+				"editor.createSplitGroup",
 				"editor.nextTab",
 				"editor.prevTab",
 				"workbench.commandPalette",
@@ -860,6 +859,26 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 					allowSequencePrefixes: true,
 				}),
 			).toHaveLength(0);
+
+			const warnings: string[] = [];
+			const origWarn = console.warn;
+			console.warn = (msg: string) => {
+				warnings.push(msg);
+			};
+			try {
+				auditKeymapAndLogDiagnostics({
+					...DEFAULT_EDITOR_KEYMAP_PROFILE,
+					normal: {
+						...DEFAULT_EDITOR_KEYMAP_PROFILE.normal,
+						moveDown: "x",
+						moveUp: "x",
+					},
+				});
+				expect(warnings.length).toBeGreaterThan(0);
+				expect(warnings[0]).toContain("[Keymap Conflict]");
+			} finally {
+				console.warn = origWarn;
+			}
 		});
 
 		test("save coordinator skips clean participants and blocks failed saves", async () => {

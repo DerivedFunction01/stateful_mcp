@@ -16,6 +16,7 @@ export interface CreateEditorGroupOptions {
 	readonly sourceGroupId?: string;
 	readonly documentId?: string;
 	readonly orientation?: "horizontal" | "vertical";
+	readonly moveDocument?: boolean;
 }
 
 export class MacroEditorGroupManager {
@@ -32,7 +33,7 @@ export class MacroEditorGroupManager {
 			groupId: initial,
 			documentIds: activeDocumentId ? [activeDocumentId] : [],
 			activeDocumentId,
-			orientation: "horizontal",
+			orientation: "vertical",
 		});
 		this.activeGroupId = initial;
 		this.documentUnsubscribe = documents.subscribe(() =>
@@ -61,6 +62,23 @@ export class MacroEditorGroupManager {
 			);
 		const documentId = options.documentId ?? source.activeDocumentId;
 		if (documentId) this.requireDocument(documentId);
+		if (
+			options.moveDocument &&
+			documentId &&
+			source.documentIds.includes(documentId)
+		) {
+			const remainingSourceDocs = source.documentIds.filter(
+				(id) => id !== documentId,
+			);
+			this.groups.set(source.groupId, {
+				...source,
+				documentIds: remainingSourceDocs,
+				activeDocumentId:
+					source.activeDocumentId === documentId
+						? (remainingSourceDocs[0] ?? null)
+						: source.activeDocumentId,
+			});
+		}
 		const group: EditorGroup = {
 			groupId: createGroupId(),
 			documentIds: documentId ? [documentId] : [],

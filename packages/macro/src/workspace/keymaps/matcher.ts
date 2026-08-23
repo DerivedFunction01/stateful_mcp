@@ -18,6 +18,7 @@ export interface KeyInputEvent {
 	readonly char?: string;
 	readonly name?: string;
 	readonly ctrl?: boolean;
+	readonly alt?: boolean;
 	readonly meta?: boolean;
 	/** Semantic platform-primary modifier, when supplied by the input adapter. */
 	readonly primary?: boolean;
@@ -28,6 +29,7 @@ export interface KeyInputEvent {
 
 export interface ParsedKeyChord {
 	readonly ctrl: boolean;
+	readonly alt: boolean;
 	readonly meta: boolean;
 	readonly primary: boolean;
 	readonly shift: boolean;
@@ -39,29 +41,17 @@ const TERMINAL_KEY_MAP: Readonly<Record<string, CanonicalKey>> = {
 	enter: "enter",
 	"\r": "enter",
 	"\n": "enter",
-	escape: "escape",
-	"\x1b": "escape",
-	tab: "tab",
 	"\t": "tab",
-	"\x1b[z": "tab",
+	tab: "tab",
 	backspace: "backspace",
-	"\b": "backspace",
 	"\x7f": "backspace",
-	delete: "delete",
-	uparrow: "up",
-	up: "up",
-	downarrow: "down",
-	down: "down",
-	leftarrow: "left",
-	left: "left",
-	rightarrow: "right",
-	right: "right",
-	pageup: "pageup",
-	page_up: "pageup",
-	pagedown: "pagedown",
-	page_down: "pagedown",
-	home: "home",
-	end: "end",
+	"\b": "backspace",
+	escape: "escape",
+	esc: "escape",
+	"\x1b": "escape",
+	space: "space",
+	" ": "space",
+	// Terminal control keys \x01-\x1a map to ctrl+letter
 	"\x01": "a",
 	"\x02": "b",
 	"\x03": "c",
@@ -88,7 +78,7 @@ const TERMINAL_KEY_MAP: Readonly<Record<string, CanonicalKey>> = {
 
 /**
  * Strict parser for canonical key chords.
- * Follows the grammar: [ctrl+][meta+][primary+][shift+]<canonical_key> or single character (including uppercase for Shift).
+ * Follows the grammar: [primary+][ctrl+][alt+][meta+][shift+]<canonical_key> or single character (including uppercase for Shift).
  */
 export function parseChord(chord: string): ParsedKeyChord | null {
 	const raw = chord.trim();
@@ -98,6 +88,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 	if (raw.length === 1 && raw >= "A" && raw <= "Z") {
 		return {
 			ctrl: false,
+			alt: false,
 			meta: false,
 			primary: false,
 			shift: true,
@@ -109,6 +100,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 	if (raw.length === 1 && ALL_CANONICAL_KEYS.has(raw)) {
 		return {
 			ctrl: false,
+			alt: false,
 			meta: false,
 			primary: false,
 			shift: false,
@@ -124,6 +116,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 	if (parts.length === 0) return null;
 
 	let ctrl = false;
+	let alt = false;
 	let meta = false;
 	let primary = false;
 	let shift = false;
@@ -134,7 +127,9 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 		if (i < parts.length - 1) {
 			if (part === "ctrl") {
 				ctrl = true;
-			} else if (part === "meta" || part === "alt") {
+			} else if (part === "alt") {
+				alt = true;
+			} else if (part === "meta") {
 				meta = true;
 			} else if (part === "primary") {
 				primary = true;
@@ -154,7 +149,7 @@ export function parseChord(chord: string): ParsedKeyChord | null {
 	}
 
 	if (!key) return null;
-	return { ctrl, meta, primary, shift, key };
+	return { ctrl, alt, meta, primary, shift, key };
 }
 
 /**
@@ -162,9 +157,10 @@ export function parseChord(chord: string): ParsedKeyChord | null {
  */
 export function formatParsedChord(parsed: ParsedKeyChord): string {
 	const parts: string[] = [];
-	if (parsed.ctrl) parts.push("ctrl");
-	if (parsed.meta) parts.push("meta");
 	if (parsed.primary) parts.push("primary");
+	if (parsed.ctrl) parts.push("ctrl");
+	if (parsed.alt) parts.push("alt");
+	if (parsed.meta) parts.push("meta");
 	if (parsed.shift) parts.push("shift");
 	parts.push(parsed.key);
 	return parts.join("+");
@@ -183,6 +179,7 @@ export function isSpecialChord(chord: string): boolean {
 	if (!parsed) return false;
 	return (
 		parsed.ctrl ||
+		parsed.alt ||
 		parsed.meta ||
 		parsed.primary ||
 		parsed.shift ||
@@ -225,6 +222,7 @@ export function chordMatches(chord: string, event: KeyInputEvent): boolean {
 		: Boolean(event.ctrl) || isControlChar;
 	const eventHasMeta = event.platform === "mac" ? false : Boolean(event.meta);
 	if (eventHasCtrl !== target.ctrl) return false;
+	if (Boolean(event.alt) !== target.alt) return false;
 	if (eventHasMeta !== target.meta) return false;
 	if (platformPrimary !== target.primary) return false;
 
@@ -469,7 +467,6 @@ export function mergeEditorKeymap(
 		normal: { ...base.normal, ...override.normal },
 		sequences: { ...base.sequences, ...override.sequences },
 		visual: { ...base.visual, ...override.visual },
-		window: { ...base.window, ...override.window },
 		keybindings,
 	};
 }
@@ -489,6 +486,22 @@ export interface KeymapDiagnostic {
 export interface KeymapValidationOptions {
 	readonly allowIntentionalModeOverlap?: boolean;
 	readonly allowSequencePrefixes?: boolean;
+}
+
+/**
+ * Validates keymap and logs formatted warnings to console if conflicts or errors exist.
+ */
+export function auditKeymapAndLogDiagnostics(
+	profile: EditorKeymapProfile,
+	options: KeymapValidationOptions = {},
+): readonly KeymapDiagnostic[] {
+	const diagnostics = validateEditorKeymap(profile, options);
+	for (const d of diagnostics) {
+		const prefix =
+			d.severity === "error" ? "[Keymap Conflict]" : "[Keymap Warning]";
+		console.warn(`${prefix} (${d.code}): ${d.message}`);
+	}
+	return diagnostics;
 }
 
 export function validateEditorKeymap(
@@ -519,10 +532,12 @@ export function validateEditorKeymap(
 				`keybindings.${conflict.second}`,
 			],
 		});
-	const modes = ["normal", "sequences", "visual", "window"] as const;
+	const modes = ["normal", "sequences", "visual"] as const;
 	for (const mode of modes) {
+		const map = profile[mode];
+		if (!map) continue;
 		const seen = new Map<string, [string, string]>();
-		for (const [action, chordValue] of Object.entries(profile[mode])) {
+		for (const [action, chordValue] of Object.entries(map)) {
 			if (!chordValue) continue;
 			const chords = Array.isArray(chordValue) ? chordValue : [chordValue];
 			for (const chord of chords) {
@@ -556,11 +571,13 @@ export function validateEditorKeymap(
 		}
 	}
 	const sequences: Array<[string, string]> = [];
-	for (const [action, value] of Object.entries(profile.sequences)) {
-		if (!value) continue;
-		const chords = Array.isArray(value) ? value : [value];
-		for (const chord of chords) {
-			if (chord) sequences.push([action, chord]);
+	if (profile.sequences) {
+		for (const [action, value] of Object.entries(profile.sequences)) {
+			if (!value) continue;
+			const chords = Array.isArray(value) ? value : [value];
+			for (const chord of chords) {
+				if (chord) sequences.push([action, chord]);
+			}
 		}
 	}
 	for (let i = 0; i < sequences.length; i++) {

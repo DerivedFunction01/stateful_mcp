@@ -57,15 +57,14 @@ describe("browser shortcut policy", () => {
 			keymap: {
 				profileId: "default",
 				name: "Standard Vim Modal",
-				workbench: {
-					openCommandPalette: "ctrl+shift+p",
-					quickOpen: "ctrl+p",
-					openSettings: "ctrl+,",
-					toggleSidepanel: "ctrl+b",
-					toggleActivityPanel: "ctrl+shift+e",
-					toggleDrawer: "ctrl+j",
-				},
-				bindings: [],
+				bindings: [
+					{ command: "workbench.commandPalette", chords: ["ctrl+shift+p"] },
+					{ command: "workbench.quickOpen", chords: ["ctrl+p"] },
+					{ command: "workbench.openSettings", chords: ["ctrl+,"] },
+					{ command: "workbench.toggleSidepanel", chords: ["ctrl+b"] },
+					{ command: "workbench.toggleActivity", chords: ["ctrl+shift+e"] },
+					{ command: "workbench.toggleDrawer", chords: ["ctrl+j"] },
+				],
 			},
 		} as any;
 
@@ -76,10 +75,10 @@ describe("browser shortcut policy", () => {
 			getEffectiveCommandShortcut(mockSnapshot, "workbench.openSettings"),
 		).toBe("ctrl+,");
 		expect(
-			getEffectiveCommandShortcut(mockSnapshot, "workspace.toggleSidepanel"),
+			getEffectiveCommandShortcut(mockSnapshot, "workbench.toggleSidepanel"),
 		).toBe("ctrl+b");
 		expect(
-			getEffectiveCommandShortcut(mockSnapshot, "workspace.toggleActivity"),
+			getEffectiveCommandShortcut(mockSnapshot, "workbench.toggleActivity"),
 		).toBe("ctrl+shift+e");
 		expect(
 			getEffectiveCommandShortcut(mockSnapshot, "workbench.toggleDrawer"),
@@ -108,7 +107,7 @@ describe("browser shortcut policy", () => {
 describe("auditKeymapPolicy", () => {
 	test("permits unreserved custom keybindings without unknown disposition", () => {
 		const result = auditKeymapPolicy([
-			{ command: "editor.splitGroup", chords: ["ctrl+\\"] },
+			{ command: "editor.createSplitGroup", chords: ["ctrl+\\"] },
 			{ command: "custom.action", chords: ["ctrl+shift+x"] },
 			{ command: "invalid.action", chords: [""] },
 		]);

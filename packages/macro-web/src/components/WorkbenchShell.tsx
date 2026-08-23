@@ -7,6 +7,7 @@ import {
 } from "@stateful-mcp/macro-protocol";
 import { CircleDot } from "lucide-react";
 import {
+	Fragment,
 	type ReactNode,
 	useCallback,
 	useEffect,
@@ -207,14 +208,13 @@ export function WorkbenchShell({
 	};
 
 	const handleCloseDocument = (documentId: string, textRevision?: number) => {
-		if (localDraft !== undefined) {
-			flushDraft();
-			return;
-		}
 		const docMeta = snapshot?.editor.documents.find(
 			(d) => d.documentId === documentId,
 		);
-		if (docMeta?.dirty) {
+		const isTargetActive = activeDocumentMeta?.documentId === documentId;
+		const isDirty =
+			Boolean(docMeta?.dirty) || (isTargetActive && localDraft !== undefined);
+		if (isDirty && docMeta) {
 			setPendingCloseDoc({
 				documentId,
 				title: docMeta.title,
@@ -232,30 +232,33 @@ export function WorkbenchShell({
 		});
 	};
 
-	const handleSaveAndClose = (target: PendingCloseDocument) => {
+	const handleSaveAndClose = async (target: PendingCloseDocument) => {
+		setPendingCloseDoc(null);
+		if (
+			localDraft !== undefined &&
+			activeDocumentMeta?.documentId === target.documentId
+		) {
+			await flushDraft();
+		}
 		if (target.filePath) {
-			emitEditorOperation({
+			await onEditorOperation({
 				operation: "editor.save",
 				requestId: requestId(),
 				documentId: target.documentId,
-				expectedTextRevision: target.textRevision,
 			});
 		} else {
-			emitEditorOperation({
+			await onEditorOperation({
 				operation: "editor.saveScratchpad",
 				requestId: requestId(),
 				documentId: target.documentId,
-				expectedTextRevision: target.textRevision,
 			});
 		}
-		emitEditorOperation({
+		await onEditorOperation({
 			operation: "editor.closeDocument",
 			requestId: requestId(),
 			documentId: target.documentId,
-			expectedTextRevision: target.textRevision,
 			force: true,
 		});
-		setPendingCloseDoc(null);
 	};
 
 	const handleDiscardAndClose = (target: PendingCloseDocument) => {
@@ -367,7 +370,11 @@ export function WorkbenchShell({
 	);
 
 	return (
-		<div className="workbench-shell" ref={shellRef} style={shellStyle}>
+		<div
+			className={`workbench-shell dock-${inspectorPosition}`}
+			ref={shellRef}
+			style={shellStyle}
+		>
 			<CloseDirtyDialog
 				target={pendingCloseDoc}
 				onSaveAndClose={handleSaveAndClose}
@@ -465,172 +472,283 @@ export function WorkbenchShell({
 			)}
 
 			<section className="workbench-center">
-				<EditorGroupHeader
-					documents={activeGroupDocuments}
-					activeDocumentId={snapshot.editor.activeDocumentId}
-					activeDocument={activeDocument}
-					activeDocumentMeta={activeDocumentMeta}
-					canSplit={snapshot.editor.capabilities.canSplit}
-					pendingEditor={pendingEditor}
-					hasConflict={Boolean(editorConflict)}
-					hasDraft={localDraft !== undefined}
-					pinnedMacros={snapshot.contributions?.pinnedMacros}
-					onSelectDocument={(documentId) => {
-						if (localDraft !== undefined) {
-							flushDraft();
-							return;
-						}
-						if (activeGroup && !activeGroup.documentIds.includes(documentId)) {
-							openDocumentInActiveGroup(documentId);
-						} else {
-							emitEditorOperation({
-								operation: "editor.selectDocument",
-								requestId: requestId(),
-								documentId,
-							});
-						}
-					}}
-					onRenameDocument={(documentId, title) => {
-						emitEditorOperation({
-							operation: "editor.renameDocument",
-							requestId: requestId(),
-							documentId,
-							title,
-						});
-					}}
-					onCloseDocument={handleCloseDocument}
-					onNewScratchpad={() =>
-						emitEditorOperation({
-							operation: "editor.newScratchpad",
-							requestId: requestId(),
-						})
-					}
-					onSplitGroup={() =>
-						emitEditorOperation({
-							operation: "editor.createSplitGroup",
-							requestId: requestId(),
-							sourceGroupId: activeGroup?.groupId,
-							documentId: activeDocument?.documentId,
-							expectedWorkspaceRevision: snapshot.revision,
-						})
-					}
-					onExecuteValidLines={() => {
-						if (!activeDocument) return;
-						emitEditorOperation({
-							operation: "editor.executeValidLines",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-							expectedTextRevision: activeDocument.textRevision,
-						});
-					}}
-					onClearExecutedLines={() => {
-						if (!activeDocument) return;
-						emitEditorOperation({
-							operation: "editor.clearExecutedLines",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-							expectedTextRevision: activeDocument.textRevision,
-						});
-					}}
-					onResetExecutionState={() => {
-						if (!activeDocument) return;
-						emitEditorOperation({
-							operation: "editor.resetExecutionState",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-						});
-					}}
-					onInsertSnippet={handleInsertSnippet}
-				/>
-
 				{vimNotice && (
 					<div className="editor-vim-notice" role="status">
 						{vimNotice}
 					</div>
 				)}
 
-				<EditorCanvas
-					activeDocument={activeDocument}
-					activeDocumentMeta={activeDocumentMeta}
-					localDraft={localDraft}
-					activeLines={activeLines}
-					editorConflict={editorConflict}
-					vimEnabled={vimState.enabled}
-					vimMode={vimState.mode}
-					activeCellIndex={
-						vimState.enabled ? vimState.activeCellIndex : undefined
-					}
-					selectedCellRange={vimState.enabled ? vimState.visualRange : null}
-					searchWidget={searchWidget}
-					surfaceRef={surfaceRef}
-					onTextChange={(lines) =>
-						activeDocumentMeta &&
-						onSetEditorDraft(activeDocumentMeta.documentId, lines)
-					}
-					onFocusChange={(focused) => {
-						setSurfaceFocused(focused);
-						if (focused && vimState.mode === "COMMAND")
-							vimController.exitCommandMode();
-						if (!focused) {
-							clearDraftTimer();
-							flushDraft();
-						}
-					}}
-					onCursorChange={(cursor) => {
-						onEditorCursorChange?.(cursor);
-						if (vimState.enabled && vimState.mode !== "INSERT") return;
-						const line = Number.parseInt(cursor.split(":")[0] ?? "", 10);
-						const column = Number.parseInt(cursor.split(":")[1] ?? "", 10);
-						if (Number.isFinite(line))
-							vimController.setActiveCell(
-								line - 1,
-								Math.max(1, activeLines.length),
-								Number.isFinite(column) ? column - 1 : undefined,
-							);
-					}}
-					onKeyDown={(event) => vimController.handleKeyDown(event)}
-					onPointerTarget={(lineIndex, column, dragging) =>
-						vimController.setPointerTarget(
-							lineIndex,
-							Math.max(1, activeLines.length),
-							column,
-							dragging,
-						)
-					}
-					onExecuteLine={(lineNumber) =>
-						activeDocument &&
-						emitEditorOperation({
-							operation: "editor.executeLine",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-							lineNumber,
-							expectedTextRevision: activeDocument.textRevision,
-						})
-					}
-					onExecuteRange={(startLine, endLine) =>
-						activeDocument &&
-						emitEditorOperation({
-							operation: "editor.executeRange",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-							startLine,
-							endLine,
-							expectedTextRevision: activeDocument.textRevision,
-						})
-					}
-					onPinMacro={(macroId) =>
-						activeDocument &&
-						macroId !== null &&
-						emitEditorOperation({
-							operation: "editor.pinMacro",
-							requestId: requestId(),
-							documentId: activeDocument.documentId,
-							macroId,
-						})
-					}
-					onReloadEditorConflict={onReloadEditorConflict}
-					onOverwriteEditorConflict={onOverwriteEditorConflict}
-				/>
+				<div
+					className={`editor-split-container editor-split-container--${activeGroup?.orientation ?? "vertical"}`}
+				>
+					{(snapshot.editor.groups.length > 0
+						? snapshot.editor.groups
+						: [
+								activeGroup ?? {
+									groupId: "default",
+									documentIds: [],
+									activeDocumentId: null,
+									orientation: "vertical" as const,
+								},
+							]
+					).map((group, groupIdx, allGroups) => {
+						const groupDocs = snapshot.editor.documents.filter((d) =>
+							group.documentIds.includes(d.documentId),
+						);
+						const isActiveGroup = group.groupId === activeGroup?.groupId;
+						const groupActiveDocId =
+							group.activeDocumentId ?? group.documentIds[0];
+						const groupActiveDocMeta = groupActiveDocId
+							? snapshot.editor.documents.find(
+									(d) => d.documentId === groupActiveDocId,
+								)
+							: undefined;
+						const groupActiveDoc = isActiveGroup
+							? activeDocument
+							: groupActiveDocId &&
+									snapshot.editor.loadedDocuments?.[groupActiveDocId]
+								? snapshot.editor.loadedDocuments[groupActiveDocId]
+								: groupActiveDocMeta
+									? {
+											documentId: groupActiveDocMeta.documentId,
+											textRevision: groupActiveDocMeta.textRevision,
+											lines: [],
+										}
+									: null;
+
+						return (
+							<Fragment key={group.groupId}>
+								{/* biome-ignore lint/a11y/useKeyWithClickEvents: split pane click is a mouse-only focus affordance; keyboard users navigate groups via editor group focus commands. Adding tabIndex/role would pollute tab order inside the editor layout. */}
+								<div
+									className={`editor-split-group-pane ${isActiveGroup ? "editor-split-group-pane--active" : ""}`}
+									style={{ flex: group.sizeRatio ?? 1 }}
+									onClick={() => {
+										if (!isActiveGroup) {
+											emitEditorOperation({
+												operation: "editor.focusGroup",
+												requestId: requestId(),
+												groupId: group.groupId,
+												expectedWorkspaceRevision: snapshot.revision,
+											});
+										}
+									}}
+								>
+									<EditorGroupHeader
+										documents={
+											groupDocs.length > 0 ? groupDocs : activeGroupDocuments
+										}
+										activeDocumentId={
+											group.activeDocumentId ?? snapshot.editor.activeDocumentId
+										}
+										activeDocument={groupActiveDoc}
+										activeDocumentMeta={
+											groupActiveDocMeta ?? activeDocumentMeta
+										}
+										canSplit={snapshot.editor.capabilities.canSplit}
+										canCloseGroup={allGroups.length > 1}
+										pendingEditor={isActiveGroup ? pendingEditor : false}
+										hasConflict={
+											isActiveGroup ? Boolean(editorConflict) : false
+										}
+										hasDraft={isActiveGroup ? localDraft !== undefined : false}
+										pinnedMacros={snapshot.contributions?.pinnedMacros}
+										onSelectDocument={(documentId) => {
+											if (isActiveGroup && localDraft !== undefined) {
+												flushDraft();
+												return;
+											}
+											if (!group.documentIds.includes(documentId)) {
+												emitEditorOperation({
+													operation: "editor.openDocumentInGroup",
+													requestId: requestId(),
+													groupId: group.groupId,
+													documentId,
+													expectedWorkspaceRevision: snapshot.revision,
+												});
+											} else {
+												emitEditorOperation({
+													operation: "editor.selectDocument",
+													requestId: requestId(),
+													documentId,
+												});
+											}
+										}}
+										onRenameDocument={(documentId, title) => {
+											emitEditorOperation({
+												operation: "editor.renameDocument",
+												requestId: requestId(),
+												documentId,
+												title,
+											});
+										}}
+										onCloseDocument={handleCloseDocument}
+										onNewScratchpad={() =>
+											emitEditorOperation({
+												operation: "editor.newScratchpad",
+												requestId: requestId(),
+											})
+										}
+										onSplitGroup={() =>
+											emitEditorOperation({
+												operation: "editor.createSplitGroup",
+												requestId: requestId(),
+												sourceGroupId: group.groupId,
+												documentId: groupActiveDoc?.documentId,
+												moveDocument: groupDocs.length > 1,
+												expectedWorkspaceRevision: snapshot.revision,
+											})
+										}
+										onCloseGroup={() =>
+											emitEditorOperation({
+												operation: "editor.closeGroup",
+												requestId: requestId(),
+												groupId: group.groupId,
+												expectedWorkspaceRevision: snapshot.revision,
+											})
+										}
+										onExecuteValidLines={() => {
+											if (!groupActiveDoc) return;
+											emitEditorOperation({
+												operation: "editor.executeValidLines",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+												expectedTextRevision: groupActiveDoc.textRevision,
+											});
+										}}
+										onClearExecutedLines={() => {
+											if (!groupActiveDoc) return;
+											emitEditorOperation({
+												operation: "editor.clearExecutedLines",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+												expectedTextRevision: groupActiveDoc.textRevision,
+											});
+										}}
+										onResetExecutionState={() => {
+											if (!groupActiveDoc) return;
+											emitEditorOperation({
+												operation: "editor.resetExecutionState",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+											});
+										}}
+										onInsertSnippet={handleInsertSnippet}
+									/>
+
+									<EditorCanvas
+										activeDocument={groupActiveDoc}
+										activeDocumentMeta={
+											groupActiveDocMeta ?? activeDocumentMeta
+										}
+										localDraft={isActiveGroup ? localDraft : undefined}
+										activeLines={isActiveGroup ? activeLines : []}
+										editorConflict={isActiveGroup ? editorConflict : undefined}
+										vimEnabled={isActiveGroup && vimState.enabled}
+										vimMode={isActiveGroup ? vimState.mode : undefined}
+										activeCellIndex={
+											isActiveGroup && vimState.enabled
+												? vimState.activeCellIndex
+												: undefined
+										}
+										selectedCellRange={
+											isActiveGroup && vimState.enabled
+												? vimState.visualRange
+												: null
+										}
+										searchWidget={isActiveGroup ? searchWidget : undefined}
+										surfaceRef={isActiveGroup ? surfaceRef : { current: null }}
+										onTextChange={(lines) =>
+											groupActiveDocMeta &&
+											onSetEditorDraft(groupActiveDocMeta.documentId, lines)
+										}
+										onFocusChange={(focused) => {
+											if (isActiveGroup) {
+												setSurfaceFocused(focused);
+												if (focused && vimState.mode === "COMMAND")
+													vimController.exitCommandMode();
+												if (!focused) {
+													clearDraftTimer();
+													flushDraft();
+												}
+											}
+										}}
+										onCursorChange={(cursor) => {
+											if (!isActiveGroup) return;
+											onEditorCursorChange?.(cursor);
+											if (vimState.enabled && vimState.mode !== "INSERT")
+												return;
+											const line = Number.parseInt(
+												cursor.split(":")[0] ?? "",
+												10,
+											);
+											const column = Number.parseInt(
+												cursor.split(":")[1] ?? "",
+												10,
+											);
+											if (Number.isFinite(line))
+												vimController.setActiveCell(
+													line - 1,
+													Math.max(1, activeLines.length),
+													Number.isFinite(column) ? column - 1 : undefined,
+												);
+										}}
+										onKeyDown={(event) =>
+											isActiveGroup ? vimController.handleKeyDown(event) : false
+										}
+										onPointerTarget={(lineIndex, column, dragging) => {
+											if (isActiveGroup) {
+												vimController.setPointerTarget(
+													lineIndex,
+													Math.max(1, activeLines.length),
+													column,
+													dragging,
+												);
+											}
+										}}
+										onExecuteLine={(lineNumber) =>
+											groupActiveDoc &&
+											emitEditorOperation({
+												operation: "editor.executeLine",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+												lineNumber,
+												expectedTextRevision: groupActiveDoc.textRevision,
+											})
+										}
+										onExecuteRange={(startLine, endLine) =>
+											groupActiveDoc &&
+											emitEditorOperation({
+												operation: "editor.executeRange",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+												startLine,
+												endLine,
+												expectedTextRevision: groupActiveDoc.textRevision,
+											})
+										}
+										onPinMacro={(macroId) =>
+											groupActiveDoc &&
+											macroId !== null &&
+											emitEditorOperation({
+												operation: "editor.pinMacro",
+												requestId: requestId(),
+												documentId: groupActiveDoc.documentId,
+												macroId,
+											})
+										}
+										onReloadEditorConflict={onReloadEditorConflict}
+										onOverwriteEditorConflict={onOverwriteEditorConflict}
+									/>
+								</div>
+								{groupIdx < allGroups.length - 1 && (
+									<div
+										className={`editor-splitter editor-splitter--${group.orientation ?? "vertical"}`}
+									/>
+								)}
+							</Fragment>
+						);
+					})}
+				</div>
 
 				<EditorOutputDrawer
 					output={snapshot.editor.output}

@@ -23,6 +23,7 @@ import {
 	BrowserKeymapController,
 	type KeymapAnnouncement,
 } from "./lib/browser-keymap-controller";
+import { getEffectiveCommandShortcut } from "./lib/browser-workbench-defaults";
 import {
 	EditorSurfaceRegistry,
 	EditorSurfaceRegistryContext,
@@ -180,47 +181,93 @@ export function App() {
 		command: string,
 		args?: readonly unknown[],
 	): Promise<void> {
-		if (
-			command === "workspace.openSettings" ||
-			command === "workspace.toggleSettings"
-		) {
+		if (command === "workbench.openSettings") {
 			requestNavigate("settings");
 			return;
 		}
-		if (command === "workbench.openProject" || command === "file.openProject") {
+		if (command === "workbench.openProject") {
 			setFolderModalMode("open");
 			return;
 		}
-		if (command === "workbench.initProject" || command === "file.initProject") {
+		if (command === "workbench.initProject") {
 			setFolderModalMode("init");
 			return;
 		}
-		if (
-			command === "workbench.saveAsProject" ||
-			command === "workspace.saveAs" ||
-			command === "file.saveAsProject"
-		) {
+		if (command === "workbench.saveAsProject") {
 			setFolderModalMode("saveAs");
 			return;
 		}
-		if (command === "editor.save" || command === "workspace.saveActive") {
+		if (command === "editor.save") {
 			const active = snapshot?.editor.documents.find(
 				(document) => document.documentId === snapshot.editor.activeDocumentId,
 			);
-			if (command === "editor.save" && active) {
-				await store.applyEditorOperation({
-					operation: "editor.save",
-					requestId: crypto.randomUUID(),
-					documentId: active.documentId,
-					expectedTextRevision: active.textRevision,
-				});
-			} else {
-				await store.executeCommand("workspace.saveActive", args);
+			if (active) {
+				if (active.filePath) {
+					await store.applyEditorOperation({
+						operation: "editor.save",
+						requestId: crypto.randomUUID(),
+						documentId: active.documentId,
+						expectedTextRevision: active.textRevision,
+					});
+				} else {
+					await store.applyEditorOperation({
+						operation: "editor.saveScratchpad",
+						requestId: crypto.randomUUID(),
+						documentId: active.documentId,
+						expectedTextRevision: active.textRevision,
+					});
+				}
 			}
 			return;
 		}
-		if (command === "workspace.saveAll") {
-			await store.executeCommand("workspace.saveAll", args);
+		if (command === "editor.saveAll") {
+			const documents = snapshot?.editor.documents ?? [];
+			for (const doc of documents) {
+				if (doc.dirty) {
+					if (doc.filePath) {
+						await store.applyEditorOperation({
+							operation: "editor.save",
+							requestId: crypto.randomUUID(),
+							documentId: doc.documentId,
+						});
+					} else {
+						await store.applyEditorOperation({
+							operation: "editor.saveScratchpad",
+							requestId: crypto.randomUUID(),
+							documentId: doc.documentId,
+						});
+					}
+				}
+			}
+			return;
+		}
+		if (command === "editor.saveAndClose") {
+			const active = snapshot?.editor.documents.find(
+				(document) => document.documentId === snapshot.editor.activeDocumentId,
+			);
+			if (active) {
+				const result = await store.applyEditorOperation(
+					active.filePath
+						? {
+								operation: "editor.save",
+								requestId: crypto.randomUUID(),
+								documentId: active.documentId,
+							}
+						: {
+								operation: "editor.saveScratchpad",
+								requestId: crypto.randomUUID(),
+								documentId: active.documentId,
+							},
+				);
+				if (result.status === "accepted") {
+					await store.applyEditorOperation({
+						operation: "editor.closeDocument",
+						requestId: crypto.randomUUID(),
+						documentId: active.documentId,
+						force: true,
+					});
+				}
+			}
 			return;
 		}
 		if (command === "editor.executeLine") {
@@ -515,8 +562,8 @@ export function App() {
 					onCommand={(cmd, args) => {
 						void runCommand(cmd, args);
 					}}
-					onToggleSidebar={() => void runCommand("workspace.toggleActivity")}
-					onToggleInspector={() => void runCommand("workspace.toggleSidepanel")}
+					onToggleSidebar={() => void runCommand("workbench.toggleSidepanel")}
+					onToggleInspector={() => void runCommand("workbench.toggleInspector")}
 					onToggleDrawer={() => setIsDrawerOpen((open) => !open)}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}
@@ -533,7 +580,7 @@ export function App() {
 						activePrimaryTab={activePrimaryTab}
 						isSidebarOpen={snapshot?.layout.regions.activity?.open ?? true}
 						onSelectPrimaryTab={setActivePrimaryTab}
-						onToggleSidebar={() => void runCommand("workspace.toggleActivity")}
+						onToggleSidebar={() => void runCommand("workbench.toggleSidepanel")}
 						onNavigate={navigate}
 					/>
 
@@ -661,12 +708,17 @@ export function App() {
 
 				{paletteOpen && (
 					<CommandPalette
-						commands={(snapshot?.commands ?? []).map((command) => ({
-							...command,
-							keybinding: command.keybinding
-								? formatChord(command.keybinding, platform)
-								: undefined,
-						}))}
+						commands={(snapshot?.commands ?? []).map((command) => {
+							const effectiveKeybinding =
+								getEffectiveCommandShortcut(snapshot, command.id) ??
+								command.keybinding;
+							return {
+								...command,
+								keybinding: effectiveKeybinding
+									? formatChord(effectiveKeybinding, platform)
+									: undefined,
+							};
+						})}
 						initialQuery={paletteInitialQuery}
 						commandToken={paletteCommandToken}
 						onQueryChange={setPaletteQuery}

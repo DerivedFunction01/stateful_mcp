@@ -128,4 +128,17 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.dialog.save": "Save",
 	"editor.dialog.discard": "Don't Save",
 	"editor.dialog.cancel": "Cancel",
+
+	// Editor conflict diff split view
+	"editor.conflict.diskVersion": "Disk / Host Version (Read-only)",
+	"editor.conflict.localVersion": "Local Draft (Your Changes)",
+	"editor.conflict.revertAction": "Revert to Disk",
+	"editor.conflict.overwriteAction": "Overwrite Disk",
+	"editor.conflict.badgeReadOnly": "Read-only",
+	"editor.conflict.badgeModified": "Modified",
+
+	// Editor split groups
+	"editor.split.vertical": "Split Vertical",
+	"editor.split.horizontal": "Split Horizontal",
+	"editor.split.closeGroup": "Close Group",
 };

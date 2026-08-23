@@ -184,22 +184,25 @@ export function MenuBar({
 	};
 
 	const paletteShortcut = displayShortcut(
-		getEffectiveCommandShortcut(snapshot, "workbench.openPalette") ??
-			getEffectiveCommandShortcut(snapshot, "workbench.commandPalette") ??
-			getEffectiveCommandShortcut(snapshot, "palette.open"),
+		getEffectiveCommandShortcut(snapshot, "workbench.commandPalette"),
 	);
 	const saveShortcut = displayShortcut(
-		getEffectiveCommandShortcut(snapshot, "workspace.saveActive") ??
-			getEffectiveCommandShortcut(snapshot, "editor.save"),
+		getEffectiveCommandShortcut(snapshot, "editor.save"),
+	);
+	const saveAllShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "editor.saveAll"),
 	);
 	const splitShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "editor.createSplitGroup"),
 	);
 	const sidepanelShortcut = displayShortcut(
-		getEffectiveCommandShortcut(snapshot, "workspace.toggleSidepanel"),
+		getEffectiveCommandShortcut(snapshot, "workbench.toggleSidepanel"),
+	);
+	const inspectorShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workbench.toggleInspector"),
 	);
 	const activityShortcut = displayShortcut(
-		getEffectiveCommandShortcut(snapshot, "workspace.toggleActivity"),
+		getEffectiveCommandShortcut(snapshot, "workbench.toggleActivity"),
 	);
 	const drawerShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workbench.toggleDrawer"),
@@ -253,7 +256,14 @@ export function MenuBar({
 				label: t("menu.save"),
 				icon: <Save size={14} />,
 				shortcut: saveShortcut,
-				onSelect: () => onCommand("workspace.saveActive"),
+				onSelect: () => onCommand("editor.save"),
+			},
+			{
+				id: "file.saveAll",
+				label: t("workspace.saveAll"),
+				icon: <Save size={14} />,
+				shortcut: saveAllShortcut,
+				onSelect: () => onCommand("editor.saveAll"),
 			},
 			{ kind: "separator", id: "file.sep1" },
 			{
@@ -314,14 +324,15 @@ export function MenuBar({
 				icon: <PanelLeft size={14} />,
 				shortcut: sidepanelShortcut,
 				onSelect: () =>
-					onToggleSidebar?.() ?? onCommand("workspace.toggleSidepanel"),
+					onToggleSidebar?.() ?? onCommand("workbench.toggleSidepanel"),
 			},
 			{
 				id: "view.toggleInspector",
-				label: t("workbench.inspector"),
+				label: t("menu.toggleInspector"),
 				icon: <PanelRight size={14} />,
-				shortcut: sidepanelShortcut,
-				onSelect: () => onToggleInspector?.(),
+				shortcut: inspectorShortcut,
+				onSelect: () =>
+					onToggleInspector?.() ?? onCommand("workbench.toggleInspector"),
 			},
 			{
 				id: "view.toggleInspectorPosition",
@@ -474,12 +485,12 @@ export function MenuBar({
 					<button
 						type="button"
 						className={`layout-toggle-btn ${isInspectorOpen ? "active" : ""}`}
-						title={`${t("workbench.toggleInspectorPanel")}${sidepanelShortcut ? ` (${sidepanelShortcut})` : ""}`}
+						title={`${t("menu.toggleInspector")}${inspectorShortcut ? ` (${inspectorShortcut})` : ""}`}
 						onClick={
 							onToggleInspector ??
-							(() => onCommand("workspace.toggleSidepanel"))
+							(() => onCommand("workbench.toggleInspector"))
 						}
-						aria-label={t("workbench.toggleInspectorPanel")}
+						aria-label={t("menu.toggleInspector")}
 					>
 						<PanelRight size={14} />
 					</button>

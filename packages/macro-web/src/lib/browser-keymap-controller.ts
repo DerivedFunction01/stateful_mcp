@@ -107,9 +107,14 @@ export class BrowserKeymapController {
 
 	private onKeyDown(event: KeyboardEvent): void {
 		if (this.disposed) return;
-		// `alt`/`Option` is not a first-class canonical modifier. Browser Alt
-		// combos are OS/chrome-owned; never treat them as Macro bindings.
-		if (event.altKey) return;
+		if (
+			event.key === "Alt" ||
+			event.key === "Control" ||
+			event.key === "Shift" ||
+			event.key === "Meta"
+		) {
+			return;
+		}
 		const chord = normalizeBrowserChord(event, this.platform);
 		if (!chord) return;
 		const debugEditingKey = event.key === "Enter" || event.key === "Tab";

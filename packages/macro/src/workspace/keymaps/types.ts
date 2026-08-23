@@ -4,7 +4,7 @@
 
 export const CANONICAL_KEYS = {
 	// ── Modifiers ─────────────────────────────────────────────────────────────
-	MODIFIERS: ["ctrl", "meta", "primary", "shift"] as const,
+	MODIFIERS: ["alt", "ctrl", "meta", "primary", "shift"] as const,
 
 	// ── Navigation & Control ──────────────────────────────────────────────────
 	NAVIGATION: [
@@ -204,22 +204,6 @@ export interface EditorKeymapVisualBindings {
 	readonly swapAnchor: KeyChordValue;
 }
 
-export interface EditorKeymapWorkbenchBindings {
-	readonly toggleSidepanel: KeyChordValue;
-	readonly toggleActivityPanel?: KeyChordValue;
-	readonly toggleDrawer?: KeyChordValue;
-	readonly switchSplitFocus?: KeyChordValue;
-	readonly splitGroup?: KeyChordValue;
-	readonly openCommandPalette: KeyChordValue;
-	readonly quickOpen?: KeyChordValue;
-	readonly openSettings?: KeyChordValue;
-	readonly nextTab: KeyChordValue;
-	readonly prevTab: KeyChordValue;
-	readonly pinMacro?: KeyChordValue;
-}
-
-export type EditorKeymapWindowBindings = EditorKeymapWorkbenchBindings;
-
 export interface EditorKeymapVimSection {
 	readonly normal: EditorKeymapNormalBindings;
 	readonly visual: EditorKeymapVisualBindings;
@@ -233,11 +217,9 @@ export interface EditorKeymapProfile {
 	readonly name: string;
 	readonly description?: string;
 	readonly vim?: EditorKeymapVimSection;
-	readonly workbench?: EditorKeymapWorkbenchBindings;
 	readonly normal: EditorKeymapNormalBindings;
 	readonly sequences: EditorKeymapSequenceBindings;
 	readonly visual: EditorKeymapVisualBindings;
-	readonly window: EditorKeymapWindowBindings;
 	/** Command-centric overrides. Presence replaces the command's defaults. */
 	readonly keybindings?: Readonly<Record<string, KeyChordVariants>>;
 	/** Multi-alias mapping: command ID -> alias string(s) */

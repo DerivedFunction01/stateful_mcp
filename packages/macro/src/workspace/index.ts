@@ -231,9 +231,9 @@ export function createMacroWorkspace(
 	});
 	commands.registerCommand(
 		{
-			command: "workspace.saveActive",
+			command: "editor.save",
 			titleI18nKey: "menu.save",
-			categoryI18nKey: "common.workspace",
+			categoryI18nKey: "common.editor",
 		},
 		{
 			execute: async () => {
@@ -279,21 +279,6 @@ export function createMacroWorkspace(
 				const doc = documents.duplicateDocument(targetId, request?.newTitle);
 				documents.select(doc.documentId);
 				return { documentId: doc.documentId, title: doc.title };
-			},
-		},
-	);
-	commands.registerCommand(
-		{
-			command: "editor.splitGroup",
-			titleI18nKey: "editor.group.split",
-			categoryI18nKey: "common.editor",
-		},
-		{
-			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
-				const group = editorGroups.create({
-					orientation: request?.orientation ?? "horizontal",
-				});
-				return { groupId: group.groupId };
 			},
 		},
 	);
@@ -375,41 +360,33 @@ export function createMacroWorkspace(
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.saveAll",
+			command: "editor.saveAll",
 			titleI18nKey: "workspace.saveAll",
-			categoryI18nKey: "common.workspace",
+			categoryI18nKey: "common.editor",
 		},
 		{ execute: () => saveCoordinator.saveAll() },
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.saveActiveAndClose",
+			command: "editor.saveAndClose",
 			titleI18nKey: "workspace.saveActiveAndClose",
-			categoryI18nKey: "common.workspace",
+			categoryI18nKey: "common.editor",
 		},
 		{ execute: () => saveCoordinator.saveActiveAndClose() },
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.saveAllAndQuit",
-			titleI18nKey: "workspace.saveAllAndQuit",
-			categoryI18nKey: "common.workspace",
-		},
-		{ execute: () => saveCoordinator.saveAllAndQuit() },
-	);
-	commands.registerCommand(
-		{
-			command: "workspace.quit",
-			titleI18nKey: "workspace.quit",
-			categoryI18nKey: "common.workspace",
+			command: "editor.closeDocument",
+			titleI18nKey: "editor.document.close",
+			categoryI18nKey: "common.editor",
 		},
 		{ execute: () => undefined },
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.quitAll",
+			command: "editor.closeAll",
 			titleI18nKey: "workspace.quitAll",
-			categoryI18nKey: "common.workspace",
+			categoryI18nKey: "common.editor",
 		},
 		{ execute: () => saveCoordinator.saveAll("quit") },
 	);
@@ -423,7 +400,7 @@ export function createMacroWorkspace(
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.openSettings",
+			command: "workbench.openSettings",
 			titleI18nKey: "workbench.openSettings",
 			categoryI18nKey: "common.workspace",
 		},
@@ -480,17 +457,26 @@ export function createMacroWorkspace(
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.toggleSidepanel",
+			command: "workbench.toggleSidepanel",
 			titleI18nKey: "menu.toggleSidepanel",
 			categoryI18nKey: "menu.view",
 			verb: "sidepanel",
+		},
+		{ execute: () => layout.toggleRegion("activity") },
+	);
+	commands.registerCommand(
+		{
+			command: "workbench.toggleInspector",
+			titleI18nKey: "menu.toggleInspector",
+			categoryI18nKey: "menu.view",
+			verb: "inspector",
 		},
 		{ execute: () => layout.toggleSidepanel() },
 	);
 	commands.registerCommand(
 		{
-			command: "workspace.toggleActivity",
-			titleI18nKey: "workspace.toggleActivity",
+			command: "workbench.toggleActivity",
+			titleI18nKey: "menu.toggleSidepanel",
 			categoryI18nKey: "menu.view",
 		},
 		{ execute: () => layout.toggleRegion("activity") },

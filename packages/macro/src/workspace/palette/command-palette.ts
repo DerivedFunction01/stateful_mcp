@@ -1,5 +1,6 @@
 import type { CommandRegistry } from "../contributions/command-registry";
 import type { TabRegistry } from "../contributions/tab-registry";
+import { resolveKeymapBindings } from "../keymaps/matcher";
 import type { EditorKeymapProfile } from "../keymaps/types";
 import type { WindowLayoutStateManager } from "../layout/window-layout-state";
 
@@ -111,29 +112,29 @@ export class CommandPaletteController {
 		// 2. Built-in Windowing & Layout commands
 		if (this.layoutManager) {
 			const profile = this.getKeymap?.();
-			const sidepanelChord =
-				profile?.workbench?.toggleSidepanel ?? profile?.window?.toggleSidepanel;
-			const nextTabChord =
-				profile?.workbench?.nextTab ?? profile?.window?.nextTab;
-			const prevTabChord =
-				profile?.workbench?.prevTab ?? profile?.window?.prevTab;
+			const bindings = profile ? resolveKeymapBindings(profile) : [];
+			const getShortcut = (cmd: string) =>
+				bindings.find((b) => b.command === cmd)?.chords[0];
+			const sidepanelChord = getShortcut("workbench.toggleSidepanel");
+			const nextTabChord = getShortcut("editor.nextTab");
+			const prevTabChord = getShortcut("editor.prevTab");
 
 			allItems.push({
-				id: "view.toggleSidepanel",
+				id: "workbench.toggleSidepanel",
 				title: "menu.toggleSidepanel",
 				category: "menu.view",
 				...(sidepanelChord ? { keybinding: sidepanelChord } : {}),
 				execute: () => this.layoutManager?.toggleSidepanel(),
 			});
 			allItems.push({
-				id: "view.nextTab",
+				id: "editor.nextTab",
 				title: "editor.nextTab",
 				category: "menu.view",
 				...(nextTabChord ? { keybinding: nextTabChord } : {}),
 				execute: () => this.layoutManager?.nextTab(1),
 			});
 			allItems.push({
-				id: "view.prevTab",
+				id: "editor.prevTab",
 				title: "editor.prevTab",
 				category: "menu.view",
 				...(prevTabChord ? { keybinding: prevTabChord } : {}),

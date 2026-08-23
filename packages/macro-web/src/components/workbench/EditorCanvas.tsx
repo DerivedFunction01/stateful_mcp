@@ -8,7 +8,7 @@ import type { ReactNode, RefObject } from "react";
 import type { BrowserVimKeyboardEvent, CellRange } from "../../lib/browser-vim";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import { EditorSurfaceView } from "../EditorSurfaceView";
-import { EditorConflictBanner } from "./EditorConflictBanner";
+import { EditorConflictDiffView } from "./EditorConflictDiffView";
 
 export interface EditorCanvasProps {
 	readonly activeDocument?: ScratchpadSnapshotDto | null;
@@ -67,6 +67,26 @@ export function EditorCanvas({
 }: EditorCanvasProps) {
 	const { t } = useI18n();
 
+	if (
+		editorConflict &&
+		activeDocumentMeta &&
+		editorConflict.documentId === activeDocumentMeta.documentId
+	) {
+		return (
+			<div className="editor-main-canvas">
+				<EditorConflictDiffView
+					documentId={activeDocumentMeta.documentId}
+					filePath={activeDocumentMeta.filePath}
+					title={activeDocumentMeta.title}
+					diskLines={activeDocument?.lines.map((l) => l.rawText) ?? []}
+					localLines={editorConflict.localLines}
+					onReload={onReloadEditorConflict}
+					onOverwrite={onOverwriteEditorConflict}
+				/>
+			</div>
+		);
+	}
+
 	return (
 		<div className="editor-main-canvas">
 			{activeDocument && activeDocumentMeta ? (
@@ -99,13 +119,6 @@ export function EditorCanvas({
 					<strong>{t("editor.inactive.title")}</strong>
 					<span>{t("editor.inactive.description")}</span>
 				</section>
-			)}
-
-			{editorConflict && (
-				<EditorConflictBanner
-					onReload={onReloadEditorConflict}
-					onOverwrite={onOverwriteEditorConflict}
-				/>
 			)}
 		</div>
 	);

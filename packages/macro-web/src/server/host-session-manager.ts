@@ -11,6 +11,7 @@ import {
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
+	auditKeymapAndLogDiagnostics,
 	BUILTIN_KEYMAP_PROFILES,
 	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	DocumentManagerError,
@@ -170,11 +171,16 @@ export class HostSessionManager {
 				: { templates: options.templates }),
 		});
 		const id = randomUUID();
+		const mergedKeymap = mergeEditorKeymap(
+			DEFAULT_EDITOR_KEYMAP_PROFILE,
+			options.keymap,
+		);
+		auditKeymapAndLogDiagnostics(mergedKeymap);
 		const session: Session = {
 			id,
 			workspaceId: randomUUID(),
 			loaded,
-			keymap: mergeEditorKeymap(DEFAULT_EDITOR_KEYMAP_PROFILE, options.keymap),
+			keymap: mergedKeymap,
 			listeners: new Set(),
 			unsubs: [],
 			sequence: 0,
@@ -1718,6 +1724,14 @@ export class HostSessionManager {
 			activeGroupId: session.loaded.workspace.editorGroups.getActiveGroupId(),
 			activeDocumentId: documents.getActiveDocumentId(),
 			activeDocument: active ? this.editorDocumentSnapshot(active) : null,
+			loadedDocuments: Object.fromEntries(
+				documents
+					.list()
+					.map((document) => [
+						document.documentId,
+						this.editorDocumentSnapshot(document),
+					]),
+			),
 			templates,
 			output: this.editorOutput(session),
 			capabilities: {
@@ -2116,11 +2130,9 @@ export class HostSessionManager {
 					string
 				>,
 			},
-			workbench: session.keymap.window as unknown as Record<string, string>,
 			normal: session.keymap.normal as unknown as Record<string, string>,
 			visual: session.keymap.visual as unknown as Record<string, string>,
 			sequences: session.keymap.sequences as unknown as Record<string, string>,
-			window: session.keymap.window as unknown as Record<string, string>,
 			...(flatAliases ? { aliases: flatAliases } : {}),
 			bindings,
 		};

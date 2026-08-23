@@ -23,7 +23,8 @@
 				"noNonNullAssertedOptionalChain": "off",
 				"noThenProperty": "off",
 				"noControlCharactersInRegex": "off",
-				"noConfusingVoidType": "off"
+				"noConfusingVoidType": "off",
+				"noTemplateCurlyInString": "off"
 			},
 			"style": {
 				"useNodejsImportProtocol": "off",

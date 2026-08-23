@@ -8,13 +8,13 @@ import {
 describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 	const descriptors: WorkspaceCommandDescriptor[] = [
 		{
-			id: "workspace.saveActive",
+			id: "editor.save",
 			titleI18nKey: "command.editor.save",
 			categoryI18nKey: "command.category.workspace",
 			execute: () => undefined,
 		},
 		{
-			id: "workspace.saveAll",
+			id: "editor.saveAll",
 			titleI18nKey: "command.workspace.saveAll",
 			categoryI18nKey: "command.category.workspace",
 			execute: () => undefined,
@@ -29,26 +29,26 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 
 	test("normalizes multi-alias mappings into a lookup map", () => {
 		const aliasConfig = {
-			"workspace.saveActive": ["w", "write"],
-			"workspace.saveAll": ["wa", "wall", "writeall", "saveall"],
+			"editor.save": ["w", "write"],
+			"editor.saveAll": ["wa", "wall", "writeall", "saveall"],
 		};
 
 		const map = normalizeCommandAliases(aliasConfig);
-		expect(map.get("w")).toBe("workspace.saveActive");
-		expect(map.get("write")).toBe("workspace.saveActive");
-		expect(map.get("wa")).toBe("workspace.saveAll");
-		expect(map.get("wall")).toBe("workspace.saveAll");
-		expect(map.get("writeall")).toBe("workspace.saveAll");
-		expect(map.get("saveall")).toBe("workspace.saveAll");
+		expect(map.get("w")).toBe("editor.save");
+		expect(map.get("write")).toBe("editor.save");
+		expect(map.get("wa")).toBe("editor.saveAll");
+		expect(map.get("wall")).toBe("editor.saveAll");
+		expect(map.get("writeall")).toBe("editor.saveAll");
+		expect(map.get("saveall")).toBe("editor.saveAll");
 	});
 
 	test("suggests commands using dynamic multi-alias prefixes without static defaults", () => {
 		const aliasMap = normalizeCommandAliases({
-			"workspace.saveActive": ["w", "write"],
-			"workspace.saveAll": ["wa", "wall", "writeall"],
+			"editor.save": ["w", "write"],
+			"editor.saveAll": ["wa", "wall", "writeall"],
 		});
 
-		// Querying :w should match both :w (saveActive), :wa (saveAll), :wall (saveAll), :write (saveActive), :writeall (saveAll)
+		// Querying :w should match both :w (save), :wa (saveAll), :wall (saveAll), :write (save), :writeall (saveAll)
 		const suggestions = commandSuggestions(
 			descriptors,
 			aliasMap,
@@ -66,9 +66,9 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 	});
 
 	test("allows remapping 'wall' to another command with zero English bias", () => {
-		// User maps "wall" to custom.brickwall, while "saveall" and "wa" still point to workspace.saveAll
+		// User maps "wall" to custom.brickwall, while "saveall" and "wa" still point to editor.saveAll
 		const customAliasMap = normalizeCommandAliases({
-			"workspace.saveAll": ["wa", "saveall"],
+			"editor.saveAll": ["wa", "saveall"],
 			"custom.brickwall": ["wall"],
 		});
 
@@ -85,7 +85,7 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 		expect(wallSuggestions[0]?.descriptor.id).toBe("custom.brickwall");
 		expect(wallSuggestions[0]?.detail).toBe("custom.brickwall.title");
 
-		// :saveall still points to workspace.saveAll
+		// :saveall still points to editor.saveAll
 		const saveallSuggestions = commandSuggestions(
 			descriptors,
 			customAliasMap,
@@ -94,7 +94,7 @@ describe("Canonical Commands & Dynamic Multi-Alias Resolution", () => {
 			8,
 			":",
 		);
-		expect(saveallSuggestions[0]?.descriptor.id).toBe("workspace.saveAll");
+		expect(saveallSuggestions[0]?.descriptor.id).toBe("editor.saveAll");
 	});
 
 	test("strips only the configured command token", () => {

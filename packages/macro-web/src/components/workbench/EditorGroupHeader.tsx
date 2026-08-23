@@ -6,6 +6,7 @@ import type {
 import { Columns2, Eraser, Pin, Play, Plus, RotateCcw, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useI18n } from "../../lib/macro-i18n-provider";
+import { FileEntryIcon } from "./FileTreeView";
 
 export interface EditorGroupHeaderProps {
 	readonly documents: readonly EditorDocumentDto[];
@@ -13,6 +14,7 @@ export interface EditorGroupHeaderProps {
 	readonly activeDocument?: ScratchpadSnapshotDto | null;
 	readonly activeDocumentMeta?: EditorDocumentDto;
 	readonly canSplit?: boolean;
+	readonly canCloseGroup?: boolean;
 	readonly pendingEditor: boolean;
 	readonly hasConflict: boolean;
 	readonly hasDraft: boolean;
@@ -22,6 +24,7 @@ export interface EditorGroupHeaderProps {
 	readonly onCloseDocument: (documentId: string, textRevision: number) => void;
 	readonly onNewScratchpad: () => void;
 	readonly onSplitGroup: () => void;
+	readonly onCloseGroup?: () => void;
 	readonly onExecuteValidLines: () => void;
 	readonly onClearExecutedLines: () => void;
 	readonly onResetExecutionState: () => void;
@@ -34,6 +37,7 @@ export function EditorGroupHeader({
 	activeDocument,
 	activeDocumentMeta,
 	canSplit = true,
+	canCloseGroup = false,
 	pendingEditor,
 	hasConflict,
 	hasDraft,
@@ -43,6 +47,7 @@ export function EditorGroupHeader({
 	onCloseDocument,
 	onNewScratchpad,
 	onSplitGroup,
+	onCloseGroup,
 	onExecuteValidLines,
 	onClearExecutedLines,
 	onResetExecutionState,
@@ -99,42 +104,47 @@ export function EditorGroupHeader({
 						data-document-id={document.documentId}
 					>
 						<button
-							className="tab-title-btn"
 							type="button"
-							title={document.title}
+							className="tab-title-btn"
 							onClick={() => onSelectDocument(document.documentId)}
 							onDoubleClick={() => {
-								const title = window.prompt(
+								const newTitle = window.prompt(
 									t("editor.document.rename"),
 									document.title,
 								);
-								if (title) onRenameDocument(document.documentId, title);
+								if (newTitle && newTitle.trim()) {
+									onRenameDocument(document.documentId, newTitle.trim());
+								}
 							}}
 							role="tab"
 							aria-selected={document.documentId === activeDocumentId}
 						>
+							<FileEntryIcon
+								name={document.filePath ?? document.title}
+								isDirectory={false}
+							/>
 							<span>{document.title}</span>
-							{document.dirty && <span className="tab-dirty-indicator">*</span>}
+							{document.dirty && <span className="tab-dirty-indicator">●</span>}
 						</button>
 						<button
-							className="workbench-tab-close"
 							type="button"
+							className="workbench-tab-close"
+							onClick={(e) => {
+								e.stopPropagation();
+								onCloseDocument(document.documentId, document.textRevision);
+							}}
 							aria-label={t("editor.document.close")}
-							disabled={documents.length <= 1}
-							onClick={() =>
-								onCloseDocument(document.documentId, document.textRevision)
-							}
 						>
-							<X size={12} />
+							×
 						</button>
 					</div>
 				))}
 
 				<button
-					className="tab-new-btn"
 					type="button"
-					title={t("editor.document.new")}
+					className="tab-new-btn"
 					onClick={onNewScratchpad}
+					title={t("editor.document.new")}
 				>
 					<Plus size={14} />
 				</button>
@@ -144,12 +154,23 @@ export function EditorGroupHeader({
 				<button
 					type="button"
 					className="editor-split-btn"
-					title={t("editor.group.split")}
+					title={t("editor.split.vertical")}
 					disabled={!canSplit || pendingEditor}
 					onClick={onSplitGroup}
 				>
 					<Columns2 size={14} />
 				</button>
+
+				{canCloseGroup && (
+					<button
+						type="button"
+						className="editor-split-btn"
+						title={t("editor.split.closeGroup")}
+						onClick={onCloseGroup}
+					>
+						<X size={14} />
+					</button>
+				)}
 
 				{isScratchpad && (
 					<>

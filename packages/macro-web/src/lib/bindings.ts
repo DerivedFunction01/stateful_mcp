@@ -79,6 +79,7 @@ export function normalizeBrowserChord(
 			if (meta) modifiers.push("meta");
 			break;
 	}
+	if (event.altKey) modifiers.push("alt");
 	if (event.shiftKey) modifiers.push("shift");
 	const key =
 		event.key.length === 1

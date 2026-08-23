@@ -1,5 +1,6 @@
 import type { CommandDescriptorDto } from "@stateful-mcp/macro-protocol";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useEditorSurfaceForGlobalUi } from "../lib/editor-surface-registry";
 import { type I18nKey, useI18n } from "../lib/macro-i18n-provider";
 import { Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 
@@ -7,6 +8,7 @@ interface CommandPaletteProps {
 	readonly commands: readonly CommandDescriptorDto[];
 	readonly initialQuery?: string;
 	readonly commandToken?: string;
+	readonly vimEnabled?: boolean;
 	readonly onExecute: (
 		commandId: string,
 		args?: readonly unknown[],
@@ -114,12 +116,16 @@ export function CommandPalette({
 	commands,
 	initialQuery = "",
 	commandToken = "",
+	vimEnabled: vimEnabledProp,
 	onExecute,
 	onClose,
 	onQueryChange,
 }: CommandPaletteProps) {
 	const { t } = useI18n();
-	const [query, setQuery] = useState(initialQuery);
+	const globalSurface = useEditorSurfaceForGlobalUi();
+	const vimEnabled = vimEnabledProp ?? globalSurface?.vimEnabled ?? false;
+	const initial = initialQuery || (commandToken ? commandToken : "");
+	const [query, setQuery] = useState(initial);
 	const [selected, setSelected] = useState(0);
 	const [argsValues, setArgsValues] = useState<Record<string, string>>({});
 	const [pending, setPending] = useState(false);
@@ -127,6 +133,12 @@ export function CommandPalette({
 	const inputRef = useRef<HTMLInputElement>(null);
 	const listRef = useRef<HTMLDivElement>(null);
 	const dialogRef = useRef<HTMLDivElement>(null);
+
+	const activeToken = commandToken || (query.startsWith(":") ? ":" : "");
+	const isCommandMode =
+		Boolean(commandToken) ||
+		(Boolean(activeToken) && query.startsWith(activeToken));
+	const showVimHints = vimEnabled || isCommandMode;
 
 	const ranked = useMemo(
 		() => rankCommands(commands, query, commandToken, t),
@@ -251,7 +263,7 @@ export function CommandPalette({
 							selectedCommand ? `command-option-${selected}` : undefined
 						}
 						placeholder={
-							commandToken === ":" || query.startsWith(":")
+							isCommandMode
 								? t("palette.commandModePlaceholder")
 								: t("palette.placeholder")
 						}
@@ -262,7 +274,7 @@ export function CommandPalette({
 						}}
 					/>
 					<span className="command-palette__badge" aria-hidden="true">
-						{title}
+						{isCommandMode && activeToken ? `${activeToken} ${title}` : title}
 					</span>
 				</div>
 
@@ -312,10 +324,16 @@ export function CommandPalette({
 										) : null}
 									</div>
 									<div className="command-palette__option-badges">
-										{descriptor.aliases && descriptor.aliases.length > 0 ? (
+										{showVimHints &&
+										descriptor.aliases &&
+										descriptor.aliases.length > 0 ? (
 											<span className="command-palette__option-alias">
 												{descriptor.aliases
-													.map((a) => (a.startsWith(":") ? a : `:${a}`))
+													.map((a) =>
+														commandToken && !a.startsWith(commandToken)
+															? `${commandToken}${a}`
+															: a,
+													)
 													.join(" ")}
 											</span>
 										) : null}

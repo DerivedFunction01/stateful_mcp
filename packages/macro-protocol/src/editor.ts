@@ -131,6 +131,7 @@ export interface EditorWorkspaceSnapshotDto {
 	readonly activeGroupId: string | null;
 	readonly activeDocumentId: string | null;
 	readonly activeDocument: ScratchpadSnapshotDto | null;
+	readonly loadedDocuments?: Readonly<Record<string, ScratchpadSnapshotDto>>;
 	readonly templates: readonly ScratchpadTemplateDescriptor[];
 	readonly output?: EditorOutputSnapshotDto;
 	readonly capabilities: {
@@ -235,6 +236,7 @@ export type EditorOperation =
 			readonly operation: "editor.createSplitGroup";
 			readonly sourceGroupId?: string;
 			readonly documentId?: string;
+			readonly moveDocument?: boolean;
 			readonly orientation?: "horizontal" | "vertical";
 			readonly expectedWorkspaceRevision: number;
 	  })

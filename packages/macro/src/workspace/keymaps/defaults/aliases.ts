@@ -5,17 +5,18 @@
 export const DEFAULT_COMMAND_ALIASES: Readonly<
 	Record<string, readonly string[]>
 > = {
-	"workspace.saveActive": ["w", "write"],
-	"workspace.saveAll": ["wa", "wall", "writeall"],
-	"workspace.saveActiveAndClose": ["wq"],
-	"workspace.saveAllAndQuit": ["wqa"],
-	"workspace.quit": ["q", "quit"],
-	"workspace.quitAll": ["qa", "quitall"],
-	"workspace.openSettings": ["settings", "config", "preferences"],
+	"editor.save": ["w", "write"],
+	"editor.saveAll": ["wa", "wall", "writeall"],
+	"editor.saveAndClose": ["wq"],
+	"editor.closeDocument": ["q", "quit", "close", "tabclose"],
+	"editor.closeAll": ["qa", "quitall"],
+	"workbench.openSettings": ["settings", "config", "preferences"],
 	"workspace.openExtensions": ["extensions", "plugins"],
 	"editor.duplicateDocument": ["duplicate", "dup", "copy"],
 	"editor.newScratchpad": ["new", "tabnew", "newtab", "scratchpad"],
-	"editor.splitGroup": ["split", "vsplit", "sp", "vs"],
-	"workbench.openProject": ["open", "edit", "e"],
-	"workbench.saveAsProject": ["saveas", "saveproject"],
+	"editor.createSplitGroup": ["split", "vsplit", "sp", "vs"],
+	"editor.closeGroup": ["only", "closegroup"],
+	"workbench.quickOpen": ["open", "edit", "e"],
+	"workbench.openProject": ["openproject"],
+	"workbench.saveAsProject": ["saveproject", "saveas"],
 };

@@ -46,21 +46,9 @@ const VISUAL_BINDINGS = {
 	swapAnchor: "o",
 } as const;
 
-const WORKBENCH_BINDINGS = {
-	openCommandPalette: "primary+shift+p",
-	quickOpen: "primary+p",
-	openSettings: "primary+,",
-	toggleSidepanel: "primary+b",
-	toggleDrawer: "primary+`",
-	splitGroup: "primary+\\",
-	switchSplitFocus: "primary+w",
-	nextTab: "primary+pagedown",
-	prevTab: "primary+pageup",
-} as const;
-
 /**
  * Standard default keymap profile for Macro Workspace using strict canonical chords.
- * Organized into explicit domain sections: vim, workbench, and global keybindings.
+ * Clean, non-legacy single source of truth.
  */
 export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 	profileId: "default",
@@ -72,11 +60,9 @@ export const DEFAULT_EDITOR_KEYMAP_PROFILE: EditorKeymapProfile = {
 		visual: VISUAL_BINDINGS,
 		sequences: SEQUENCE_BINDINGS,
 	},
-	workbench: WORKBENCH_BINDINGS,
 	normal: NORMAL_BINDINGS,
 	sequences: SEQUENCE_BINDINGS,
 	visual: VISUAL_BINDINGS,
-	window: WORKBENCH_BINDINGS,
 	keybindings: DEFAULT_COMMAND_KEYBINDINGS.reduce<
 		Record<string, readonly string[]>
 	>((acc, binding) => {

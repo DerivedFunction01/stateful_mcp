@@ -93,9 +93,7 @@ describe("UserPreferencesRepository with Pluggable KvBackend", () => {
 			keymapProfile: "default",
 			vimEnabled: true,
 			theme: "violet",
-			customKeybindings: [
-				{ chord: "ctrl+k ctrl+s", command: "workspace.saveActive" },
-			],
+			customKeybindings: [{ chord: "ctrl+k ctrl+s", command: "editor.save" }],
 		});
 
 		const bundle = await exportUserPreferencesBundle();

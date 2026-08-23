@@ -45,11 +45,9 @@ describe("MacroDocumentManager: duplicate document numbering", () => {
 
 describe("Vim command aliases and shortcuts", () => {
 	test("includes standard Ex-command aliases for editor and project operations", () => {
-		expect(DEFAULT_COMMAND_ALIASES["workspace.saveActive"]).toContain("w");
-		expect(DEFAULT_COMMAND_ALIASES["workspace.saveAll"]).toContain("wa");
-		expect(DEFAULT_COMMAND_ALIASES["workspace.saveActiveAndClose"]).toContain(
-			"wq",
-		);
+		expect(DEFAULT_COMMAND_ALIASES["editor.save"]).toContain("w");
+		expect(DEFAULT_COMMAND_ALIASES["editor.saveAll"]).toContain("wa");
+		expect(DEFAULT_COMMAND_ALIASES["editor.saveAndClose"]).toContain("wq");
 		expect(DEFAULT_COMMAND_ALIASES["editor.duplicateDocument"]).toContain(
 			"dup",
 		);
@@ -57,10 +55,14 @@ describe("Vim command aliases and shortcuts", () => {
 			"duplicate",
 		);
 		expect(DEFAULT_COMMAND_ALIASES["editor.newScratchpad"]).toContain("new");
-		expect(DEFAULT_COMMAND_ALIASES["editor.splitGroup"]).toContain("split");
-		expect(DEFAULT_COMMAND_ALIASES["workbench.openProject"]).toContain("open");
+		expect(DEFAULT_COMMAND_ALIASES["editor.createSplitGroup"]).toContain(
+			"split",
+		);
+		expect(DEFAULT_COMMAND_ALIASES["workbench.openProject"]).toContain(
+			"openproject",
+		);
 		expect(DEFAULT_COMMAND_ALIASES["workbench.saveAsProject"]).toContain(
-			"saveas",
+			"saveproject",
 		);
 	});
 
@@ -76,7 +78,7 @@ describe("Vim command aliases and shortcuts", () => {
 		expect(saveAsBinding?.chords).toContain("primary+shift+s");
 
 		const saveAllBinding = DEFAULT_COMMAND_KEYBINDINGS.find(
-			(b) => b.command === "workspace.saveAll",
+			(b) => b.command === "editor.saveAll",
 		);
 		expect(saveAllBinding?.chords).toContain("primary+alt+s");
 	});

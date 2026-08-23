@@ -57,7 +57,7 @@ export function useEditorDraftSync({
 	const onEditorOperationRef = useRef(onEditorOperation);
 	onEditorOperationRef.current = onEditorOperation;
 
-	const flushDraft = useCallback(() => {
+	const flushDraft = useCallback(async () => {
 		if (!activeDocumentMeta || localDraft === undefined) return;
 		const previous = lastSubmittedDraftRef.current;
 		if (
@@ -72,7 +72,7 @@ export function useEditorDraftSync({
 			lines: localDraft,
 			textRevision: activeDocumentMeta.textRevision,
 		};
-		void onEditorOperationRef.current({
+		await onEditorOperationRef.current({
 			operation: "editor.replaceText",
 			requestId: crypto.randomUUID(),
 			documentId: activeDocumentMeta.documentId,

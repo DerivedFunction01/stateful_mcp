@@ -61,7 +61,7 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		labelI18nKey: "editor.insertTab",
 	},
 	{
-		command: "editor.splitGroup",
+		command: "editor.createSplitGroup",
 		chords: ["primary+\\"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "editor.group.split",
@@ -105,16 +105,22 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		labelI18nKey: "workbench.saveAsProjectTitle",
 	},
 	{
-		command: "workspace.saveAll",
+		command: "editor.saveAll",
 		chords: ["primary+alt+s"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "workspace.saveAll",
 	},
 	{
-		command: "workspace.toggleSidepanel",
+		command: "workbench.toggleSidepanel",
 		chords: ["primary+b"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "menu.toggleSidepanel",
+	},
+	{
+		command: "workbench.toggleInspector",
+		chords: ["primary+alt+b"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "menu.toggleInspector",
 	},
 	{
 		command: "workbench.toggleDrawer",
@@ -127,5 +133,11 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		chords: ["primary+,"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "workbench.openSettings",
+	},
+	{
+		command: "workbench.switchSplitFocus",
+		chords: [],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "editor.group.switchFocus",
 	},
 ];

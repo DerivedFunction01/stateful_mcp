@@ -496,9 +496,14 @@ export function createBrowserVimController(
 					if (!candidate) return false;
 					if (candidate === rawKey || candidate === chord) return true;
 					const norm = candidate.toLowerCase();
+					const normCanonical = norm.replace(/\bctrl\b/g, "primary");
+					const chordCanonical = chord
+						.toLowerCase()
+						.replace(/\bctrl\b/g, "primary");
 					return (
 						norm === rawKey.toLowerCase() ||
 						norm === chord.toLowerCase() ||
+						normCanonical === chordCanonical ||
 						(rawKey === "ArrowDown" && norm === "down") ||
 						(rawKey === "ArrowUp" && norm === "up") ||
 						(rawKey === "ArrowLeft" && norm === "left") ||
@@ -889,6 +894,12 @@ export function createBrowserVimController(
 					}
 				}
 
+				// If the event has modifiers (ctrlKey, metaKey, altKey) and was not matched by Vim bindings,
+				// yield to the workbench keymap controller to activate global commands (e.g. Command Palette, Settings).
+				if (event.ctrlKey || event.metaKey || event.altKey) {
+					return false;
+				}
+
 				// Key is unmapped in NORMAL mode -> Suppress text insertion, NO FALLBACK
 				event.preventDefault();
 				return true;
@@ -1125,6 +1136,12 @@ export function createBrowserVimController(
 						event.preventDefault();
 						return true;
 					}
+				}
+
+				// If the event has modifiers (ctrlKey, metaKey, altKey) and was not matched by Vim bindings,
+				// yield to the workbench keymap controller to activate global commands.
+				if (event.ctrlKey || event.metaKey || event.altKey) {
+					return false;
 				}
 
 				// Unmapped in VISUAL mode -> Suppress text insertion, NO FALLBACK

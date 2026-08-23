@@ -3,13 +3,13 @@ import { getVimCommandLabel } from "../src/components/StatusBar";
 
 const commands = [
 	{
-		id: "workspace.saveActive",
+		id: "editor.save",
 		titleI18nKey: "menu.save",
 		verb: "write",
 		aliases: ["w", "write"],
 	},
 	{
-		id: "workspace.saveAll",
+		id: "editor.saveAll",
 		titleI18nKey: "workspace.saveAll",
 		verb: "wall",
 		aliases: ["wa", "wall", "writeall"],
@@ -25,7 +25,7 @@ describe("getVimCommandLabel", () => {
 	test("matches runtime aliases and verbs without static defaults", () => {
 		expect(
 			getVimCommandLabel(":writeall", undefined, commands, (key) => key),
-		).toBe(":writeall → workspace.saveAll");
+		).toBe(":writeall → editor.saveAll");
 		expect(
 			getVimCommandLabel("WALL", undefined, commands, () => "Save All Tabs"),
 		).toBe(":WALL → Save All Tabs");

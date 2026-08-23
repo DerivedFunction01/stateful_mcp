@@ -41,9 +41,7 @@ describe("ServerUserPreferencesStore (JSONL Backend & WAL)", () => {
 			theme: "midnight",
 			inspectorPosition: "left",
 			inspectorWidth: 420,
-			customKeybindings: [
-				{ chord: "ctrl+k ctrl+s", command: "workspace.saveActive" },
-			],
+			customKeybindings: [{ chord: "ctrl+k ctrl+s", command: "editor.save" }],
 		});
 
 		// Create a second store pointing to the same data file

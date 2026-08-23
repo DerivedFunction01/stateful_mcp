@@ -186,7 +186,7 @@ describe("shortcut display formatting", () => {
 describe("auditKeymapPolicy", () => {
 	test("permits unreserved custom keybindings without unknown disposition", () => {
 		const result = auditKeymapPolicy([
-			{ command: "editor.splitGroup", chords: ["ctrl+\\"] },
+			{ command: "editor.createSplitGroup", chords: ["ctrl+\\"] },
 			{ command: "custom.action", chords: ["ctrl+shift+x"] },
 			{ command: "invalid.action", chords: [""] },
 		]);
@@ -659,7 +659,7 @@ describe("BrowserKeymapController dispatch announcements", () => {
 		expect(executed).toBe(false);
 	});
 
-	test("dispatches workspace.toggleSidepanel on primary+b across editor and workbench contexts", () => {
+	test("dispatches workbench.toggleSidepanel on primary+b across editor and workbench contexts", () => {
 		const commands: string[] = [];
 		const controller = new BrowserKeymapController({
 			getSnapshot: () =>
@@ -667,7 +667,7 @@ describe("BrowserKeymapController dispatch announcements", () => {
 					keymap: {
 						bindings: [
 							{
-								command: "workspace.toggleSidepanel",
+								command: "workbench.toggleSidepanel",
 								chords: ["primary+b"],
 								modes: ["NORMAL", "INSERT", "VISUAL"],
 							},
@@ -696,6 +696,52 @@ describe("BrowserKeymapController dispatch announcements", () => {
 		);
 		controller.dispose();
 
-		expect(commands).toEqual(["workspace.toggleSidepanel"]);
+		expect(commands).toEqual(["workbench.toggleSidepanel"]);
+	});
+
+	test("dispatches workbench.commandPalette when onEditorKeyDown yields on unmapped modifier shortcut", () => {
+		const commands: string[] = [];
+		const controller = new BrowserKeymapController({
+			getSnapshot: () =>
+				({
+					keymap: {
+						bindings: [
+							{
+								command: "workbench.commandPalette",
+								chords: ["primary+shift+p"],
+								modes: ["NORMAL", "INSERT", "VISUAL"],
+							},
+						],
+					},
+				}) as any,
+			getContext: () => ({
+				context: { editorMode: "NORMAL" },
+				editorFocused: true,
+			}),
+			onEditorKeyDown: (event) => {
+				// Simulates Vim yielding (return false) on modifier keys
+				if (event.ctrlKey || event.metaKey) return false;
+				return true;
+			},
+			onCommand: (command) => {
+				commands.push(command);
+			},
+			announce: () => undefined,
+			platform: "windows",
+		});
+
+		controller.attach(window);
+		window.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				key: "P",
+				ctrlKey: true,
+				shiftKey: true,
+				bubbles: true,
+				cancelable: true,
+			}),
+		);
+		controller.dispose();
+
+		expect(commands).toEqual(["workbench.commandPalette"]);
 	});
 });

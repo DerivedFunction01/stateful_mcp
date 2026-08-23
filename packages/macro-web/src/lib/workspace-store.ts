@@ -265,13 +265,24 @@ export class BrowserWorkspaceStore {
 			this.applyResponse(workspaceSnapshot);
 		if (!staleWorkspaceResult && !staleDocumentResult)
 			this.update({ editorResult: result });
-		if (
+		const isDocumentContentConflict =
 			result.status === "conflict" &&
+			(result.code === "EDITOR_EXTERNAL_CHANGE" ||
+				result.code === "EDITOR_REVISION_STALE");
+
+		if (
+			isDocumentContentConflict &&
 			"documentId" in operation &&
 			typeof operation.documentId === "string"
 		) {
+			const activeDocument =
+				this.state.snapshot?.editor.activeDocument?.documentId ===
+				operation.documentId
+					? this.state.snapshot.editor.activeDocument
+					: undefined;
 			const localLines = this.state.editorDrafts[operation.documentId];
-			if (localLines !== undefined)
+			const diskLines = activeDocument?.lines.map((l) => l.rawText) ?? [];
+			if (localLines && !linesEqual(localLines, diskLines)) {
 				this.update({
 					editorConflict: {
 						documentId: operation.documentId,
@@ -279,6 +290,11 @@ export class BrowserWorkspaceStore {
 						result,
 					},
 				});
+			} else {
+				const drafts = { ...this.state.editorDrafts };
+				delete drafts[operation.documentId];
+				this.update({ editorDrafts: drafts, editorConflict: undefined });
+			}
 		} else if (
 			result.status === "accepted" &&
 			operation.operation === "editor.replaceText" &&

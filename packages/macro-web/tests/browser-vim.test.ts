@@ -801,4 +801,95 @@ describe("keymap-driven browser Vim controller", () => {
 		controller.handleKeyDown(event("r"));
 		expect(cellExecuted).toBe(false);
 	});
+
+	test("yields unmapped modifier chords in NORMAL, VISUAL, and INSERT modes to workbench controller", () => {
+		let prevented = false;
+		const makeEvent = (
+			key: string,
+			modifiers: {
+				ctrlKey?: boolean;
+				metaKey?: boolean;
+				altKey?: boolean;
+				shiftKey?: boolean;
+			} = {},
+		) => ({
+			key,
+			ctrlKey: modifiers.ctrlKey ?? false,
+			metaKey: modifiers.metaKey ?? false,
+			altKey: modifiers.altKey ?? false,
+			shiftKey: modifiers.shiftKey ?? false,
+			preventDefault: () => {
+				prevented = true;
+			},
+			stopPropagation: () => undefined,
+		});
+
+		const controller = createBrowserVimController(true, {
+			getKeymap: () => ({
+				vim: {
+					normal: {
+						moveDown: "j",
+						enterInsert: "i",
+						enterVisual: "v",
+						redo: "ctrl+r",
+					},
+					visual: {
+						extendDown: "j",
+					},
+				},
+			}),
+			getAdapter: () => ({
+				getCellCount: () => 3,
+				getActiveCellIndex: () => 0,
+				getText: () => "line 1\nline 2\nline 3",
+				getSelection: () => ({ start: 0, end: 0 }),
+				setSelection: () => undefined,
+				replaceSelection: () => undefined,
+				focus: () => undefined,
+			}),
+		});
+
+		// 1. NORMAL mode: Unmapped modifier chord (ctrl+shift+p) returns false and does NOT preventDefault
+		prevented = false;
+		const handledPalette = controller.handleKeyDown(
+			makeEvent("P", { ctrlKey: true, shiftKey: true }),
+		);
+		expect(handledPalette).toBe(false);
+		expect(prevented).toBe(false);
+
+		// 2. NORMAL mode: Mapped vim modifier chord (ctrl+r) returns true and preventsDefault
+		prevented = false;
+		const handledRedo = controller.handleKeyDown(
+			makeEvent("r", { ctrlKey: true }),
+		);
+		expect(handledRedo).toBe(true);
+		expect(prevented).toBe(true);
+
+		// 3. NORMAL mode: Unmapped bare character (z) returns true and suppresses text typing (preventDefault = true)
+		prevented = false;
+		const handledBareKey = controller.handleKeyDown(makeEvent("z"));
+		expect(handledBareKey).toBe(true);
+		expect(prevented).toBe(true);
+
+		// 4. Enter VISUAL mode (v): Unmapped modifier chord (ctrl+b) returns false
+		controller.handleKeyDown(makeEvent("v"));
+		expect(controller.getState().mode).toBe("VISUAL");
+		prevented = false;
+		const handledVisualMod = controller.handleKeyDown(
+			makeEvent("b", { ctrlKey: true }),
+		);
+		expect(handledVisualMod).toBe(false);
+		expect(prevented).toBe(false);
+
+		// 5. Enter INSERT mode (i): Unmapped modifier chord (ctrl+s) returns false
+		controller.handleKeyDown(makeEvent("Escape")); // exit visual
+		controller.handleKeyDown(makeEvent("i")); // enter insert
+		expect(controller.getState().mode).toBe("INSERT");
+		prevented = false;
+		const handledInsertMod = controller.handleKeyDown(
+			makeEvent("s", { ctrlKey: true }),
+		);
+		expect(handledInsertMod).toBe(false);
+		expect(prevented).toBe(false);
+	});
 });
