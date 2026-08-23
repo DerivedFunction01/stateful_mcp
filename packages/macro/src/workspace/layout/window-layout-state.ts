@@ -50,7 +50,7 @@ export class WindowLayoutStateManager {
 	private sidepanelPosition: SidepanelPosition = "right";
 	private sidepanelWidthRatio = LAYOUT_RATIO_DEFAULTS.inspector;
 	private domainRailWidthRatio = LAYOUT_RATIO_DEFAULTS.domainRail;
-	private activeContainerId = "slots";
+	private activeContainerId = "workbench.slots";
 	private focusedPane: FocusedPane = "main";
 	private modalStack: ModalDescriptor[] = [];
 	private modalFocusStack: FocusedPane[] = [];
@@ -66,8 +66,8 @@ export class WindowLayoutStateManager {
 			widthRatio: LAYOUT_RATIO_DEFAULTS.inspector,
 		},
 	};
-	private activeActivityContainerId = "explorer";
-	private activeInspectorContainerId = "slots";
+	private activeActivityContainerId = "workbench.explorer";
+	private activeInspectorContainerId = "workbench.slots";
 	private inspectorMode: InspectorMode = "follow";
 	private pinnedInspectorViewId: string | null = null;
 	private readonly listeners = new Set<() => void>();

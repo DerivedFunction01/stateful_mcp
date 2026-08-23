@@ -23,20 +23,17 @@ export class ViewRegistry {
 	constructor() {
 		// Register built-in default containers
 		this.registerContainer({
-			id: "explorer",
-			title: "Explorer",
+			id: "workbench.explorer",
 			order: 10,
 			region: "activity",
 		});
 		this.registerContainer({
-			id: "slots",
-			title: "Macro Slots",
+			id: "workbench.slots",
 			order: 20,
 			region: "inspector",
 		});
 		this.registerContainer({
-			id: "journal",
-			title: "Journal History",
+			id: "workbench.journalHistory",
 			order: 30,
 			region: "activity",
 		});

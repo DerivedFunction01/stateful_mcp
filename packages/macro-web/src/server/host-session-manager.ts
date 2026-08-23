@@ -2307,7 +2307,7 @@ export class HostSessionManager {
 				})),
 				containers: workspace.views.getContainers().map((container) => ({
 					id: container.id,
-					title: container.title,
+					titleI18nKey: container.titleI18nKey,
 					icon: container.icon,
 					order: container.order,
 					region: container.region,

@@ -3,6 +3,7 @@
  */
 
 import type { EditorMode } from "../editor/editor-kernel";
+import type { I18nKey } from "../i18n/locales/i18n-keys";
 
 export interface ContextualKeyHint {
 	readonly key: string;
@@ -21,8 +22,8 @@ export interface SurfaceKeybinding {
 }
 
 export interface ViewContainerContribution {
-	readonly id: string;
-	readonly title: string;
+	readonly id: I18nKey | (string & {});
+	readonly titleI18nKey?: I18nKey;
 	readonly icon?: string;
 	readonly altKey?: string;
 	readonly order?: number;

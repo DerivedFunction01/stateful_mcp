@@ -5,7 +5,14 @@ export default defineExtension({
 	version: "1.0.0",
 	contributes: {
 		viewsContainers: {
-			activitybar: [{ id: "sample", title: "Sample", icon: "◇", altKey: "6" }],
+			activitybar: [
+				{
+					id: "sample",
+					titleI18nKey: "workbench.explorer",
+					icon: "◇",
+					altKey: "6",
+				},
+			],
 		},
 		views: {
 			sample: [
@@ -19,8 +26,8 @@ export default defineExtension({
 		commands: [
 			{
 				command: "sample.runtime.ping",
-				title: "Sample: Ping",
-				category: "Sample",
+				titleI18nKey: "workbench.explorer",
+				categoryI18nKey: "palette.category.general",
 				verb: "sampleping",
 			},
 		],

@@ -157,7 +157,7 @@ export interface ContributionSnapshotDto {
 	}[];
 	readonly containers: readonly {
 		readonly id: string;
-		readonly title: string;
+		readonly titleI18nKey?: string;
 		readonly icon?: string;
 		readonly order?: number;
 		readonly region?: "activity" | "inspector";

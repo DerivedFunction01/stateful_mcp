@@ -9,7 +9,7 @@ import {
 	Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 
 export type AppRoute = "workbench" | "settings" | "gallery" | "host";
 export type PrimarySidebarTab = "explorer" | "search" | "journal";
@@ -24,57 +24,22 @@ export interface ActivityRailProps {
 }
 
 interface RailItemConfig {
-	readonly id: string;
-	readonly getLabel: (t: ReturnType<typeof useI18n>["t"]) => string;
+	readonly labelKey: WebI18nKey;
 	readonly icon: LucideIcon;
-	readonly target:
-		| { readonly kind: "primaryTab"; readonly tab: PrimarySidebarTab }
-		| {
-				readonly kind: "route";
-				readonly route: AppRoute;
-		  };
+	readonly tab?: PrimarySidebarTab;
+	readonly route?: AppRoute;
 }
 
 const TOP_RAIL_CONFIG: readonly RailItemConfig[] = [
-	{
-		id: "explorer",
-		getLabel: (t) => t("workbench.explorer"),
-		icon: Files,
-		target: { kind: "primaryTab", tab: "explorer" },
-	},
-	{
-		id: "search",
-		getLabel: (t) => t("workbench.search"),
-		icon: Search,
-		target: { kind: "primaryTab", tab: "search" },
-	},
-	{
-		id: "journal",
-		getLabel: (t) => t("workbench.journalHistory"),
-		icon: History,
-		target: { kind: "primaryTab", tab: "journal" },
-	},
-	{
-		id: "gallery",
-		getLabel: (t) => t("nav.gallery"),
-		icon: BookOpen,
-		target: { kind: "route", route: "gallery" },
-	},
-	{
-		id: "host",
-		getLabel: (t) => t("nav.host"),
-		icon: Command,
-		target: { kind: "route", route: "host" },
-	},
+	{ labelKey: "workbench.explorer", icon: Files, tab: "explorer" },
+	{ labelKey: "workbench.search", icon: Search, tab: "search" },
+	{ labelKey: "workbench.journalHistory", icon: History, tab: "journal" },
+	{ labelKey: "nav.gallery", icon: BookOpen, route: "gallery" },
+	{ labelKey: "nav.host", icon: Command, route: "host" },
 ];
 
 const BOTTOM_RAIL_CONFIG: readonly RailItemConfig[] = [
-	{
-		id: "settings",
-		getLabel: (t) => t("workspace.tab.settings"),
-		icon: Settings2,
-		target: { kind: "route", route: "settings" },
-	},
+	{ labelKey: "workspace.tab.settings", icon: Settings2, route: "settings" },
 ];
 
 export function ActivityRail({
@@ -105,21 +70,21 @@ export function ActivityRail({
 	};
 
 	const isItemActive = (item: RailItemConfig): boolean => {
-		if (item.target.kind === "primaryTab") {
+		if (item.tab) {
 			return (
 				currentRoute === "workbench" &&
 				isSidebarOpen &&
-				activePrimaryTab === item.target.tab
+				activePrimaryTab === item.tab
 			);
 		}
-		return currentRoute === item.target.route;
+		return currentRoute === item.route;
 	};
 
 	const handleItemClick = (item: RailItemConfig) => {
-		if (item.target.kind === "primaryTab") {
-			handlePrimaryTabClick(item.target.tab);
-		} else {
-			onNavigate(item.target.route);
+		if (item.tab) {
+			handlePrimaryTabClick(item.tab);
+		} else if (item.route) {
+			onNavigate(item.route);
 		}
 	};
 
@@ -133,8 +98,8 @@ export function ActivityRail({
 					const Icon = item.icon;
 					return (
 						<NavButton
-							key={item.id}
-							label={item.getLabel(t)}
+							key={item.labelKey}
+							label={t(item.labelKey)}
 							icon={<Icon size={18} />}
 							active={isItemActive(item)}
 							onClick={() => handleItemClick(item)}
@@ -147,8 +112,8 @@ export function ActivityRail({
 					const Icon = item.icon;
 					return (
 						<NavButton
-							key={item.id}
-							label={item.getLabel(t)}
+							key={item.labelKey}
+							label={t(item.labelKey)}
 							icon={<Icon size={18} />}
 							active={isItemActive(item)}
 							onClick={() => handleItemClick(item)}

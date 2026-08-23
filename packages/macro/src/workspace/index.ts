@@ -60,6 +60,7 @@ export * from "./editor/macro-document-manager";
 export * from "./editor/vim-motions";
 export * from "./i18n/discovery";
 export * from "./i18n/i18n-kernel";
+export * from "./i18n/locales/i18n-keys";
 export * from "./i18n/translation";
 export * from "./journal/workspace-journal";
 export * from "./keymaps";

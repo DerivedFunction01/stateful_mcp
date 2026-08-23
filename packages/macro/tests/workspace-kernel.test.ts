@@ -228,7 +228,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			viewReg.registerContainer(
 				{
 					id: "customContainer",
-					title: "Custom Panel",
+					titleI18nKey: "workbench.explorer",
 					icon: "★",
 					altKey: "4",
 				},
@@ -244,8 +244,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				"ext1",
 			);
 
-			expect(viewReg.getContainer("customContainer")?.title).toBe(
-				"Custom Panel",
+			expect(viewReg.getContainer("customContainer")?.titleI18nKey).toBe(
+				"workbench.explorer",
 			);
 			expect(viewReg.getViewsForContainer("customContainer")).toHaveLength(1);
 			expect(
@@ -255,7 +255,7 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			).toBe(true);
 			viewReg.registerContainer({
 				id: "inspectorContainer",
-				title: "Inspector",
+				titleI18nKey: "workbench.slots",
 				icon: "◈",
 				region: "inspector",
 			});
