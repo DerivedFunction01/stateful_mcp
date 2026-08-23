@@ -55,9 +55,8 @@ describe("Vim command aliases and shortcuts", () => {
 			"duplicate",
 		);
 		expect(DEFAULT_COMMAND_ALIASES["editor.newScratchpad"]).toContain("new");
-		expect(DEFAULT_COMMAND_ALIASES["editor.createSplitGroup"]).toContain(
-			"split",
-		);
+		expect(DEFAULT_COMMAND_ALIASES["editor.splitRight"]).toContain("vsplit");
+		expect(DEFAULT_COMMAND_ALIASES["editor.splitDown"]).toContain("split");
 		expect(DEFAULT_COMMAND_ALIASES["workbench.openProject"]).toContain(
 			"openproject",
 		);

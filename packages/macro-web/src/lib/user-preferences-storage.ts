@@ -15,6 +15,7 @@ export const USER_PREFERENCES_STORAGE_KEY = "macro.user.preferences.v1";
 export const DEFAULT_USER_PREFERENCES: UserPreferencesDto = {
 	keymapProfile: "default",
 	vimEnabled: false,
+	splitEditorBehavior: "duplicate",
 	theme: "dark",
 	locale: "en",
 	autoPurgeOnExecute: false,
@@ -48,6 +49,8 @@ export function sanitizeUserPreferences(
 		theme: raw.theme || DEFAULT_USER_PREFERENCES.theme,
 		locale: raw.locale || DEFAULT_USER_PREFERENCES.locale,
 		vimEnabled: Boolean(raw.vimEnabled),
+		splitEditorBehavior:
+			raw.splitEditorBehavior === "empty" ? "empty" : "duplicate",
 		autoPurgeOnExecute: Boolean(raw.autoPurgeOnExecute),
 		inspectorPosition: raw.inspectorPosition === "left" ? "left" : "right",
 		inspectorWidth:

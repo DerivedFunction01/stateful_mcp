@@ -77,8 +77,11 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.template.createFailed": "The document template could not be created.",
 	"editor.selection.range": "Selected range",
 	"editor.selection.noRange": "No range selected",
-	"editor.commandModeUnsupported":
-		"Command mode is not available in this surface.",
+	"editor.emptyGroup.title": "No Open Editors",
+	"editor.emptyGroup.description":
+		"Create a scratchpad or open a file to start editing.",
+	"editor.splitRight": "Split Editor Right",
+	"editor.splitDown": "Split Editor Down",
 	"editor.inactive.title": "Editor unavailable",
 	"editor.inactive.description":
 		"The host has not activated an editor document.",

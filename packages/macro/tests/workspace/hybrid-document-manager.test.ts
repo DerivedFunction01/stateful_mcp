@@ -126,4 +126,17 @@ describe("MacroDocumentManager: Hybrid Documents & Persistence", () => {
 		});
 		expect(doc.dirty).toBe(false);
 	});
+
+	test("allows closing the only remaining open document leaving empty state", () => {
+		const manager = new MacroDocumentManager(runtime, {
+			defaultTitle: "Single Scratchpad",
+		});
+		const doc = manager.active()!;
+		expect(manager.list()).toHaveLength(1);
+
+		manager.close(doc.documentId);
+		expect(manager.list()).toHaveLength(0);
+		expect(manager.getActiveDocumentId()).toBeNull();
+		expect(manager.active()).toBeUndefined();
+	});
 });

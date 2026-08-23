@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import {
 	createBrowserVimController,
+	createBrowserVimGroupManager,
 	normalizeChordFromEvent,
 } from "../src/lib/browser-vim";
 
@@ -169,6 +170,13 @@ describe("keymap-driven browser Vim controller", () => {
 		expect(controller.handleKeyDown(event("t"))).toBe(true);
 		expect(prevented).toBe(1);
 		expect(controller.getState().mode).toBe("NORMAL");
+
+		// ':' is unmapped in this profile: must NOT enter COMMAND mode (Zero Fallback)
+		prevented = 0;
+		expect(controller.handleKeyDown(event(":"))).toBe(true);
+		expect(prevented).toBe(1);
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(controller.getState().commandText).toBe("");
 	});
 
 	test("resolves structured section-oriented profile (keymap.vim)", () => {
@@ -899,5 +907,130 @@ describe("keymap-driven browser Vim controller", () => {
 		);
 		expect(handledInsertMod).toBe(false);
 		expect(prevented).toBe(false);
+	});
+});
+
+describe("BrowserVimGroupManager multi-group per-view modal state", () => {
+	const defaultProfile = {
+		normal: {
+			moveDown: "j",
+			moveUp: "k",
+			enterInsert: "i",
+			enterVisual: "v",
+			command: ":",
+		},
+		sequences: {
+			deleteCell: "dd",
+		},
+		visual: {
+			extendDown: "j",
+			deleteSelection: "d",
+		},
+	};
+
+	const makeEvent = (key: string) => ({
+		key,
+		preventDefault: () => undefined,
+		stopPropagation: () => undefined,
+	});
+
+	test("maintains independent modal states across groups viewing the same document", () => {
+		let groupAOpenedPalette = false;
+		const manager = createBrowserVimGroupManager(true, {
+			getKeymap: () => defaultProfile,
+			onOpenCommandMode: () => {
+				groupAOpenedPalette = true;
+			},
+		});
+
+		manager.initGroup("group-1", "doc-1");
+		manager.initGroup("group-2", "doc-1");
+
+		expect(manager.getState("group-1").mode).toBe("NORMAL");
+		expect(manager.getState("group-2").mode).toBe("NORMAL");
+
+		// Put Group 1 into INSERT mode
+		manager.handleKeyDown("group-1", makeEvent("i"));
+		expect(manager.getState("group-1").mode).toBe("INSERT");
+		expect(manager.getState("group-2").mode).toBe("NORMAL");
+
+		// Group 2 remains in NORMAL and handles motion without changing Group 1
+		manager.handleKeyDown("group-2", makeEvent("j"));
+		expect(manager.getState("group-2").mode).toBe("NORMAL");
+		expect(manager.getState("group-1").mode).toBe("INSERT");
+
+		// Group 1 enters command mode
+		manager.handleKeyDown("group-1", makeEvent("Escape"));
+		manager.handleKeyDown("group-1", makeEvent(":"));
+		expect(manager.getState("group-1").mode).toBe("COMMAND");
+		expect(manager.getState("group-2").mode).toBe("NORMAL");
+		expect(groupAOpenedPalette).toBe(true);
+
+		// Exiting command mode resets only group 1
+		manager.exitCommandMode("group-1");
+		expect(manager.getState("group-1").mode).toBe("NORMAL");
+	});
+
+	test("resets mode and restores preserved cursor when switching documents in a group", () => {
+		const manager = createBrowserVimGroupManager(true, {
+			getKeymap: () => defaultProfile,
+		});
+
+		const g1 = manager.initGroup("group-1", "doc-A");
+		g1.setActiveCell(3, 10, 5);
+		g1.handleKeyDown(makeEvent("i"));
+		expect(g1.getState().mode).toBe("INSERT");
+
+		// Switch to doc-B: resets to NORMAL and starts with default cursor
+		g1.activateDocument("doc-B");
+		expect(g1.getState().mode).toBe("NORMAL");
+		expect(g1.getState().activeCellIndex).toBe(0);
+
+		// Move in doc-B
+		g1.setActiveCell(1, 10, 2);
+
+		// Switch back to doc-A: resets to NORMAL and restores doc-A cursor (cell 3, col 5)
+		g1.activateDocument("doc-A");
+		expect(g1.getState().mode).toBe("NORMAL");
+		expect(g1.getState().activeCellIndex).toBe(3);
+		expect(g1.getState().caretColumn).toBe(5);
+	});
+
+	test("resets transient visual and sequence state on view reset without losing cursor", () => {
+		const manager = createBrowserVimGroupManager(true, {
+			getKeymap: () => defaultProfile,
+		});
+
+		const g1 = manager.initGroup("group-1", "doc-1");
+		g1.setActiveCell(2, 5, 3);
+		g1.handleKeyDown(makeEvent("v"));
+		expect(g1.getState().mode).toBe("VISUAL");
+
+		// Blur / focus loss resets view to NORMAL
+		g1.resetView("blur");
+		expect(g1.getState().mode).toBe("NORMAL");
+		expect(g1.getState().visualRange).toBeNull();
+		expect(g1.getState().activeCellIndex).toBe(2);
+		expect(g1.getState().caretColumn).toBe(3);
+	});
+
+	test("toggling global enabled preference updates all active groups", () => {
+		const manager = createBrowserVimGroupManager(false, {
+			getKeymap: () => defaultProfile,
+		});
+
+		manager.initGroup("group-1", "doc-1");
+		manager.initGroup("group-2", "doc-2");
+
+		expect(manager.getState("group-1").mode).toBe("INSERT");
+		expect(manager.getState("group-2").mode).toBe("INSERT");
+
+		manager.setEnabled(true);
+		expect(manager.getState("group-1").mode).toBe("NORMAL");
+		expect(manager.getState("group-2").mode).toBe("NORMAL");
+
+		manager.setEnabled(false);
+		expect(manager.getState("group-1").mode).toBe("INSERT");
+		expect(manager.getState("group-2").mode).toBe("INSERT");
 	});
 });

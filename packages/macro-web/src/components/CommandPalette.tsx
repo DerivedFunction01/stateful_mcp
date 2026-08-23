@@ -134,10 +134,8 @@ export function CommandPalette({
 	const listRef = useRef<HTMLDivElement>(null);
 	const dialogRef = useRef<HTMLDivElement>(null);
 
-	const activeToken = commandToken || (query.startsWith(":") ? ":" : "");
-	const isCommandMode =
-		Boolean(commandToken) ||
-		(Boolean(activeToken) && query.startsWith(activeToken));
+	const activeToken = commandToken || "";
+	const isCommandMode = Boolean(activeToken) && query.startsWith(activeToken);
 	const showVimHints = vimEnabled || isCommandMode;
 
 	const ranked = useMemo(

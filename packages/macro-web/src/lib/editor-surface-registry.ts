@@ -15,6 +15,8 @@ import type {
 
 export interface EditorSurfaceRegistration {
 	readonly id: string;
+	readonly groupId?: string;
+	readonly documentId?: string;
 	readonly element: HTMLElement;
 	readonly focused: boolean;
 	readonly context: KeymapBindingContextDto;
@@ -76,6 +78,28 @@ export class EditorSurfaceRegistry {
 			}
 		}
 		return active;
+	}
+
+	getByGroupId(groupId: string): EditorSurfaceRegistration | undefined {
+		for (const surface of this.surfaces.values()) {
+			if (surface.groupId === groupId) return surface;
+		}
+		return undefined;
+	}
+
+	getByView(
+		groupId: string,
+		documentId: string,
+	): EditorSurfaceRegistration | undefined {
+		for (const surface of this.surfaces.values()) {
+			if (surface.groupId === groupId && surface.documentId === documentId)
+				return surface;
+		}
+		return undefined;
+	}
+
+	focusTarget(groupId: string): HTMLElement | undefined {
+		return this.getByGroupId(groupId)?.element;
 	}
 
 	list(): readonly EditorSurfaceRegistration[] {

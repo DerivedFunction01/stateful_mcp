@@ -249,7 +249,11 @@ export function createMacroWorkspace(
 			categoryI18nKey: "common.editor",
 		},
 		{
-			execute: (options?: { title?: string; initialText?: string }) => {
+			execute: (options?: {
+				readonly groupId?: string;
+				readonly title?: string;
+				readonly initialText?: string;
+			}) => {
 				const doc = documents.createBlank(options?.title);
 				if (options?.initialText) {
 					documents.replaceText({
@@ -258,7 +262,9 @@ export function createMacroWorkspace(
 						expectedTextRevision: doc.textRevision,
 					});
 				}
-				documents.select(doc.documentId);
+				if (options?.groupId)
+					editorGroups.moveDocument(doc.documentId, options.groupId);
+				else documents.select(doc.documentId);
 				return { documentId: doc.documentId, title: doc.title };
 			},
 		},
@@ -285,15 +291,103 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.createSplitGroup",
+			titleI18nKey: "editor.splitRight",
+			categoryI18nKey: "common.editor",
+		},
+		{
+			execute: (request?: {
+				readonly sourceGroupId?: string;
+				readonly documentId?: string;
+				readonly moveDocument?: boolean;
+				readonly behavior?: "duplicate" | "empty";
+				readonly orientation?: "horizontal" | "vertical";
+			}) => {
+				const group = editorGroups.create({
+					sourceGroupId: request?.sourceGroupId,
+					documentId: request?.documentId,
+					moveDocument: request?.moveDocument,
+					behavior: request?.behavior,
+					orientation: request?.orientation ?? "vertical",
+				});
+				return { groupId: group.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.splitRight",
+			titleI18nKey: "editor.splitRight",
+			categoryI18nKey: "common.editor",
+		},
+		{
+			execute: (request?: {
+				readonly sourceGroupId?: string;
+				readonly documentId?: string;
+				readonly moveDocument?: boolean;
+				readonly behavior?: "duplicate" | "empty";
+			}) => {
+				const group = editorGroups.create({
+					sourceGroupId: request?.sourceGroupId,
+					documentId: request?.documentId,
+					moveDocument: request?.moveDocument,
+					behavior: request?.behavior,
+					orientation: "vertical",
+				});
+				return { groupId: group.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.splitDown",
+			titleI18nKey: "editor.splitDown",
+			categoryI18nKey: "common.editor",
+		},
+		{
+			execute: (request?: {
+				readonly sourceGroupId?: string;
+				readonly documentId?: string;
+				readonly moveDocument?: boolean;
+				readonly behavior?: "duplicate" | "empty";
+			}) => {
+				const group = editorGroups.create({
+					sourceGroupId: request?.sourceGroupId,
+					documentId: request?.documentId,
+					moveDocument: request?.moveDocument,
+					behavior: request?.behavior,
+					orientation: "horizontal",
+				});
+				return { groupId: group.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.closeGroup",
+			titleI18nKey: "editor.group.close",
+			categoryI18nKey: "common.editor",
+		},
+		{
+			execute: (request?: { readonly groupId?: string }) => {
+				const targetId = request?.groupId ?? editorGroups.getActiveGroupId();
+				const closed = editorGroups.close(targetId);
+				return { groupId: closed.groupId };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "editor.resizeSplit",
 			titleI18nKey: "editor.group.split",
 			categoryI18nKey: "common.editor",
 		},
 		{
-			execute: (request?: { orientation?: "horizontal" | "vertical" }) => {
-				const group = editorGroups.create({
-					orientation: request?.orientation ?? "horizontal",
-				});
-				return { groupId: group.groupId };
+			execute: (request: {
+				readonly nodeId: string;
+				readonly ratios: readonly number[];
+			}) => {
+				editorGroups.resizeSplit(request.nodeId, request.ratios);
+				return null;
 			},
 		},
 	);

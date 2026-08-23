@@ -1008,6 +1008,16 @@ export class HostSessionManager {
 			switch (operation.operation) {
 				case "editor.newScratchpad": {
 					const document = documents.createBlank();
+					const targetGroupId =
+						operation.groupId && workspace.editorGroups.get(operation.groupId)
+							? operation.groupId
+							: workspace.editorGroups.getActiveGroupId();
+					if (targetGroupId && workspace.editorGroups.get(targetGroupId)) {
+						workspace.editorGroups.moveDocument(
+							document.documentId,
+							targetGroupId,
+						);
+					}
 					this.emit(session, "workspace.changed");
 					return {
 						...base(),
@@ -1018,6 +1028,16 @@ export class HostSessionManager {
 				}
 				case "editor.newScratchpadFromTemplate": {
 					const document = documents.createFromTemplate(operation.templateId);
+					const targetGroupId =
+						operation.groupId && workspace.editorGroups.get(operation.groupId)
+							? operation.groupId
+							: workspace.editorGroups.getActiveGroupId();
+					if (targetGroupId && workspace.editorGroups.get(targetGroupId)) {
+						workspace.editorGroups.moveDocument(
+							document.documentId,
+							targetGroupId,
+						);
+					}
 					await document.session.parseAllLines();
 					this.emit(session, "workspace.changed");
 					return {
@@ -1064,12 +1084,9 @@ export class HostSessionManager {
 						);
 					const document = documents.openFile(path, bytes.toString("utf8"));
 					documents.markSaved(document.documentId, metadata.mtimeMs);
-					const activeGroup = workspace.editorGroups
-						.list()
-						.find(
-							(group) =>
-								group.groupId === workspace.editorGroups.getActiveGroupId(),
-						);
+					const activeGroup = workspace.editorGroups.get(
+						operation.groupId ?? workspace.editorGroups.getActiveGroupId(),
+					);
 					if (activeGroup)
 						workspace.editorGroups.openDocument(
 							activeGroup.groupId,
@@ -1237,28 +1254,53 @@ export class HostSessionManager {
 					};
 				}
 				case "editor.createSplitGroup": {
-					if (operation.expectedWorkspaceRevision !== session.revision)
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
 					const group = workspace.editorGroups.create(operation);
 					this.emit(session, "workspace.changed");
 					return { ...base(), status: "accepted", groupId: group.groupId };
 				}
 				case "editor.closeGroup": {
-					if (operation.expectedWorkspaceRevision !== session.revision)
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
 					workspace.editorGroups.close(operation.groupId);
 					this.emit(session, "workspace.changed");
 					return { ...base(), status: "accepted", groupId: operation.groupId };
 				}
+				case "editor.resizeSplit": {
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
+						return workspaceConflict(operation.expectedWorkspaceRevision);
+					workspace.editorGroups.resizeSplit(
+						operation.nodeId,
+						operation.ratios,
+					);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted" };
+				}
 				case "editor.focusGroup": {
-					if (operation.expectedWorkspaceRevision !== session.revision)
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
 					workspace.editorGroups.focus(operation.groupId);
 					this.emit(session, "workspace.changed");
 					return { ...base(), status: "accepted", groupId: operation.groupId };
 				}
 				case "editor.openDocumentInGroup": {
-					if (operation.expectedWorkspaceRevision !== session.revision)
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
 					workspace.editorGroups.openDocument(
 						operation.groupId,
@@ -1273,7 +1315,10 @@ export class HostSessionManager {
 					};
 				}
 				case "editor.moveDocumentToGroup": {
-					if (operation.expectedWorkspaceRevision !== session.revision)
+					if (
+						operation.expectedWorkspaceRevision !== undefined &&
+						operation.expectedWorkspaceRevision !== session.revision
+					)
 						return workspaceConflict(operation.expectedWorkspaceRevision);
 					workspace.editorGroups.moveDocument(
 						operation.documentId,
@@ -1721,6 +1766,13 @@ export class HostSessionManager {
 					? {}
 					: { sizeRatio: group.sizeRatio }),
 			})),
+			editorLayout: {
+				version: 1,
+				root: this.editorLayoutNodeDto(
+					session.loaded.workspace.editorGroups.getLayoutRoot(),
+					session.loaded.workspace.editorGroups,
+				),
+			},
 			activeGroupId: session.loaded.workspace.editorGroups.getActiveGroupId(),
 			activeDocumentId: documents.getActiveDocumentId(),
 			activeDocument: active ? this.editorDocumentSnapshot(active) : null,
@@ -1741,6 +1793,29 @@ export class HostSessionManager {
 				canSplit: true,
 				canUseVim: true,
 			},
+		};
+	}
+
+	private editorLayoutNodeDto(
+		node: import("@stateful-mcp/macro").EditorLayoutNode,
+		groups: import("@stateful-mcp/macro").MacroEditorGroupManager,
+	): import("@stateful-mcp/macro-protocol").EditorLayoutNodeDto {
+		if (node.kind === "group") {
+			const group = groups.get(node.groupId);
+			return {
+				kind: "group",
+				groupId: node.groupId,
+				documentIds: group?.documentIds ?? [],
+				activeDocumentId: group?.activeDocumentId ?? null,
+			};
+		}
+		return {
+			kind: "split",
+			nodeId: node.nodeId,
+			orientation: node.orientation,
+			children: node.children.map((child) =>
+				this.editorLayoutNodeDto(child, groups),
+			),
 		};
 	}
 

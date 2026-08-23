@@ -94,8 +94,12 @@ export function getVimCommandLabel(
 	commands: readonly CommandDescriptorDto[] = [],
 	translate: (key: string) => string = (key) => key,
 ): string {
-	const raw = (text || token || "").trim();
-	const clean = raw.replace(/^:/, "").trim();
+	const activeToken = token ?? "";
+	const raw = (text || "").trim();
+	const clean =
+		activeToken && raw.startsWith(activeToken)
+			? raw.slice(activeToken.length).trim()
+			: raw;
 	if (!clean) {
 		const examples = commands
 			.flatMap((command) => [
@@ -104,7 +108,10 @@ export function getVimCommandLabel(
 			])
 			.filter((value, index, values) => values.indexOf(value) === index)
 			.slice(0, 8);
-		return examples.length > 0 ? `: [${examples.join(", ")}]` : ":";
+		if (!activeToken && examples.length === 0) return "";
+		return examples.length > 0
+			? `${activeToken} [${examples.join(", ")}]`
+			: activeToken;
 	}
 	const normalized = clean.toLowerCase();
 	const match = commands.find((command) =>
@@ -117,9 +124,9 @@ export function getVimCommandLabel(
 			? translate(match.titleI18nKey)
 			: match.id;
 		const label = translated === match.titleI18nKey ? match.id : translated;
-		return `:${clean} → ${label}`;
+		return `${activeToken}${clean} → ${label}`;
 	}
-	return `:${clean}`;
+	return `${activeToken}${clean}`;
 }
 
 export function StatusBar({

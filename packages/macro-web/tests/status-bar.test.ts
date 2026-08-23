@@ -23,29 +23,33 @@ const commands = [
 
 describe("getVimCommandLabel", () => {
 	test("matches runtime aliases and verbs without static defaults", () => {
+		expect(getVimCommandLabel(":writeall", ":", commands, (key) => key)).toBe(
+			":writeall → editor.saveAll",
+		);
 		expect(
-			getVimCommandLabel(":writeall", undefined, commands, (key) => key),
-		).toBe(":writeall → editor.saveAll");
-		expect(
-			getVimCommandLabel("WALL", undefined, commands, () => "Save All Tabs"),
+			getVimCommandLabel("WALL", ":", commands, () => "Save All Tabs"),
 		).toBe(":WALL → Save All Tabs");
+		expect(getVimCommandLabel(";writeall", ";", commands, (key) => key)).toBe(
+			";writeall → editor.saveAll",
+		);
 	});
 
 	test("uses localized command titles", () => {
 		expect(
-			getVimCommandLabel("brick", undefined, commands, (key) =>
+			getVimCommandLabel("brick", ":", commands, (key) =>
 				key === "custom.brickwall.title" ? "Muro personalizado" : key,
 			),
 		).toBe(":brick → Muro personalizado");
 	});
 
 	test("preserves unknown and empty command behavior", () => {
-		expect(getVimCommandLabel(":unknown", undefined, commands)).toBe(
-			":unknown",
-		);
+		expect(getVimCommandLabel(":unknown", ":", commands)).toBe(":unknown");
 		expect(getVimCommandLabel("", ":", commands)).toBe(
 			": [w, write, wa, wall, writeall, brick]",
 		);
-		expect(getVimCommandLabel("", undefined)).toBe(":");
+		expect(getVimCommandLabel("", ";", commands)).toBe(
+			"; [w, write, wa, wall, writeall, brick]",
+		);
+		expect(getVimCommandLabel("", undefined)).toBe("");
 	});
 });

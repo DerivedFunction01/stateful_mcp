@@ -9,6 +9,7 @@ import type { BrowserVimKeyboardEvent, CellRange } from "../../lib/browser-vim";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import { EditorSurfaceView } from "../EditorSurfaceView";
 import { EditorConflictDiffView } from "./EditorConflictDiffView";
+import { EmptyEditorGroup } from "./EmptyEditorGroup";
 
 export interface EditorCanvasProps {
 	readonly activeDocument?: ScratchpadSnapshotDto | null;
@@ -40,6 +41,8 @@ export interface EditorCanvasProps {
 	readonly onPinMacro: (macroId: string | null) => void;
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
+	readonly onNewScratchpad?: () => void;
+	readonly onOpenPalette?: () => void;
 }
 
 export function EditorCanvas({
@@ -64,6 +67,8 @@ export function EditorCanvas({
 	onPinMacro,
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
+	onNewScratchpad,
+	onOpenPalette,
 }: EditorCanvasProps) {
 	const { t } = useI18n();
 
@@ -115,10 +120,10 @@ export function EditorCanvas({
 					onPinMacro={onPinMacro}
 				/>
 			) : (
-				<section className="editor-unavailable" role="status">
-					<strong>{t("editor.inactive.title")}</strong>
-					<span>{t("editor.inactive.description")}</span>
-				</section>
+				<EmptyEditorGroup
+					onNewScratchpad={onNewScratchpad ?? (() => undefined)}
+					onOpenPalette={onOpenPalette}
+				/>
 			)}
 		</div>
 	);

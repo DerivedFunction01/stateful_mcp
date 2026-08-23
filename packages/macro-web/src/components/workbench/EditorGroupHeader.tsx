@@ -3,7 +3,16 @@ import type {
 	PinnedMacroDto,
 	ScratchpadSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
-import { Columns2, Eraser, Pin, Play, Plus, RotateCcw, X } from "lucide-react";
+import {
+	Columns2,
+	Eraser,
+	Pin,
+	Play,
+	Plus,
+	RotateCcw,
+	Rows2,
+	X,
+} from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useI18n } from "../../lib/macro-i18n-provider";
 import { FileEntryIcon } from "./FileTreeView";
@@ -13,6 +22,7 @@ export interface EditorGroupHeaderProps {
 	readonly activeDocumentId?: string | null;
 	readonly activeDocument?: ScratchpadSnapshotDto | null;
 	readonly activeDocumentMeta?: EditorDocumentDto;
+	readonly isActiveGroup?: boolean;
 	readonly canSplit?: boolean;
 	readonly canCloseGroup?: boolean;
 	readonly pendingEditor: boolean;
@@ -23,7 +33,7 @@ export interface EditorGroupHeaderProps {
 	readonly onRenameDocument: (documentId: string, title: string) => void;
 	readonly onCloseDocument: (documentId: string, textRevision: number) => void;
 	readonly onNewScratchpad: () => void;
-	readonly onSplitGroup: () => void;
+	readonly onSplitGroup: (orientation: "vertical" | "horizontal") => void;
 	readonly onCloseGroup?: () => void;
 	readonly onExecuteValidLines: () => void;
 	readonly onClearExecutedLines: () => void;
@@ -36,6 +46,7 @@ export function EditorGroupHeader({
 	activeDocumentId,
 	activeDocument,
 	activeDocumentMeta,
+	isActiveGroup = true,
 	canSplit = true,
 	canCloseGroup = false,
 	pendingEditor,
@@ -83,7 +94,9 @@ export function EditorGroupHeader({
 	}, [activeDocumentId]);
 
 	return (
-		<div className="editor-group-header">
+		<div
+			className={`editor-group-header ${isActiveGroup ? "editor-group-header--active" : "editor-group-header--inactive"}`}
+		>
 			<div
 				className="workbench-tabs"
 				role="tablist"
@@ -97,48 +110,53 @@ export function EditorGroupHeader({
 					target.scrollLeft += event.deltaY;
 				}}
 			>
-				{documents.map((document) => (
-					<div
-						className={`workbench-document-tab ${document.documentId === activeDocumentId ? "active" : ""}`}
-						key={document.documentId}
-						data-document-id={document.documentId}
-					>
-						<button
-							type="button"
-							className="tab-title-btn"
-							onClick={() => onSelectDocument(document.documentId)}
-							onDoubleClick={() => {
-								const newTitle = window.prompt(
-									t("editor.document.rename"),
-									document.title,
-								);
-								if (newTitle && newTitle.trim()) {
-									onRenameDocument(document.documentId, newTitle.trim());
-								}
-							}}
-							role="tab"
-							aria-selected={document.documentId === activeDocumentId}
+				{documents.map((document) => {
+					const isTabActive = document.documentId === activeDocumentId;
+					return (
+						<div
+							className={`workbench-document-tab ${isTabActive ? "active" : ""} ${isTabActive && isActiveGroup ? "group-focused" : ""}`}
+							key={document.documentId}
+							data-document-id={document.documentId}
 						>
-							<FileEntryIcon
-								name={document.filePath ?? document.title}
-								isDirectory={false}
-							/>
-							<span>{document.title}</span>
-							{document.dirty && <span className="tab-dirty-indicator">●</span>}
-						</button>
-						<button
-							type="button"
-							className="workbench-tab-close"
-							onClick={(e) => {
-								e.stopPropagation();
-								onCloseDocument(document.documentId, document.textRevision);
-							}}
-							aria-label={t("editor.document.close")}
-						>
-							×
-						</button>
-					</div>
-				))}
+							<button
+								type="button"
+								className="tab-title-btn"
+								onClick={() => onSelectDocument(document.documentId)}
+								onDoubleClick={() => {
+									const newTitle = window.prompt(
+										t("editor.document.rename"),
+										document.title,
+									);
+									if (newTitle && newTitle.trim()) {
+										onRenameDocument(document.documentId, newTitle.trim());
+									}
+								}}
+								role="tab"
+								aria-selected={document.documentId === activeDocumentId}
+							>
+								<FileEntryIcon
+									name={document.filePath ?? document.title}
+									isDirectory={false}
+								/>
+								<span>{document.title}</span>
+								{document.dirty && (
+									<span className="tab-dirty-indicator">●</span>
+								)}
+							</button>
+							<button
+								type="button"
+								className="workbench-tab-close"
+								onClick={(e) => {
+									e.stopPropagation();
+									onCloseDocument(document.documentId, document.textRevision);
+								}}
+								aria-label={t("editor.document.close")}
+							>
+								×
+							</button>
+						</div>
+					);
+				})}
 
 				<button
 					type="button"
@@ -154,11 +172,21 @@ export function EditorGroupHeader({
 				<button
 					type="button"
 					className="editor-split-btn"
-					title={t("editor.split.vertical")}
+					title={t("editor.splitRight")}
 					disabled={!canSplit || pendingEditor}
-					onClick={onSplitGroup}
+					onClick={() => onSplitGroup("vertical")}
 				>
 					<Columns2 size={14} />
+				</button>
+
+				<button
+					type="button"
+					className="editor-split-btn"
+					title={t("editor.splitDown")}
+					disabled={!canSplit || pendingEditor}
+					onClick={() => onSplitGroup("horizontal")}
+				>
+					<Rows2 size={14} />
 				</button>
 
 				{canCloseGroup && (

@@ -249,12 +249,14 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 	}
 
 	if (!found) {
-		if (block.lastChild) {
+		const br = block.querySelector("br");
+		if (br) {
+			targetNode = block;
+			targetOffset = Array.prototype.indexOf.call(block.childNodes, br);
+			if (targetOffset === -1) targetOffset = 0;
+		} else if (block.lastChild && block.lastChild.nodeType === Node.TEXT_NODE) {
 			targetNode = block.lastChild;
-			targetOffset =
-				targetNode.nodeType === Node.TEXT_NODE
-					? (targetNode.textContent?.length ?? 0)
-					: 0;
+			targetOffset = targetNode.textContent?.length ?? 0;
 		} else {
 			const emptyNode = document.createTextNode("");
 			block.appendChild(emptyNode);
@@ -263,13 +265,17 @@ function setLineAndCol(root: HTMLElement, lineIdx: number, col = 0): void {
 		}
 	}
 
-	const range = document.createRange();
-	range.setStart(targetNode, targetOffset);
-	range.setEnd(targetNode, targetOffset);
+	try {
+		const range = document.createRange();
+		range.setStart(targetNode, targetOffset);
+		range.setEnd(targetNode, targetOffset);
 
-	const selection = window.getSelection();
-	selection?.removeAllRanges();
-	selection?.addRange(range);
+		const selection = window.getSelection();
+		selection?.removeAllRanges();
+		selection?.addRange(range);
+	} catch {
+		// Fallback for edge cases
+	}
 }
 
 function revealLine(root: HTMLElement, lineIdx: number): void {
@@ -458,35 +464,49 @@ function pointerPosition(
 	const targetLineIdx = line?.classList.contains("editor-line-row")
 		? Number(line.dataset.editorLine ?? 1) - 1
 		: Number(line?.dataset.lineNumber ?? 1) - 1;
-	const lineIdx =
-		cell?.dataset.cellIndex !== undefined
-			? Number(cell.dataset.cellIndex)
-			: line
-				? targetLineIdx
-				: Math.floor(
-						(event.clientY - root.getBoundingClientRect().top - 10) / 24,
-					);
-	const fallback = { lineIdx: Math.max(0, lineIdx), col: 0 };
-	const documentWithCaret = document as Document & {
-		caretRangeFromPoint?: (x: number, y: number) => Range | null;
-	};
-	const range = documentWithCaret.caretRangeFromPoint?.(
-		event.clientX,
-		event.clientY,
-	);
-	if (!range || !root.contains(range.startContainer)) return fallback;
-	const block: HTMLElement | null =
-		range.startContainer instanceof Element
-			? range.startContainer.closest(".editor-line-row")
-			: (range.startContainer.parentElement?.closest(".editor-line-row") ??
-				null);
-	if (!block) return fallback;
-	const local = document.createRange();
-	local.selectNodeContents(block);
-	local.setEnd(range.startContainer, range.startOffset);
+
+	const childCount = root.children.length;
+	const maxLineIdx = Math.max(0, childCount - 1);
+	const lastChild = root.children[maxLineIdx] as HTMLElement | undefined;
+	const lastLineLength = lastChild?.textContent?.replace(/\n$/, "").length ?? 0;
+
+	if (line || cell) {
+		const lineIdx =
+			cell?.dataset.cellIndex !== undefined
+				? Number(cell.dataset.cellIndex)
+				: targetLineIdx;
+		const documentWithCaret = document as Document & {
+			caretRangeFromPoint?: (x: number, y: number) => Range | null;
+		};
+		const range = documentWithCaret.caretRangeFromPoint?.(
+			event.clientX,
+			event.clientY,
+		);
+		if (range && root.contains(range.startContainer)) {
+			const block: HTMLElement | null =
+				range.startContainer instanceof Element
+					? range.startContainer.closest(".editor-line-row")
+					: (range.startContainer.parentElement?.closest(".editor-line-row") ??
+						null);
+			if (block) {
+				const local = document.createRange();
+				local.selectNodeContents(block);
+				local.setEnd(range.startContainer, range.startOffset);
+				return {
+					lineIdx: Number(block.dataset.editorLine ?? 1) - 1,
+					col: local.toString().length,
+				};
+			}
+		}
+		const curChild = root.children[lineIdx] as HTMLElement | undefined;
+		const curLen = curChild?.textContent?.replace(/\n$/, "").length ?? 0;
+		return { lineIdx: Math.min(Math.max(0, lineIdx), maxLineIdx), col: curLen };
+	}
+
+	// Clicked in empty space below/outside lines -> place caret at the end of the file
 	return {
-		lineIdx: Number(block.dataset.editorLine ?? 1) - 1,
-		col: local.toString().length,
+		lineIdx: maxLineIdx,
+		col: lastLineLength,
 	};
 }
 
@@ -530,6 +550,7 @@ export function EditorSurfaceView({
 	const updateCursor = () => {
 		const root = rootRef.current;
 		if (!root) return;
+		if (vimEnabled && vimMode !== "INSERT") return;
 		const { lineIdx, col } = getActiveLineAndCol(root);
 		const currentLine = lineIdx + 1;
 		const currentColumn = col + 1;
@@ -575,6 +596,12 @@ export function EditorSurfaceView({
 		lastRenderedText.current = sourceKey;
 	}, [sourceLines, filePath, title]);
 
+	useEffect(() => {
+		if (activeCellIndex !== undefined) {
+			setActiveLineNumber(activeCellIndex + 1);
+		}
+	}, [activeCellIndex]);
+
 	return (
 		<div
 			className="editor-surface-view"
@@ -594,8 +621,13 @@ export function EditorSurfaceView({
 				if (vimEnabled) {
 					onPointerTarget?.(point.lineIdx, point.col, false);
 				}
-				if (!vimOwnsCaret && !authored.contains(event.target as Node)) {
+				if (!vimOwnsCaret) {
+					if (!authored.contains(event.target as Node)) {
+						event.preventDefault();
+					}
 					authored.focus();
+					setLineAndCol(authored, point.lineIdx, point.col);
+					updateCursor();
 				}
 			}}
 			onPointerMove={(event) => {
@@ -607,16 +639,19 @@ export function EditorSurfaceView({
 				onPointerTarget?.(point.lineIdx, point.col, true);
 			}}
 			onPointerUp={(event) => {
+				const authored = rootRef.current;
 				if (
 					pointerDownRef.current === event.pointerId &&
 					vimEnabled &&
 					vimMode === "INSERT"
 				) {
-					const authored = rootRef.current;
 					if (authored) {
 						const point = pointerPosition(authored, event);
 						onPointerTarget?.(point.lineIdx, point.col, false);
 					}
+				}
+				if (!vimOwnsCaret && authored) {
+					updateCursor();
 				}
 				if (pointerDownRef.current === event.pointerId)
 					pointerDownRef.current = null;
@@ -643,7 +678,6 @@ export function EditorSurfaceView({
 						onFocus={() => {
 							focusedRef.current = true;
 							onFocusChange?.(true);
-							updateCursor();
 						}}
 						onBlur={() => {
 							focusedRef.current = false;
@@ -674,7 +708,7 @@ export function EditorSurfaceView({
 							const cellRows = visualRowsByCell[cellIdx] ?? [];
 							const lineDto = lines.find((l) => l.lineNumber === cellIdx + 1);
 							const isLineActive =
-								activeCellIndex !== undefined
+								vimEnabled && vimMode !== "INSERT" && activeCellIndex !== undefined
 									? activeCellIndex === cellIdx
 									: activeLineNumber === cellIdx + 1;
 							const isCellSelected =

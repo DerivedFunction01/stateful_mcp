@@ -61,10 +61,22 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		labelI18nKey: "editor.insertTab",
 	},
 	{
-		command: "editor.createSplitGroup",
+		command: "editor.splitRight",
 		chords: ["primary+\\"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
-		labelI18nKey: "editor.group.split",
+		labelI18nKey: "editor.splitRight",
+	},
+	{
+		command: "editor.splitDown",
+		chords: ["primary+shift+\\"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "editor.splitDown",
+	},
+	{
+		command: "editor.closeGroup",
+		chords: ["alt+w"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "editor.group.close",
 	},
 	{
 		command: "editor.nextTab",

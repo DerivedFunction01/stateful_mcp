@@ -175,11 +175,6 @@ export class MacroDocumentManager {
 				"EDITOR_DOCUMENT_DIRTY",
 				"The document has unsaved changes",
 			);
-		if (this.documents.size <= 1)
-			throw new DocumentManagerError(
-				"EDITOR_LAST_DOCUMENT",
-				"At least one editor document must remain open",
-			);
 
 		this.documents.delete(documentId);
 		this.documentUnsubs.get(documentId)?.();

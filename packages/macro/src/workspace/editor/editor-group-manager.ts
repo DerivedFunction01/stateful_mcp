@@ -12,11 +12,26 @@ export interface EditorGroup {
 	readonly sizeRatio?: number;
 }
 
+export type EditorLayoutNode =
+	| {
+			readonly kind: "group";
+			readonly groupId: string;
+			readonly sizeRatio?: number;
+	  }
+	| {
+			readonly kind: "split";
+			readonly nodeId: string;
+			readonly orientation: "horizontal" | "vertical";
+			readonly children: readonly EditorLayoutNode[];
+			readonly sizeRatios?: readonly number[];
+	  };
+
 export interface CreateEditorGroupOptions {
 	readonly sourceGroupId?: string;
 	readonly documentId?: string;
 	readonly orientation?: "horizontal" | "vertical";
 	readonly moveDocument?: boolean;
+	readonly behavior?: "duplicate" | "empty";
 }
 
 export class MacroEditorGroupManager {
@@ -24,6 +39,7 @@ export class MacroEditorGroupManager {
 	private readonly listeners = new Set<() => void>();
 	private readonly documentUnsubscribe: () => void;
 	private activeGroupId: string;
+	private layoutRoot: EditorLayoutNode;
 	private syncing = false;
 
 	constructor(private readonly documents: MacroDocumentManager) {
@@ -36,6 +52,7 @@ export class MacroEditorGroupManager {
 			orientation: "vertical",
 		});
 		this.activeGroupId = initial;
+		this.layoutRoot = { kind: "group", groupId: initial };
 		this.documentUnsubscribe = documents.subscribe(() =>
 			this.syncFromDocuments(),
 		);
@@ -53,6 +70,10 @@ export class MacroEditorGroupManager {
 		return this.groups.get(groupId);
 	}
 
+	getLayoutRoot(): EditorLayoutNode {
+		return this.layoutRoot;
+	}
+
 	create(options: CreateEditorGroupOptions = {}): EditorGroup {
 		const source = this.groups.get(options.sourceGroupId ?? this.activeGroupId);
 		if (!source)
@@ -63,6 +84,7 @@ export class MacroEditorGroupManager {
 		const documentId = options.documentId ?? source.activeDocumentId;
 		if (documentId) this.requireDocument(documentId);
 		if (
+			(options.behavior ?? "duplicate") !== "empty" &&
 			options.moveDocument &&
 			documentId &&
 			source.documentIds.includes(documentId)
@@ -79,13 +101,26 @@ export class MacroEditorGroupManager {
 						: source.activeDocumentId,
 			});
 		}
+		const targetOrientation = options.orientation ?? "vertical";
 		const group: EditorGroup = {
 			groupId: createGroupId(),
-			documentIds: documentId ? [documentId] : [],
-			activeDocumentId: documentId,
-			orientation: options.orientation ?? "vertical",
+			documentIds:
+				(options.behavior ?? "duplicate") === "empty"
+					? []
+					: documentId
+						? [documentId]
+						: [],
+			activeDocumentId:
+				(options.behavior ?? "duplicate") === "empty" ? null : documentId,
+			orientation: targetOrientation,
 		};
 		this.groups.set(group.groupId, group);
+		this.layoutRoot = insertSplitRecursive(
+			this.layoutRoot,
+			source.groupId,
+			group.groupId,
+			targetOrientation,
+		);
 		this.activeGroupId = group.groupId;
 		this.notify();
 		return group;
@@ -98,9 +133,16 @@ export class MacroEditorGroupManager {
 				"EDITOR_LAST_GROUP",
 				"At least one editor group must remain open",
 			);
-		const target = [...this.groups.values()].find(
-			(item) => item.groupId !== groupId,
-		);
+		let targetId = nearestSibling(this.layoutRoot, groupId);
+		if (!targetId) {
+			for (const other of this.groups.keys()) {
+				if (other !== groupId) {
+					targetId = other;
+					break;
+				}
+			}
+		}
+		const target = targetId ? this.groups.get(targetId) : undefined;
 		if (!target)
 			throw new DocumentManagerError(
 				"EDITOR_LAST_GROUP",
@@ -115,9 +157,28 @@ export class MacroEditorGroupManager {
 			);
 		this.groups.set(nextTarget.groupId, nextTarget);
 		this.groups.delete(groupId);
-		if (this.activeGroupId === groupId) this.activeGroupId = nextTarget.groupId;
+		const nextLayout = removeGroup(this.layoutRoot, groupId);
+		if (!nextLayout)
+			throw new DocumentManagerError(
+				"EDITOR_LAST_GROUP",
+				"At least one editor group must remain open",
+			);
+		this.layoutRoot = nextLayout;
+		if (this.activeGroupId === groupId) {
+			this.activeGroupId = nextTarget.groupId;
+			if (nextTarget.activeDocumentId) {
+				this.documents.select(nextTarget.activeDocumentId);
+			}
+		}
 		this.notify();
 		return group;
+	}
+
+	resizeSplit(nodeId: string, ratios: readonly number[]): void {
+		this.layoutRoot = updateSplitRatios(this.layoutRoot, nodeId, ratios);
+		// Update individual group sizeRatios if applicable
+		applyGroupRatios(this.layoutRoot, this.groups);
+		this.notify();
 	}
 
 	focus(groupId: string): EditorGroup {
@@ -195,24 +256,24 @@ export class MacroEditorGroupManager {
 				});
 			}
 			const activeDocumentId = this.documents.getActiveDocumentId();
-			const activeGroup = this.requireGroup(this.activeGroupId);
-			if (activeDocumentId && !documentIds.has(activeDocumentId)) return;
+			const activeGroup = this.groups.get(this.activeGroupId);
 			if (
+				activeGroup &&
 				activeDocumentId &&
-				!activeGroup.documentIds.includes(activeDocumentId)
-			)
-				this.groups.set(
-					activeGroup.groupId,
-					this.withDocument(activeGroup, activeDocumentId, activeDocumentId),
-				);
-			else if (
-				activeDocumentId &&
-				activeGroup.activeDocumentId !== activeDocumentId
-			)
-				this.groups.set(
-					activeGroup.groupId,
-					this.withDocument(activeGroup, activeDocumentId, activeDocumentId),
-				);
+				documentIds.has(activeDocumentId)
+			) {
+				if (!activeGroup.documentIds.includes(activeDocumentId)) {
+					this.groups.set(
+						activeGroup.groupId,
+						this.withDocument(activeGroup, activeDocumentId, activeDocumentId),
+					);
+				} else if (activeGroup.activeDocumentId !== activeDocumentId) {
+					this.groups.set(
+						activeGroup.groupId,
+						this.withDocument(activeGroup, activeDocumentId, activeDocumentId),
+					);
+				}
+			}
 			this.notify();
 		} finally {
 			this.syncing = false;
@@ -260,4 +321,149 @@ export class MacroEditorGroupManager {
 
 function createGroupId(): string {
 	return `macro-editor-group-${crypto.randomUUID()}`;
+}
+
+function insertSplitRecursive(
+	node: EditorLayoutNode,
+	sourceGroupId: string,
+	newGroupId: string,
+	orientation: "horizontal" | "vertical",
+): EditorLayoutNode {
+	if (node.kind === "group") {
+		if (node.groupId === sourceGroupId) {
+			return {
+				kind: "split",
+				nodeId: createGroupId(),
+				orientation,
+				children: [
+					{ kind: "group", groupId: sourceGroupId },
+					{ kind: "group", groupId: newGroupId },
+				],
+			};
+		}
+		return node;
+	}
+
+	// If this split container matches the requested orientation and directly contains sourceGroupId
+	if (node.orientation === orientation) {
+		const directChildIndex = node.children.findIndex(
+			(child) => child.kind === "group" && child.groupId === sourceGroupId,
+		);
+		if (directChildIndex !== -1) {
+			const nextChildren = [...node.children];
+			nextChildren.splice(directChildIndex + 1, 0, {
+				kind: "group",
+				groupId: newGroupId,
+			});
+			return {
+				...node,
+				children: nextChildren,
+			};
+		}
+	}
+
+	return {
+		...node,
+		children: node.children.map((child) =>
+			insertSplitRecursive(child, sourceGroupId, newGroupId, orientation),
+		),
+	};
+}
+
+function removeGroup(
+	node: EditorLayoutNode,
+	targetGroupId: string,
+): EditorLayoutNode | null {
+	if (node.kind === "group")
+		return node.groupId === targetGroupId ? null : node;
+	const children = node.children
+		.map((child) => removeGroup(child, targetGroupId))
+		.filter((child): child is EditorLayoutNode => child !== null);
+	if (children.length === 0) return null;
+	if (children.length === 1) return children[0]!;
+	return { ...node, children };
+}
+
+function updateSplitRatios(
+	node: EditorLayoutNode,
+	nodeId: string,
+	ratios: readonly number[],
+): EditorLayoutNode {
+	if (node.kind === "group") return node;
+	if (node.nodeId === nodeId) {
+		const nextChildren = node.children.map((child, idx) => {
+			const ratio = ratios[idx];
+			if (child.kind === "group" && ratio !== undefined) {
+				return { ...child, sizeRatio: ratio };
+			}
+			return child;
+		});
+		return {
+			...node,
+			sizeRatios: ratios,
+			children: nextChildren,
+		};
+	}
+	return {
+		...node,
+		children: node.children.map((child) =>
+			updateSplitRatios(child, nodeId, ratios),
+		),
+	};
+}
+
+function applyGroupRatios(
+	node: EditorLayoutNode,
+	groups: Map<string, EditorGroup>,
+): void {
+	if (node.kind === "group") {
+		if (node.sizeRatio !== undefined) {
+			const existing = groups.get(node.groupId);
+			if (existing) {
+				groups.set(node.groupId, { ...existing, sizeRatio: node.sizeRatio });
+			}
+		}
+		return;
+	}
+	for (const child of node.children) {
+		applyGroupRatios(child, groups);
+	}
+}
+
+function nearestSibling(
+	root: EditorLayoutNode,
+	targetGroupId: string,
+): string | undefined {
+	if (root.kind === "group") return undefined;
+	for (const [index, child] of root.children.entries()) {
+		if (containsGroup(child, targetGroupId)) {
+			for (const sibling of [
+				root.children[index - 1],
+				root.children[index + 1],
+			]) {
+				const groupId = firstGroup(sibling);
+				if (groupId) return groupId;
+			}
+			const deeper = nearestSibling(child, targetGroupId);
+			if (deeper) return deeper;
+			for (const other of root.children) {
+				if (other !== child) {
+					const groupId = firstGroup(other);
+					if (groupId) return groupId;
+				}
+			}
+		}
+	}
+	return undefined;
+}
+
+function containsGroup(node: EditorLayoutNode, groupId: string): boolean {
+	return node.kind === "group"
+		? node.groupId === groupId
+		: node.children.some((child) => containsGroup(child, groupId));
+}
+
+function firstGroup(node: EditorLayoutNode | undefined): string | undefined {
+	if (!node) return undefined;
+	return node.kind === "group" ? node.groupId : firstGroup(node.children[0]);
 }

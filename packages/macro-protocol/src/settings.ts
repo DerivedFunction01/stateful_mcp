@@ -370,6 +370,7 @@ export interface StorageLocationConfigDto {
 export interface UserPreferencesDto {
 	readonly keymapProfile: string;
 	readonly vimEnabled: boolean;
+	readonly splitEditorBehavior?: "duplicate" | "empty";
 	readonly theme: string;
 	readonly locale: string;
 	readonly autoPurgeOnExecute?: boolean;

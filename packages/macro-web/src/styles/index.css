@@ -1744,6 +1744,15 @@ kbd {
 	overflow: hidden;
 	padding: 0 6px 0 0;
 	user-select: none;
+	transition: opacity 0.15s ease;
+}
+
+.editor-group-header--active {
+	opacity: 1;
+}
+
+.editor-group-header--inactive {
+	opacity: 0.78;
 }
 
 .workbench-tabs {
@@ -1778,14 +1787,21 @@ kbd {
 	white-space: nowrap;
 	user-select: none;
 	cursor: pointer;
-	transition: background-color 0.15s ease;
+	border-top: 2px solid transparent;
+	transition:
+		background-color 0.15s ease,
+		border-top-color 0.15s ease;
 }
 
 .workbench-document-tab.active {
 	background: var(--theme-surface-primary);
 	color: var(--theme-content-primary);
 	font-weight: 500;
-	border-top: 2px solid var(--theme-border-focus);
+	border-top-color: var(--theme-border-focus);
+}
+
+.workbench-document-tab.active.group-focused {
+	border-top-color: var(--theme-content-accent);
 }
 
 .tab-title-btn {
@@ -1906,15 +1922,16 @@ kbd {
 
 .editor-surface-view {
 	flex: 1;
-	min-height: 0;
 	display: flex;
 	flex-direction: column;
-	overflow-y: auto;
+	overflow: auto;
 	position: relative;
 }
 
 .editor-canvas {
 	min-height: 100%;
+	width: max-content;
+	min-width: 100%;
 	font-family: "DM Mono", monospace;
 	font-size: 13px;
 	line-height: 24px;
@@ -1924,7 +1941,8 @@ kbd {
 .editor-cells-wrapper {
 	position: relative;
 	min-height: 100%;
-	width: 100%;
+	width: max-content;
+	min-width: 100%;
 }
 
 /* Authored text input */
@@ -1932,8 +1950,8 @@ kbd {
 	outline: none;
 	min-height: 100%;
 	color: var(--theme-content-primary);
-	white-space: pre-wrap;
-	word-break: break-word;
+	white-space: pre;
+	word-break: normal;
 	tab-size: 2;
 	padding: 10px 16px 10px 68px;
 	position: relative;
@@ -4593,12 +4611,49 @@ kbd {
 	min-height: 120px;
 	overflow: hidden;
 	position: relative;
-	border: 1px solid transparent;
-	transition: border-color 0.12s ease;
+	border: 1px solid var(--theme-border-subtle);
+	transition:
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
 }
 
 .editor-split-group-pane--active {
-	border-color: var(--theme-border-subtle);
+	border-color: color-mix(
+		in srgb,
+		var(--theme-content-accent) 60%,
+		var(--theme-border-subtle)
+	);
+	box-shadow: inset 0 0 0 1px
+		color-mix(in srgb, var(--theme-content-accent) 35%, transparent);
+}
+
+.editor-empty-group {
+	align-items: center;
+	color: var(--theme-text-muted);
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 8px;
+	justify-content: center;
+	padding: 32px;
+	text-align: center;
+}
+
+.editor-empty-group strong {
+	color: var(--theme-text-primary);
+	font-size: 1.05rem;
+}
+
+.editor-empty-group__actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.editor-empty-group__actions button {
+	align-items: center;
+	display: inline-flex;
+	gap: 6px;
 }
 
 .editor-splitter {

@@ -81,6 +81,28 @@ export interface EditorGroupDto {
 	readonly sizeRatio?: number;
 }
 
+export interface EditorLayoutLeafDto {
+	readonly kind: "group";
+	readonly groupId: string;
+	readonly documentIds: readonly string[];
+	readonly activeDocumentId: string | null;
+}
+
+export interface EditorLayoutSplitDto {
+	readonly kind: "split";
+	readonly nodeId: string;
+	readonly orientation: "horizontal" | "vertical";
+	readonly children: readonly EditorLayoutNodeDto[];
+	readonly sizeRatios?: readonly number[];
+}
+
+export type EditorLayoutNodeDto = EditorLayoutLeafDto | EditorLayoutSplitDto;
+
+export interface EditorLayoutDto {
+	readonly version: 1;
+	readonly root: EditorLayoutNodeDto;
+}
+
 export interface EditorOutputIdentityDto {
 	readonly documentId: string;
 	readonly requestId: string;
@@ -128,6 +150,7 @@ export interface ScratchpadTemplateDescriptor {
 export interface EditorWorkspaceSnapshotDto {
 	readonly documents: readonly EditorDocumentDto[];
 	readonly groups: readonly EditorGroupDto[];
+	readonly editorLayout?: EditorLayoutDto;
 	readonly activeGroupId: string | null;
 	readonly activeDocumentId: string | null;
 	readonly activeDocument: ScratchpadSnapshotDto | null;
@@ -150,10 +173,14 @@ export interface EditorRequestBase {
 export type EditorOperation =
 	| (EditorRequestBase & {
 			readonly operation: "editor.newScratchpad";
+			readonly groupId?: string;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.newScratchpadFromTemplate";
 			readonly templateId: string;
+			readonly groupId?: string;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.selectDocument";
@@ -237,34 +264,42 @@ export type EditorOperation =
 			readonly sourceGroupId?: string;
 			readonly documentId?: string;
 			readonly moveDocument?: boolean;
+			readonly behavior?: "duplicate" | "empty";
 			readonly orientation?: "horizontal" | "vertical";
-			readonly expectedWorkspaceRevision: number;
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.resizeSplit";
+			readonly nodeId: string;
+			readonly ratios: readonly number[];
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.closeGroup";
 			readonly groupId: string;
-			readonly expectedWorkspaceRevision: number;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.focusGroup";
 			readonly groupId: string;
-			readonly expectedWorkspaceRevision: number;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.openDocumentInGroup";
 			readonly groupId: string;
 			readonly documentId: string;
-			readonly expectedWorkspaceRevision: number;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.moveDocumentToGroup";
 			readonly documentId: string;
 			readonly groupId: string;
-			readonly expectedWorkspaceRevision: number;
+			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.openFile";
 			readonly path: string;
+			readonly groupId?: string;
 			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {

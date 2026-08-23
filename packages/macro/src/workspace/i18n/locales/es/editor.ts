@@ -77,8 +77,11 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.template.createFailed": "No se pudo crear la plantilla de documento.",
 	"editor.selection.range": "Rango seleccionado",
 	"editor.selection.noRange": "No hay un rango seleccionado",
-	"editor.commandModeUnsupported":
-		"El modo de comandos no está disponible en esta superficie.",
+	"editor.emptyGroup.title": "Sin editores abiertos",
+	"editor.emptyGroup.description":
+		"Cree un bloc de notas o abra un archivo para comenzar a editar.",
+	"editor.splitRight": "Dividir editor a la derecha",
+	"editor.splitDown": "Dividir editor abajo",
 	"editor.inactive.title": "Editor no disponible",
 	"editor.inactive.description":
 		"El host no ha activado un documento del editor.",

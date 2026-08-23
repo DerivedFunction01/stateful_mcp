@@ -13,8 +13,10 @@ import {
 import {
 	type BrowserEditorSurfaceAdapter,
 	type BrowserVimController,
+	type BrowserVimGroupController,
+	type BrowserVimGroupManager,
 	type BrowserVimState,
-	createBrowserVimController,
+	createBrowserVimGroupManager,
 } from "../lib/browser-vim";
 import {
 	loadUserPreferences,
@@ -23,20 +25,36 @@ import {
 
 export interface UseWorkbenchVimOptions {
 	readonly snapshotRef: RefObject<WorkspaceSnapshot | undefined>;
-	readonly getSurfaceAdapter: () => BrowserEditorSurfaceAdapter | undefined;
-	readonly onCommandModeExit?: () => void;
+	readonly getSurfaceAdapter: (
+		groupId?: string,
+		documentId?: string | null,
+	) => BrowserEditorSurfaceAdapter | undefined;
+	readonly onCommandModeExit?: (groupId?: string) => void;
 	readonly onOpenPalette?: (
 		initialQuery?: string,
 		commandMode?: boolean,
 		commandToken?: string,
+		groupId?: string,
 	) => void;
 	readonly onOpenSearch?: (
 		direction: SearchDirection,
 		vimSearch?: boolean,
+		groupId?: string,
 	) => void;
 	readonly onEditorOperation: (
 		operation: EditorOperation,
 	) => void | Promise<void>;
+}
+
+export function useGroupVimState(
+	manager: BrowserVimGroupManager,
+	groupId: string,
+): BrowserVimState {
+	return useSyncExternalStore<BrowserVimState>(
+		(cb) => manager.subscribe(cb, groupId),
+		() => manager.getState(groupId),
+		() => manager.getState(groupId),
+	);
 }
 
 export function useWorkbenchVim({
@@ -56,83 +74,120 @@ export function useWorkbenchVim({
 	const onCommandModeExitRef = useRef(onCommandModeExit);
 	onCommandModeExitRef.current = onCommandModeExit;
 
-	const [vimController] = useState<BrowserVimController>(() =>
-		createBrowserVimController(loadUserPreferences().vimEnabled, {
-			variant: () => {
-				const activeDocId = snapshotRef.current?.editor.activeDocumentId;
-				const activeDocMeta = snapshotRef.current?.editor.documents.find(
-					(doc) => doc.documentId === activeDocId,
+	const [vimManager] = useState<BrowserVimGroupManager>(() =>
+		createBrowserVimGroupManager(loadUserPreferences().vimEnabled, {
+			getVariant: (groupId, docId) => {
+				const currentDocId =
+					docId ??
+					snapshotRef.current?.editor.groups.find((g) => g.groupId === groupId)
+						?.activeDocumentId ??
+					snapshotRef.current?.editor.activeDocumentId;
+				const docMeta = snapshotRef.current?.editor.documents.find(
+					(doc) => doc.documentId === currentDocId,
 				);
-				return activeDocMeta?.providerId === "file" ? "generic" : "scratchpad";
+				return docMeta?.providerId === "file" ? "generic" : "scratchpad";
 			},
-			getAdapter: getSurfaceAdapter,
+			getAdapter: (groupId, docId) => getSurfaceAdapter(groupId, docId),
 			getKeymap: () => snapshotRef.current?.keymap,
-			onOpenCommandMode: (initialQuery, commandMode, commandToken) =>
+			onOpenCommandMode: (groupId, initialQuery, commandMode, commandToken) =>
 				onOpenPaletteRef.current?.(
 					initialQuery ?? "",
 					commandMode,
 					commandToken ?? "",
+					groupId,
 				),
-			onOpenSearch: (direction, vimSearch) =>
-				onOpenSearchRef.current?.(direction, vimSearch),
-			onExecuteLine: (lineNum) => {
-				const activeDocMeta = snapshotRef.current?.editor.documents.find(
-					(doc) =>
-						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+			onOpenSearch: (groupId, direction, vimSearch) =>
+				onOpenSearchRef.current?.(direction, vimSearch, groupId),
+			onExecuteLine: (groupId, docId, lineNum) => {
+				const currentDocId =
+					docId ??
+					snapshotRef.current?.editor.groups.find((g) => g.groupId === groupId)
+						?.activeDocumentId ??
+					snapshotRef.current?.editor.activeDocumentId;
+				const docMeta = snapshotRef.current?.editor.documents.find(
+					(doc) => doc.documentId === currentDocId,
 				);
-				if (activeDocMeta?.providerId === "file") return;
-				const activeDoc = snapshotRef.current?.editor.activeDocument;
-				if (!activeDoc) return;
+				if (docMeta?.providerId === "file") return;
+				const doc =
+					(currentDocId &&
+						snapshotRef.current?.editor.loadedDocuments?.[currentDocId]) ??
+					(currentDocId === snapshotRef.current?.editor.activeDocumentId
+						? snapshotRef.current?.editor.activeDocument
+						: undefined);
+				if (!doc) return;
 				const targetLine =
-					lineNum ?? (getSurfaceAdapter()?.getActiveCellIndex?.() ?? 0) + 1;
+					lineNum ??
+					(getSurfaceAdapter(groupId, currentDocId)?.getActiveCellIndex?.() ??
+						0) + 1;
 				void onEditorOperationRef.current({
 					operation: "editor.executeLine",
 					requestId: crypto.randomUUID(),
-					documentId: activeDoc.documentId,
+					documentId: doc.documentId,
 					lineNumber: targetLine,
-					expectedTextRevision: activeDoc.textRevision,
+					expectedTextRevision: doc.textRevision,
 				});
 			},
-			onExecuteRange: (startLine, endLine) => {
-				const activeDocMeta = snapshotRef.current?.editor.documents.find(
-					(doc) =>
-						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+			onExecuteRange: (groupId, docId, startLine, endLine) => {
+				const currentDocId =
+					docId ??
+					snapshotRef.current?.editor.groups.find((g) => g.groupId === groupId)
+						?.activeDocumentId ??
+					snapshotRef.current?.editor.activeDocumentId;
+				const docMeta = snapshotRef.current?.editor.documents.find(
+					(doc) => doc.documentId === currentDocId,
 				);
-				if (activeDocMeta?.providerId === "file") return;
-				const activeDoc = snapshotRef.current?.editor.activeDocument;
-				if (!activeDoc) return;
+				if (docMeta?.providerId === "file") return;
+				const doc =
+					(currentDocId &&
+						snapshotRef.current?.editor.loadedDocuments?.[currentDocId]) ??
+					(currentDocId === snapshotRef.current?.editor.activeDocumentId
+						? snapshotRef.current?.editor.activeDocument
+						: undefined);
+				if (!doc) return;
 				void onEditorOperationRef.current({
 					operation: "editor.executeRange",
 					requestId: crypto.randomUUID(),
-					documentId: activeDoc.documentId,
+					documentId: doc.documentId,
 					startLine,
 					endLine,
-					expectedTextRevision: activeDoc.textRevision,
+					expectedTextRevision: doc.textRevision,
 				});
 			},
-			onExecuteValidLines: () => {
-				const activeDocMeta = snapshotRef.current?.editor.documents.find(
-					(doc) =>
-						doc.documentId === snapshotRef.current?.editor.activeDocumentId,
+			onExecuteValidLines: (groupId, docId) => {
+				const currentDocId =
+					docId ??
+					snapshotRef.current?.editor.groups.find((g) => g.groupId === groupId)
+						?.activeDocumentId ??
+					snapshotRef.current?.editor.activeDocumentId;
+				const docMeta = snapshotRef.current?.editor.documents.find(
+					(doc) => doc.documentId === currentDocId,
 				);
-				if (activeDocMeta?.providerId === "file") return;
-				const activeDoc = snapshotRef.current?.editor.activeDocument;
-				if (!activeDoc) return;
+				if (docMeta?.providerId === "file") return;
+				const doc =
+					(currentDocId &&
+						snapshotRef.current?.editor.loadedDocuments?.[currentDocId]) ??
+					(currentDocId === snapshotRef.current?.editor.activeDocumentId
+						? snapshotRef.current?.editor.activeDocument
+						: undefined);
+				if (!doc) return;
 				void onEditorOperationRef.current({
 					operation: "editor.executeValidLines",
 					requestId: crypto.randomUUID(),
-					documentId: activeDoc.documentId,
-					expectedTextRevision: activeDoc.textRevision,
+					documentId: doc.documentId,
+					expectedTextRevision: doc.textRevision,
 				});
 			},
 		}),
 	);
 
 	useEffect(() => {
-		const exitCommandMode = () => {
-			const wasInCommandMode = vimController.getState().mode === "COMMAND";
-			vimController.exitCommandMode();
-			if (wasInCommandMode) onCommandModeExitRef.current?.();
+		const exitCommandMode = (event?: Event) => {
+			const customEvent = event as
+				| CustomEvent<{ groupId?: string }>
+				| undefined;
+			const targetGroupId = customEvent?.detail?.groupId;
+			vimManager.exitCommandMode(targetGroupId);
+			onCommandModeExitRef.current?.(targetGroupId);
 		};
 		window.addEventListener("workbench:exitVimCommandMode", exitCommandMode);
 		return () =>
@@ -140,23 +195,32 @@ export function useWorkbenchVim({
 				"workbench:exitVimCommandMode",
 				exitCommandMode,
 			);
-	}, [vimController]);
+	}, [vimManager]);
+
+	const activeGroupId = snapshotRef.current?.editor.activeGroupId ?? "default";
+	const vimController: BrowserVimController =
+		vimManager.getGroupController(activeGroupId);
 
 	const vimState = useSyncExternalStore<BrowserVimState>(
-		vimController.subscribe,
-		vimController.getState,
-		vimController.getState,
+		(cb) => vimManager.subscribe(cb, activeGroupId),
+		() => vimManager.getState(activeGroupId),
+		() => vimManager.getState(activeGroupId),
 	);
 
 	const toggleVim = () => {
 		const next = !vimState.enabled;
-		vimController.setEnabled(next);
+		vimManager.setEnabled(next);
 		saveUserPreferences({ vimEnabled: next });
 	};
 
 	return {
+		vimManager,
 		vimController,
 		vimState,
 		toggleVim,
+		getGroupController: (groupId: string): BrowserVimGroupController =>
+			vimManager.getGroupController(groupId),
+		getGroupState: (groupId: string): BrowserVimState =>
+			vimManager.getState(groupId),
 	};
 }
