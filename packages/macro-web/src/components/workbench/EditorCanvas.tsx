@@ -42,7 +42,8 @@ export interface EditorCanvasProps {
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onNewScratchpad?: () => void;
-	readonly onOpenPalette?: () => void;
+	readonly onOpenFile?: () => void;
+	readonly onCreateFile?: () => void;
 }
 
 export function EditorCanvas({
@@ -68,7 +69,8 @@ export function EditorCanvas({
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
 	onNewScratchpad,
-	onOpenPalette,
+	onOpenFile,
+	onCreateFile,
 }: EditorCanvasProps) {
 	const { t } = useI18n();
 
@@ -122,7 +124,8 @@ export function EditorCanvas({
 			) : (
 				<EmptyEditorGroup
 					onNewScratchpad={onNewScratchpad ?? (() => undefined)}
-					onOpenPalette={onOpenPalette}
+					onOpenFile={onOpenFile}
+					onCreateFile={onCreateFile}
 				/>
 			)}
 		</div>

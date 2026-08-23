@@ -80,6 +80,8 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.emptyGroup.title": "No Open Editors",
 	"editor.emptyGroup.description":
 		"Create a scratchpad or open a file to start editing.",
+	"editor.emptyGroup.openFile": "Open File",
+	"editor.emptyGroup.createFile": "Create File",
 	"editor.splitRight": "Split Editor Right",
 	"editor.splitDown": "Split Editor Down",
 	"editor.inactive.title": "Editor unavailable",
@@ -91,6 +93,8 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.surface.projections": "Macro projections",
 	"editor.surface.projectionAvailable": "Projection available",
 	"editor.surface.noProjection": "No projection",
+	"editor.commandModeUnsupported":
+		"Command mode is not supported in this editor surface.",
 	"editor.slots.title": "Macro Slots",
 
 	// Editor Find Widget (moved from macro-web gallery-locale)
@@ -144,4 +148,13 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.split.vertical": "Split Vertical",
 	"editor.split.horizontal": "Split Horizontal",
 	"editor.split.closeGroup": "Close Group",
+
+	// Root-level Create File dialog
+	"editor.createFile.title": "Create File",
+	"editor.createFile.nameLabel": "File name",
+	"editor.createFile.namePlaceholder": "new-file.ts",
+	"editor.createFile.parentLabel": "In {name}",
+	"editor.createFile.nameRequired": "Enter a file name.",
+	"editor.createFile.invalidName": "File name must be a single path segment.",
+	"editor.createFile.create": "Create",
 };

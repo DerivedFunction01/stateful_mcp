@@ -131,6 +131,7 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 						) : (
 							<FileTreeView
 								tree={props.projectFileTree ?? []}
+								mode="files-and-folders"
 								onOpenFile={props.onOpenFile ?? (() => undefined)}
 								onRefresh={props.onRefreshFileTree}
 								onCreateFile={props.onCreateFile}

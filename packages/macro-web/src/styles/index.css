@@ -3354,6 +3354,40 @@ kbd {
 	line-height: 1.5;
 }
 
+.create-file-dialog {
+	max-width: 430px;
+}
+
+.create-file-dialog .input {
+	appearance: none;
+	box-sizing: border-box;
+	width: 100%;
+	min-height: 32px;
+	padding: 6px 9px;
+	border: 1px solid var(--theme-border-default);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-sunken);
+	color: var(--theme-content-primary);
+	outline: none;
+	transition:
+		border-color 120ms ease,
+		background-color 120ms ease;
+}
+
+.create-file-dialog .input::placeholder {
+	color: var(--theme-content-tertiary);
+	opacity: 1;
+}
+
+.create-file-dialog .input:focus {
+	border-color: var(--theme-border-focus);
+	background: var(--theme-surface-primary);
+}
+
+.create-file-dialog .input.input-error {
+	border-color: var(--theme-content-danger);
+}
+
 .page-actions {
 	display: flex;
 	justify-content: flex-end;
@@ -4044,6 +4078,18 @@ kbd {
 	font-size: 12px;
 }
 
+.create-file-dialog__parent {
+	font-size: 12px;
+	color: var(--theme-content-tertiary);
+	margin: -4px 0 4px;
+}
+
+.create-file-dialog__form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
 .spin {
 	animation: spin 1s linear infinite;
 }
@@ -4652,8 +4698,31 @@ kbd {
 
 .editor-empty-group__actions button {
 	align-items: center;
+	appearance: none;
+	background: var(--theme-action-secondary-surface-default);
+	border: 1px solid var(--theme-action-secondary-border);
+	border-radius: var(--theme-radius-sm);
+	color: var(--theme-action-secondary-content);
 	display: inline-flex;
+	font-size: 12px;
+	font-weight: 600;
 	gap: 6px;
+	justify-content: center;
+	min-height: 30px;
+	padding: 0 10px;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease;
+}
+
+.editor-empty-group__actions button:hover {
+	background: var(--theme-action-secondary-surface-hover);
+	border-color: var(--theme-border-focus);
+	color: var(--theme-content-primary);
+}
+
+.editor-empty-group__actions button:active {
+	background: var(--theme-action-secondary-surface-pressed);
 }
 
 .editor-splitter {

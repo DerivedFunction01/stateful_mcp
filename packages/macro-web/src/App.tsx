@@ -18,6 +18,7 @@ import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { WorkbenchShell } from "./components/WorkbenchShell";
+import { CreateFileDialog } from "./components/workbench/CreateFileDialog";
 import { formatChord, getBrowserShortcutPlatform } from "./lib/bindings";
 import {
 	BrowserKeymapController,
@@ -118,6 +119,14 @@ export function App() {
 	const [folderModalMode, setFolderModalMode] = useState<
 		"open" | "init" | "saveAs" | undefined
 	>();
+	const [pendingCreateFile, setPendingCreateFile] = useState<{
+		readonly groupId: string;
+	} | null>(null);
+	const [createFileTarget, setCreateFileTarget] = useState<{
+		readonly groupId: string;
+	} | null>(null);
+	const [createFileError, setCreateFileError] = useState<string | undefined>();
+	const [createFileSubmitting, setCreateFileSubmitting] = useState(false);
 	const [activePrimaryTab, setActivePrimaryTab] =
 		useState<PrimarySidebarTab>("explorer");
 	const [paletteInitialQuery, setPaletteInitialQuery] = useState("");
@@ -178,6 +187,59 @@ export function App() {
 							? `${t("keymap.shortcutUnmapped")} ${message.chord} (${message.command})`
 							: t(`keymap.${message.key}`);
 		setAnnouncement(text);
+	}
+
+	function handleOpenFileInGroup(groupId: string): void {
+		void store.applyEditorOperation({
+			operation: "editor.focusGroup",
+			requestId: crypto.randomUUID(),
+			groupId,
+		});
+		setActivePrimaryTab("explorer");
+		const isSidebarOpen = snapshot?.layout.regions.activity?.open ?? true;
+		if (!isSidebarOpen) void runCommand("workbench.toggleSidepanel");
+		if (!snapshot?.project || snapshot.project.ephemeral) {
+			setFolderModalMode("open");
+		}
+	}
+
+	function handleCreateFileInGroup(groupId: string): void {
+		if (snapshot?.project && !snapshot.project.ephemeral) {
+			setCreateFileError(undefined);
+			setCreateFileTarget({ groupId });
+			return;
+		}
+		setPendingCreateFile({ groupId });
+		setFolderModalMode("open");
+	}
+
+	async function handleCreateFileSubmit(name: string): Promise<void> {
+		const target = createFileTarget;
+		if (!target) return;
+		const createFile = host.createFile;
+		if (!createFile) {
+			setCreateFileError(t("common.error"));
+			return;
+		}
+		setCreateFileSubmitting(true);
+		setCreateFileError(undefined);
+		try {
+			const { path } = await createFile(".", name);
+			await store.applyEditorOperation({
+				operation: "editor.openFile",
+				requestId: crypto.randomUUID(),
+				path,
+				groupId: target.groupId,
+			});
+			await store.refreshFileTree();
+			setCreateFileTarget(null);
+		} catch (error) {
+			setCreateFileError(
+				error instanceof Error ? error.message : String(error),
+			);
+		} finally {
+			setCreateFileSubmitting(false);
+		}
 	}
 
 	async function runCommand(
@@ -665,6 +727,8 @@ export function App() {
 										.createProjectDirectory?.(parent, name)
 										.then(() => store.refreshFileTree());
 								}}
+								onOpenFileInGroup={handleOpenFileInGroup}
+								onCreateFileInGroup={handleCreateFileInGroup}
 							/>
 						)}
 					</main>
@@ -738,8 +802,15 @@ export function App() {
 						client={host}
 						onSelect={async (path) => {
 							try {
-								if (folderModalMode === "open") await store.openProject(path);
-								else if (folderModalMode === "init")
+								if (folderModalMode === "open") {
+									await store.openProject(path);
+									const pending = pendingCreateFile;
+									if (pending) {
+										setPendingCreateFile(null);
+										setCreateFileError(undefined);
+										setCreateFileTarget(pending);
+									}
+								} else if (folderModalMode === "init")
 									await store.initProject(path);
 								else if (folderModalMode === "saveAs")
 									await store.saveAsProject(path);
@@ -747,9 +818,24 @@ export function App() {
 								await store.refreshFileTree();
 							}
 						}}
-						onClose={() => setFolderModalMode(undefined)}
+						onClose={() => {
+							setFolderModalMode(undefined);
+							setPendingCreateFile(null);
+						}}
 					/>
 				)}
+
+				<CreateFileDialog
+					open={createFileTarget !== null}
+					parentLabel={snapshot?.project?.displayName}
+					onSubmit={(name) => handleCreateFileSubmit(name)}
+					onCancel={() => {
+						setCreateFileTarget(null);
+						setCreateFileError(undefined);
+					}}
+					error={createFileError}
+					submitting={createFileSubmitting}
+				/>
 			</div>
 		</EditorSurfaceRegistryContext.Provider>
 	);

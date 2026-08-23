@@ -43,6 +43,8 @@ const statusLabel: Record<string, string> = {
 	deleted: "D",
 };
 
+export type FileTreeMode = "folders" | "files-and-folders";
+
 export function FileTreeView({
 	tree,
 	onOpenFile,
@@ -51,6 +53,7 @@ export function FileTreeView({
 	onCreateFolder,
 	onRename,
 	onDelete,
+	mode = "files-and-folders",
 }: {
 	tree: readonly FileTreeItemDto[];
 	onOpenFile: (path: string) => void;
@@ -59,6 +62,7 @@ export function FileTreeView({
 	onCreateFolder?: (parent: string, name: string) => void;
 	onRename?: (item: FileTreeItemDto) => void;
 	onDelete?: (item: FileTreeItemDto) => void;
+	mode?: FileTreeMode;
 }) {
 	const { t } = useI18n();
 	const [expanded, setExpanded] = useState(() => new Set<string>());
@@ -82,6 +86,7 @@ export function FileTreeView({
 	};
 	const render = (items: readonly FileTreeItemDto[]) =>
 		items.map((item) => {
+			if (mode === "folders" && !item.isDirectory) return null;
 			const open = expanded.has(item.path);
 			return (
 				<div key={item.path}>

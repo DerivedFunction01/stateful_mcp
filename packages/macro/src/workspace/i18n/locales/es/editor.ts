@@ -80,6 +80,8 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.emptyGroup.title": "Sin editores abiertos",
 	"editor.emptyGroup.description":
 		"Cree un bloc de notas o abra un archivo para comenzar a editar.",
+	"editor.emptyGroup.openFile": "Abrir archivo",
+	"editor.emptyGroup.createFile": "Crear archivo",
 	"editor.splitRight": "Dividir editor a la derecha",
 	"editor.splitDown": "Dividir editor abajo",
 	"editor.inactive.title": "Editor no disponible",
@@ -92,6 +94,8 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.surface.projections": "Proyecciones de Macro",
 	"editor.surface.projectionAvailable": "Proyección disponible",
 	"editor.surface.noProjection": "Sin proyección",
+	"editor.commandModeUnsupported":
+		"El modo comando no es compatible con esta superficie del editor.",
 	"editor.slots.title": "Ranuras de Macro",
 
 	// Editor Find Widget (moved from macro-web gallery-locale)
@@ -145,4 +149,14 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.split.vertical": "Dividir verticalmente",
 	"editor.split.horizontal": "Dividir horizontalmente",
 	"editor.split.closeGroup": "Cerrar grupo",
+
+	// Diálogo de creación de archivo en la raíz
+	"editor.createFile.title": "Crear archivo",
+	"editor.createFile.nameLabel": "Nombre del archivo",
+	"editor.createFile.namePlaceholder": "nuevo-archivo.ts",
+	"editor.createFile.parentLabel": "En {name}",
+	"editor.createFile.nameRequired": "Introduzca un nombre de archivo.",
+	"editor.createFile.invalidName":
+		"El nombre del archivo debe ser un único segmento de ruta.",
+	"editor.createFile.create": "Crear",
 };

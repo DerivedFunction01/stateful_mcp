@@ -80,6 +80,8 @@ export interface WorkbenchShellProps {
 	readonly onRefreshFileTree?: () => void;
 	readonly onCreateFile?: (parent: string, name: string) => void;
 	readonly onCreateFolder?: (parent: string, name: string) => void;
+	readonly onOpenFileInGroup?: (groupId: string) => void;
+	readonly onCreateFileInGroup?: (groupId: string) => void;
 }
 
 interface EditorGroupPaneProps {
@@ -102,7 +104,11 @@ interface EditorGroupPaneProps {
 	readonly unregisterAdapter: (groupId: string) => void;
 	readonly onSelectDocument: (groupId: string, documentId: string) => void;
 	readonly onRenameDocument: (documentId: string, title: string) => void;
-	readonly onCloseDocument: (documentId: string, textRevision?: number) => void;
+	readonly onCloseDocument: (
+		groupId: string,
+		documentId: string,
+		textRevision?: number,
+	) => void;
 	readonly onNewScratchpad: (groupId: string) => void;
 	readonly onSplitGroup: (
 		groupId: string,
@@ -120,7 +126,8 @@ interface EditorGroupPaneProps {
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onInsertSnippet: (snippet: string) => void;
 	readonly onEditorCursorChange?: (cursor: string) => void;
-	readonly onOpenPalette?: () => void;
+	readonly onOpenFile?: (groupId: string) => void;
+	readonly onCreateFile?: (groupId: string) => void;
 }
 
 function EditorGroupPane({
@@ -149,7 +156,8 @@ function EditorGroupPane({
 	onOverwriteEditorConflict,
 	onInsertSnippet,
 	onEditorCursorChange,
-	onOpenPalette,
+	onOpenFile,
+	onCreateFile,
 }: EditorGroupPaneProps) {
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
 	const surfaceRef = useRef<HTMLElement | null>(null);
@@ -240,12 +248,22 @@ function EditorGroupPane({
 		<div
 			className={`editor-split-group-pane ${isActiveGroup ? "editor-split-group-pane--active" : ""}`}
 			style={{ flex: group.sizeRatio ?? 1, minWidth: 0, minHeight: 0 }}
-			onPointerDownCapture={() => {
+			onPointerDownCapture={(event) => {
+				if (
+					event.target instanceof Element &&
+					event.target.closest(".editor-group-actions")
+				)
+					return;
 				if (!isActiveGroup) {
 					onFocusGroup(group.groupId);
 				}
 			}}
-			onClick={() => {
+			onClick={(event) => {
+				if (
+					event.target instanceof Element &&
+					event.target.closest(".editor-group-actions")
+				)
+					return;
 				if (!isActiveGroup) {
 					onFocusGroup(group.groupId);
 				}
@@ -267,7 +285,9 @@ function EditorGroupPane({
 					onSelectDocument(group.groupId, documentId)
 				}
 				onRenameDocument={onRenameDocument}
-				onCloseDocument={onCloseDocument}
+				onCloseDocument={(documentId, textRevision) =>
+					onCloseDocument(group.groupId, documentId, textRevision)
+				}
 				onNewScratchpad={() => onNewScratchpad(group.groupId)}
 				onSplitGroup={(orientation) =>
 					onSplitGroup(group.groupId, orientation, groupActiveDoc?.documentId)
@@ -323,7 +343,8 @@ function EditorGroupPane({
 					onSetEditorDraft(groupActiveDocMeta.documentId, lines)
 				}
 				onNewScratchpad={() => onNewScratchpad(group.groupId)}
-				onOpenPalette={() => onOpenPalette?.()}
+				onOpenFile={() => onOpenFile?.(group.groupId)}
+				onCreateFile={() => onCreateFile?.(group.groupId)}
 				onFocusChange={(focused) => {
 					setSurfaceFocused(focused);
 					if (focused && !isActiveGroup) {
@@ -418,6 +439,8 @@ export function WorkbenchShell({
 	onRefreshFileTree,
 	onCreateFile,
 	onCreateFolder,
+	onOpenFileInGroup,
+	onCreateFileInGroup,
 }: WorkbenchShellProps) {
 	const { t } = useI18n();
 	const registry = useEditorSurfaceRegistry();
@@ -512,13 +535,45 @@ export function WorkbenchShell({
 		void onEditorOperation(operation);
 	};
 
-	const handleCloseDocument = (documentId: string, textRevision?: number) => {
+	const handleCloseDocument = (
+		groupId: string,
+		documentId: string,
+		textRevision?: number,
+	) => {
 		const docMeta = snapshot?.editor.documents.find(
 			(d) => d.documentId === documentId,
 		);
 		const isTargetActive = activeDocumentMeta?.documentId === documentId;
 		const isDirty =
 			Boolean(docMeta?.dirty) || (isTargetActive && localDraft !== undefined);
+		if (isDirty && docMeta) {
+			setPendingCloseDoc({
+				groupId,
+				documentId,
+				title: docMeta.title,
+				textRevision: textRevision ?? docMeta.textRevision,
+				filePath: docMeta.filePath,
+			});
+			return;
+		}
+		emitEditorOperation({
+			operation: "editor.closeDocumentInGroup",
+			requestId: requestId(),
+			groupId,
+			documentId,
+			expectedTextRevision: textRevision,
+			force: false,
+		});
+	};
+
+	const handleCloseDocumentGlobal = (
+		documentId: string,
+		textRevision?: number,
+	) => {
+		const docMeta = snapshot?.editor.documents.find(
+			(document) => document.documentId === documentId,
+		);
+		const isDirty = Boolean(docMeta?.dirty);
 		if (isDirty && docMeta) {
 			setPendingCloseDoc({
 				documentId,
@@ -559,8 +614,9 @@ export function WorkbenchShell({
 			});
 		}
 		await onEditorOperation({
-			operation: "editor.closeDocument",
+			operation: "editor.closeDocumentInGroup",
 			requestId: requestId(),
+			groupId: target.groupId ?? activeGroup?.groupId ?? "",
 			documentId: target.documentId,
 			force: true,
 		});
@@ -568,8 +624,9 @@ export function WorkbenchShell({
 
 	const handleDiscardAndClose = (target: PendingCloseDocument) => {
 		emitEditorOperation({
-			operation: "editor.closeDocument",
+			operation: "editor.closeDocumentInGroup",
 			requestId: requestId(),
+			groupId: target.groupId ?? activeGroup?.groupId ?? "",
 			documentId: target.documentId,
 			expectedTextRevision: target.textRevision,
 			force: true,
@@ -721,7 +778,7 @@ export function WorkbenchShell({
 								});
 							}
 						}}
-						onCloseDocument={handleCloseDocument}
+						onCloseDocument={handleCloseDocumentGlobal}
 						onNewScratchpad={() =>
 							emitEditorOperation({
 								operation: "editor.newScratchpad",
@@ -859,16 +916,16 @@ export function WorkbenchShell({
 										orientation,
 										documentId: docId,
 										behavior: loadUserPreferences().splitEditorBehavior,
-										expectedWorkspaceRevision: snapshot.revision,
 									})
 								}
 								onCloseGroup={(groupId) =>
-									emitEditorOperation({
-										operation: "editor.closeGroup",
-										requestId: requestId(),
-										groupId,
-										expectedWorkspaceRevision: snapshot.revision,
-									})
+									(() => {
+										emitEditorOperation({
+											operation: "editor.closeGroup",
+											requestId: requestId(),
+											groupId,
+										});
+									})()
 								}
 								onFocusGroup={(groupId) => {
 									emitEditorOperation({
@@ -883,7 +940,20 @@ export function WorkbenchShell({
 								onOverwriteEditorConflict={onOverwriteEditorConflict}
 								onInsertSnippet={handleInsertSnippet}
 								onEditorCursorChange={onEditorCursorChange}
-								onOpenPalette={() => onOpenPalette?.()}
+								onOpenFile={(groupId) =>
+									onOpenFileInGroup?.(
+										groupId && groupId !== "default"
+											? groupId
+											: (activeGroup?.groupId ?? groupId),
+									)
+								}
+								onCreateFile={(groupId) =>
+									onCreateFileInGroup?.(
+										groupId && groupId !== "default"
+											? groupId
+											: (activeGroup?.groupId ?? groupId),
+									)
+								}
 							/>
 						);
 						renderedGroups.set(group.groupId, groupElement);
@@ -896,7 +966,6 @@ export function WorkbenchShell({
 									requestId: requestId(),
 									nodeId,
 									ratios,
-									expectedWorkspaceRevision: snapshot.revision,
 								}),
 							)
 						: orderedGroups.map((group, index) => (

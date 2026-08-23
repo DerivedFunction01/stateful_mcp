@@ -3,6 +3,7 @@ import { AlertCircle } from "lucide-react";
 import { useI18n } from "../../lib/macro-i18n-provider";
 
 export interface PendingCloseDocument {
+	readonly groupId?: string;
 	readonly documentId: string;
 	readonly title: string;
 	readonly textRevision: number;

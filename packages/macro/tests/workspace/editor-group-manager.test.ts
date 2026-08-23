@@ -136,3 +136,47 @@ describe("MacroEditorGroupManager layout", () => {
 		}
 	});
 });
+
+describe("MacroEditorGroupManager shared documents", () => {
+	test("duplicate split references the same document in both groups", () => {
+		const manager = new MacroEditorGroupManager(documents() as never);
+		const source = manager.list()[0]!;
+		const duplicate = manager.create({
+			sourceGroupId: source.groupId,
+			behavior: "duplicate",
+		});
+
+		expect(duplicate.documentIds).toEqual(["doc-1"]);
+		expect(duplicate.activeDocumentId).toBe("doc-1");
+		expect(manager.get(source.groupId)?.documentIds).toEqual(["doc-1"]);
+	});
+
+	test("closing a shared document in one group leaves it open in the other", () => {
+		const manager = new MacroEditorGroupManager(documents() as never);
+		const source = manager.list()[0]!;
+		const duplicate = manager.create({
+			sourceGroupId: source.groupId,
+			behavior: "duplicate",
+		});
+
+		manager.closeDocumentInGroup(source.groupId, "doc-1");
+
+		expect(manager.get(source.groupId)?.documentIds).toEqual([]);
+		expect(manager.get(source.groupId)?.activeDocumentId).toBeNull();
+		expect(manager.get(duplicate.groupId)?.documentIds).toEqual(["doc-1"]);
+		expect(manager.get(duplicate.groupId)?.activeDocumentId).toBe("doc-1");
+	});
+
+	test("closing the active document picks another document within that group", () => {
+		const manager = new MacroEditorGroupManager(documents() as never);
+		const group = manager.list()[0]!;
+		manager.openDocument(group.groupId, "doc-2");
+
+		manager.closeDocumentInGroup(group.groupId, "doc-2");
+
+		const updated = manager.get(group.groupId)!;
+		expect(updated.documentIds).toEqual(["doc-1"]);
+		expect(updated.activeDocumentId).toBe("doc-1");
+		expect(updated.documentIds).not.toContain("doc-2");
+	});
+});

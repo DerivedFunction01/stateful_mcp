@@ -226,6 +226,34 @@ export class MacroEditorGroupManager {
 		return updated;
 	}
 
+	closeDocumentInGroup(groupId: string, documentId: string): EditorGroup {
+		const group = this.requireGroup(groupId);
+		if (!group.documentIds.includes(documentId))
+			throw new DocumentManagerError(
+				"EDITOR_DOCUMENT_NOT_FOUND",
+				"The editor document is not open in this group",
+			);
+		const documentIds = group.documentIds.filter((id) => id !== documentId);
+		const updated: EditorGroup = {
+			...group,
+			documentIds,
+			activeDocumentId:
+				group.activeDocumentId === documentId
+					? (documentIds[0] ?? null)
+					: group.activeDocumentId,
+		};
+		this.groups.set(groupId, updated);
+		if (
+			this.activeGroupId === groupId &&
+			group.activeDocumentId === documentId
+		) {
+			const nextDocumentId = updated.activeDocumentId;
+			if (nextDocumentId) this.documents.select(nextDocumentId);
+		}
+		this.notify();
+		return updated;
+	}
+
 	subscribe(listener: () => void): () => void {
 		this.listeners.add(listener);
 		return () => this.listeners.delete(listener);

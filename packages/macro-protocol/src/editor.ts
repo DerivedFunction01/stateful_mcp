@@ -193,6 +193,13 @@ export type EditorOperation =
 			readonly force?: boolean;
 	  })
 	| (EditorRequestBase & {
+			readonly operation: "editor.closeDocumentInGroup";
+			readonly groupId: string;
+			readonly documentId: string;
+			readonly expectedTextRevision?: number;
+			readonly force?: boolean;
+	  })
+	| (EditorRequestBase & {
 			readonly operation: "editor.renameDocument";
 			readonly documentId: string;
 			readonly title: string;

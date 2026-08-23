@@ -1358,6 +1358,36 @@ export class HostSessionManager {
 						documentId: operation.documentId,
 					};
 				}
+				case "editor.closeDocumentInGroup": {
+					const document = documents.get(operation.documentId);
+					if (!document)
+						return this.rejectedEditorResult(
+							session,
+							operation,
+							"EDITOR_DOCUMENT_NOT_FOUND",
+							this.message(session, "editor.document.notFound"),
+						);
+					if (
+						operation.expectedTextRevision !== undefined &&
+						operation.expectedTextRevision !== document.textRevision
+					)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							document.textRevision,
+						);
+					workspace.editorGroups.closeDocumentInGroup(
+						operation.groupId,
+						operation.documentId,
+					);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						groupId: operation.groupId,
+						documentId: operation.documentId,
+					};
+				}
 				case "editor.renameDocument": {
 					documents.rename(operation.documentId, operation.title);
 					this.emit(session, "workspace.changed");
