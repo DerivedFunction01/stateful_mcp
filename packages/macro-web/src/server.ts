@@ -1,5 +1,5 @@
 import { watch } from "node:fs";
-import { access, readdir } from "node:fs/promises";
+import { readdir } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
 import {
@@ -18,15 +18,7 @@ import {
 	HostSessionManager,
 	SessionError,
 } from "./server/host-session-manager";
-
-async function fileExists(path: string): Promise<boolean> {
-	try {
-		await access(path);
-		return true;
-	} catch {
-		return false;
-	}
-}
+import { isValidMacroProjectDirectory } from "./server/project-detection";
 
 interface SocketData {
 	readonly sessionId?: string;
@@ -232,9 +224,8 @@ const server = Bun.serve<SocketData>({
 						)
 						.map(async (entry) => {
 							const entryPath = join(resolvedPath, entry.name);
-							const isMacroProject = await fileExists(
-								join(entryPath, ".macro", "project.json"),
-							);
+							const isMacroProject =
+								await isValidMacroProjectDirectory(entryPath);
 							return {
 								name: entry.name,
 								isDirectory: true,
