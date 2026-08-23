@@ -334,9 +334,17 @@ describe("keymap-driven browser Vim controller", () => {
 		// 6. Enter command mode with configured command key ';'
 		expect(controller.handleKeyDown(event(";"))).toBe(true);
 		expect(controller.getState().mode).toBe("COMMAND");
+		expect(controller.getState().commandText).toBe(";");
 		expect(openedCommandQuery).toBe(";");
 		expect(openedAsCommandMode).toBe(true);
 		expect(openedCommandToken).toBe(";");
+
+		// 7. Closing the command palette returns Vim to NORMAL and clears its text.
+		controller.exitCommandMode();
+		expect(controller.getState().mode).toBe("NORMAL");
+		expect(controller.getState().commandText).toBe("");
+		controller.exitCommandMode();
+		expect(controller.getState().mode).toBe("NORMAL");
 	});
 
 	test("maps pointer targets to logical cells and cellwise drag ranges", () => {

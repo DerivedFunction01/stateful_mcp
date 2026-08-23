@@ -134,7 +134,9 @@ export class BrowserKeymapController {
 		const resolved = this.resolveChord(combined);
 
 		const editorContext = this.options.getContext();
-		if (editorContext.editorFocused && this.options.onEditorKeyDown?.(event)) {
+		const handledByEditor =
+			editorContext.editorFocused && this.options.onEditorKeyDown?.(event);
+		if (handledByEditor) {
 			event.preventDefault();
 			event.stopPropagation();
 			return;

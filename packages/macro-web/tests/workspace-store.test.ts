@@ -22,6 +22,24 @@ function testClient() {
 }
 
 describe("BrowserWorkspaceStore", () => {
+	test("does not refresh the file tree for a memory-only session", async () => {
+		const { client: baseClient } = testClient();
+		let refreshCount = 0;
+		const client: HostClient = {
+			...baseClient,
+			getFileTree: async () => {
+				refreshCount += 1;
+				return [];
+			},
+		};
+		const store = new BrowserWorkspaceStore(client);
+
+		await store.start();
+		await store.refreshFileTree();
+
+		expect(refreshCount).toBe(0);
+	});
+
 	test("installs a snapshot and rejects duplicate or stale events", async () => {
 		const { client, emit } = testClient();
 		const store = new BrowserWorkspaceStore(client);

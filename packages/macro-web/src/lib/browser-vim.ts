@@ -382,6 +382,11 @@ export function createBrowserVimController(
 		exitCommandMode: () => {
 			if (state.mode === "COMMAND") {
 				clearSequence();
+				if (resolveVariant() === "generic") {
+					genericStore.dispatch({ type: "setCommandText", value: "" });
+				} else {
+					scratchpadStore.dispatch({ type: "setCommandText", value: "" });
+				}
 				setMode("NORMAL");
 			}
 		},

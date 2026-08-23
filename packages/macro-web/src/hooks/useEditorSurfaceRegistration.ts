@@ -9,6 +9,7 @@ import { useEditorSurfaceRegistry } from "../lib/editor-surface-registry";
 
 export interface UseEditorSurfaceRegistrationOptions {
 	readonly snapshot?: WorkspaceSnapshot;
+	readonly groupId?: string;
 	readonly surfaceRef: RefObject<HTMLElement | null>;
 	readonly surfaceFocused: boolean;
 	readonly vimState: BrowserVimState;
@@ -18,6 +19,7 @@ export interface UseEditorSurfaceRegistrationOptions {
 
 export function useEditorSurfaceRegistration({
 	snapshot,
+	groupId,
 	surfaceRef,
 	surfaceFocused,
 	vimState,
@@ -27,8 +29,13 @@ export function useEditorSurfaceRegistration({
 	const registry = useEditorSurfaceRegistry();
 
 	const surfaceId = useMemo(
-		() => `editor:${snapshot?.editor.activeDocumentId ?? "inactive"}`,
-		[snapshot?.editor.activeDocumentId],
+		() =>
+			`editor:${groupId ?? snapshot?.editor.activeGroupId ?? "inactive"}:${snapshot?.editor.activeDocumentId ?? "inactive"}`,
+		[
+			groupId,
+			snapshot?.editor.activeDocumentId,
+			snapshot?.editor.activeGroupId,
+		],
 	);
 
 	useEffect(() => {
@@ -56,6 +63,7 @@ export function useEditorSurfaceRegistration({
 		surfaceRef,
 		surfaceFocused,
 		snapshot?.editor.activeDocumentId,
+		groupId,
 		vimState.mode,
 		vimState.enabled,
 		getSurfaceAdapter,
@@ -81,6 +89,7 @@ export function useEditorSurfaceRegistration({
 		surfaceId,
 		surfaceFocused,
 		snapshot?.editor.activeDocumentId,
+		groupId,
 		vimController,
 		vimState.enabled,
 		vimState.mode,

@@ -137,12 +137,15 @@ export function App() {
 	}
 
 	function closePalette(): void {
+		const wasCommandPalette = paletteCommandMode;
 		setPaletteOpen(false);
 		setPaletteInitialQuery("");
 		setPaletteQuery("");
 		setPaletteCommandMode(false);
 		setPaletteCommandToken("");
-		if (lastFocused.current instanceof HTMLElement) lastFocused.current.focus();
+		window.dispatchEvent(new CustomEvent("workbench:exitVimCommandMode"));
+		if (!wasCommandPalette && lastFocused.current instanceof HTMLElement)
+			lastFocused.current.focus();
 	}
 
 	function openFind(direction: SearchDirection, vimSearch = false): void {

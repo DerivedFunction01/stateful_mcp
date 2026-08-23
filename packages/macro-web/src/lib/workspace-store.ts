@@ -157,7 +157,8 @@ export class BrowserWorkspaceStore {
 	}
 
 	async refreshFileTree(): Promise<void> {
-		if (!this.client.getFileTree) return;
+		const project = this.state.snapshot?.project;
+		if (!this.client.getFileTree || !project || project.ephemeral) return;
 		this.update({ projectFileTree: await this.client.getFileTree() });
 	}
 

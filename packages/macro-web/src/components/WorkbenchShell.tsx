@@ -167,6 +167,12 @@ export function WorkbenchShell({
 	const { vimController, vimState, toggleVim } = useWorkbenchVim({
 		snapshotRef,
 		getSurfaceAdapter,
+		onCommandModeExit: () => {
+			window.setTimeout(() => {
+				const surface = surfaceRef.current;
+				if (surface?.isConnected) surface.focus();
+			}, 0);
+		},
 		onOpenPalette,
 		onOpenSearch,
 		onEditorOperation,
@@ -195,6 +201,7 @@ export function WorkbenchShell({
 
 	useEditorSurfaceRegistration({
 		snapshot,
+		groupId: snapshot?.editor.activeGroupId ?? undefined,
 		surfaceRef,
 		surfaceFocused,
 		vimState,

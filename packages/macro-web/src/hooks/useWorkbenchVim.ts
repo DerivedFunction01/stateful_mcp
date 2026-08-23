@@ -3,7 +3,13 @@ import type {
 	SearchDirection,
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
-import { type RefObject, useRef, useState, useSyncExternalStore } from "react";
+import {
+	type RefObject,
+	useEffect,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import {
 	type BrowserEditorSurfaceAdapter,
 	type BrowserVimController,
@@ -18,6 +24,7 @@ import {
 export interface UseWorkbenchVimOptions {
 	readonly snapshotRef: RefObject<WorkspaceSnapshot | undefined>;
 	readonly getSurfaceAdapter: () => BrowserEditorSurfaceAdapter | undefined;
+	readonly onCommandModeExit?: () => void;
 	readonly onOpenPalette?: (
 		initialQuery?: string,
 		commandMode?: boolean,
@@ -38,6 +45,7 @@ export function useWorkbenchVim({
 	onOpenPalette,
 	onOpenSearch,
 	onEditorOperation,
+	onCommandModeExit,
 }: UseWorkbenchVimOptions) {
 	const onOpenSearchRef = useRef(onOpenSearch);
 	onOpenSearchRef.current = onOpenSearch;
@@ -45,6 +53,8 @@ export function useWorkbenchVim({
 	onOpenPaletteRef.current = onOpenPalette;
 	const onEditorOperationRef = useRef(onEditorOperation);
 	onEditorOperationRef.current = onEditorOperation;
+	const onCommandModeExitRef = useRef(onCommandModeExit);
+	onCommandModeExitRef.current = onCommandModeExit;
 
 	const [vimController] = useState<BrowserVimController>(() =>
 		createBrowserVimController(loadUserPreferences().vimEnabled, {
@@ -117,6 +127,20 @@ export function useWorkbenchVim({
 			},
 		}),
 	);
+
+	useEffect(() => {
+		const exitCommandMode = () => {
+			const wasInCommandMode = vimController.getState().mode === "COMMAND";
+			vimController.exitCommandMode();
+			if (wasInCommandMode) onCommandModeExitRef.current?.();
+		};
+		window.addEventListener("workbench:exitVimCommandMode", exitCommandMode);
+		return () =>
+			window.removeEventListener(
+				"workbench:exitVimCommandMode",
+				exitCommandMode,
+			);
+	}, [vimController]);
 
 	const vimState = useSyncExternalStore<BrowserVimState>(
 		vimController.subscribe,
