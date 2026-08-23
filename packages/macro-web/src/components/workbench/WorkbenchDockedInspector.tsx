@@ -20,6 +20,14 @@ export interface WorkbenchDockedInspectorProps {
 	readonly onJumpToLine: (lineNumber: number) => void;
 	readonly onInsertSnippet: (snippet: string) => void;
 	readonly onOpenTemplatePicker?: () => void;
+	readonly activeTemplateDescriptor?:
+		| import("@stateful-mcp/macro-protocol").ScratchpadTemplateDescriptor
+		| null;
+	readonly onToggleTemplateLiteralArg?: (
+		key: string,
+		isLiteral: boolean,
+	) => void;
+	readonly onEditTemplateMetadata?: () => void;
 }
 
 export function WorkbenchDockedInspector({
@@ -35,6 +43,9 @@ export function WorkbenchDockedInspector({
 	onJumpToLine,
 	onInsertSnippet,
 	onOpenTemplatePicker,
+	activeTemplateDescriptor,
+	onToggleTemplateLiteralArg,
+	onEditTemplateMetadata,
 }: WorkbenchDockedInspectorProps) {
 	const { t } = useI18n();
 
@@ -57,6 +68,9 @@ export function WorkbenchDockedInspector({
 				onJumpToLine={onJumpToLine}
 				onInsertSnippet={onInsertSnippet}
 				onOpenTemplatePicker={onOpenTemplatePicker}
+				activeTemplateDescriptor={activeTemplateDescriptor}
+				onToggleTemplateLiteralArg={onToggleTemplateLiteralArg}
+				onEditTemplateMetadata={onEditTemplateMetadata}
 			/>
 		</aside>
 	);

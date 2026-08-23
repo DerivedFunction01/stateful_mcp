@@ -47,6 +47,7 @@ export interface MacroWorkspaceManifest {
 	readonly extensions: readonly WorkspaceExtensionSpec[];
 	readonly profiles?: Readonly<Record<string, readonly string[]>>;
 	readonly activeProfile?: string;
+	readonly templates?: readonly import("@stateful-mcp/macro").MacroDocumentTemplate[];
 }
 
 export interface LoadedMacroWorkspace {
@@ -168,6 +169,13 @@ export async function loadMacroWorkspace(
 		: options.workspacePath
 			? await readWorkspaceManifest(options.workspacePath)
 			: undefined;
+	const userTemplates = await readJsonFile<MacroDocumentTemplate[]>(
+		resolve(
+			options.projectRoot ?? process.cwd(),
+			".macro-user",
+			"templates.json",
+		),
+	).catch(() => []);
 	const effectiveProfilePath =
 		project?.manifest.backend.kind === "jsonl"
 			? resolve(project.rootPath, project.manifest.backend.path)
@@ -281,7 +289,21 @@ export async function loadMacroWorkspace(
 
 	const workspace = createMacroWorkspace({
 		initialText: options.initialText,
-		templates: options.templates,
+		templates: [
+			...userTemplates.map((template) => ({
+				...template,
+				source: "user" as const,
+			})),
+			...(manifestResult?.manifest.templates ?? []).map((template) => ({
+				...template,
+				source: "project" as const,
+			})),
+			...(options.templates ?? []).map((template) => ({
+				...template,
+				source: template.source ?? ("extension" as const),
+				isReadonly: template.isReadonly ?? true,
+			})),
+		],
 		initialLocale,
 		profile: resolvedProfile,
 		settings,

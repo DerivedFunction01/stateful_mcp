@@ -642,3 +642,202 @@
 	font-size: 10px;
 	opacity: 0.8;
 }
+
+/* =========================================================================
+   Template Structure & Slot Classification
+   ========================================================================= */
+
+.template-inspector-meta-card {
+	padding: 10px 12px;
+	background: var(--theme-surface-secondary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin-bottom: 12px;
+}
+
+.meta-card-title-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.meta-card-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--theme-content-primary);
+}
+
+.meta-card-id-row code {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+}
+
+.meta-card-tags-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+}
+
+.template-mini-tag {
+	font-size: 10.5px;
+	font-family: "DM Mono", monospace;
+	padding: 1px 6px;
+	border-radius: 3px;
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-subtle);
+	color: var(--theme-content-secondary);
+}
+
+.template-slot-lines-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.template-slot-line-card {
+	background: var(--theme-surface-secondary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 6px;
+	padding: 8px 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.slot-line-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.slot-line-tag {
+	font-family: "DM Mono", monospace;
+	font-size: 10px;
+	color: var(--theme-content-tertiary);
+	background: var(--theme-surface-primary);
+	padding: 1px 4px;
+	border-radius: 3px;
+}
+
+.slot-line-macro {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--theme-content-accent);
+}
+
+.slot-no-args-row {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+	padding: 2px 4px;
+}
+
+.slot-args-list {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-left: 4px;
+}
+
+.slot-arg-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 3px 6px;
+	background: var(--theme-surface-primary);
+	border-radius: 4px;
+	border: 1px solid var(--theme-border-subtle);
+}
+
+.slot-arg-label {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	font-size: 11px;
+	font-family: "DM Mono", monospace;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.slot-arg-key {
+	color: var(--theme-content-primary);
+	font-weight: 600;
+}
+
+.slot-arg-val {
+	color: var(--theme-content-tertiary);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.slot-arg-toggle-group {
+	display: flex;
+	align-items: center;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 4px;
+	overflow: hidden;
+	flex-shrink: 0;
+}
+
+.slot-toggle-btn {
+	display: flex;
+	align-items: center;
+	gap: 3px;
+	padding: 2px 6px;
+	font-size: 10px;
+	background: transparent;
+	border: none;
+	color: var(--theme-content-tertiary);
+	cursor: pointer;
+	transition: all 0.12s ease;
+}
+
+.slot-toggle-btn:hover {
+	background: var(--theme-surface-elevated);
+	color: var(--theme-content-primary);
+}
+
+.slot-toggle-btn.active.placeholder {
+	background: var(--theme-surface-elevated);
+	color: var(--theme-content-accent);
+	font-weight: 600;
+}
+
+.slot-toggle-btn.active.literal {
+	background: var(--theme-surface-elevated);
+	color: var(--theme-content-primary);
+	font-weight: 600;
+}
+
+.template-slot-line-card.static-line {
+	border-left: 3px solid var(--theme-border-default);
+	opacity: 0.88;
+}
+
+.slot-static-notice {
+	margin-left: auto;
+	font-size: 10px;
+	color: var(--theme-content-tertiary);
+	font-style: italic;
+}
+
+.slot-static-preview {
+	font-size: 11.5px;
+	color: var(--theme-content-secondary);
+	padding: 2px 4px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.slot-static-preview code {
+	font-family: inherit;
+	background: transparent;
+}

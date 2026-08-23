@@ -33,6 +33,14 @@ export interface MacroProjectManifest {
 	readonly historyResources: readonly MacroProjectResourceReference[];
 	readonly scratchpadResources?: readonly MacroProjectResourceReference[];
 	readonly migration?: Readonly<Record<string, unknown>>;
+	readonly templates?: readonly {
+		readonly templateId: string;
+		readonly title: string;
+		readonly description?: string;
+		readonly initialText?: string;
+		readonly pinnedMacroIds?: readonly string[];
+		readonly tags?: readonly string[];
+	}[];
 }
 
 export type MacroProjectLifecycle = "open" | "dirty" | "closed";

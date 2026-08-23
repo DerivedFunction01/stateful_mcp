@@ -128,10 +128,66 @@ export const ES_WORKBENCH: Record<string, string> = {
 		"Requiere configuración de perfil",
 	"workbench.template.picker.sourceExtension": "Extensión: {ext}",
 	"workbench.template.picker.newFromTemplate": "Nuevo desde plantilla...",
+	"workbench.template.picker.newTemplate": "Nueva plantilla",
+	"workbench.template.picker.editTemplate": "Editar",
+	"workbench.template.picker.deleteTemplate": "Eliminar",
+	"workbench.template.picker.forkTemplate":
+		"Bifurcar como plantilla de proyecto",
+	"workbench.template.picker.allTags": "Todas las etiquetas",
+	"workbench.template.editor.createTitle": "Crear nueva plantilla",
+	"workbench.template.editor.editTitle": "Editar plantilla: {name}",
+	"workbench.template.editor.forkTitle": "Bifurcar plantilla: {name}",
+	"workbench.template.editor.titleLabel": "Título de plantilla",
+	"workbench.template.editor.titlePlaceholder":
+		"p. ej. Revisión diaria, Registro estándar",
+	"workbench.template.editor.idLabel": "Identificador de plantilla",
+	"workbench.template.editor.idPlaceholder":
+		"p. ej. revision_diaria, registro_estandar",
+	"workbench.template.editor.idHint": "Identificador único para comandos",
+	"workbench.template.editor.tagsLabel": "Etiquetas",
+	"workbench.template.editor.tagsPlaceholder":
+		"Escriba etiqueta y presione Intro...",
+	"workbench.template.editor.addTag": "Añadir",
+	"workbench.template.editor.removeTag": "Eliminar etiqueta {tag}",
+	"workbench.template.editor.descriptionLabel": "Descripción",
+	"workbench.template.editor.descriptionPlaceholder":
+		"Breve explicación de esta plantilla...",
+	"workbench.template.editor.pinnedLabel": "Macros fijadas",
+	"workbench.template.editor.pinnedPlaceholder":
+		"Escriba nombre de macro y presione Intro...",
+	"workbench.template.editor.addMacro": "Añadir",
+	"workbench.template.editor.removeMacro": "Eliminar macro fijada {macro}",
+	"workbench.template.editor.scopeLabel": "Ámbito de almacenamiento",
+	"workbench.template.editor.scopeProject":
+		"Proyecto actual (.macro/project.json)",
+	"workbench.template.editor.scopeUser":
+		"Almacén global de usuario (~/.macro-user)",
+	"workbench.template.editor.starterTextLabel":
+		"Texto DSL inicial (Ejemplos vivos)",
+	"workbench.template.editor.starterPlaceholder":
+		"Escriba las líneas iniciales...",
+	"workbench.template.editor.linesCount":
+		"{count, plural, one {# línea} other {# líneas}}",
+	"workbench.template.editor.cancelButton": "Cancelar",
+	"workbench.template.editor.saveButton": "Guardar plantilla",
+	"workbench.template.editor.createAndOpen": "Crear y abrir en el editor",
+	"workbench.template.editor.openInEditor": "Abrir en el editor",
+	"workbench.template.inspector.title": "Estructura de plantilla",
+	"workbench.template.inspector.placeholder": "Marcador de posición",
+	"workbench.template.inspector.literal": "Literal fijo",
+	"workbench.template.inspector.staticText": "Texto estático / Comentario",
+	"workbench.template.inspector.fixedNotice": "Fijo textualmente",
+	"workbench.template.inspector.empty":
+		"Abra un documento de plantilla para inspeccionar su estructura.",
+	"workbench.template.inspector.editMetadata": "Editar metadatos...",
+	"workbench.template.inspector.noDocument":
+		"No hay un documento de plantilla activo.",
+	"workbench.action.saveScratchpadAsTemplate":
+		"Guardar borrador como plantilla...",
 	"workbench.template.save.title": "Guardar borrador como plantilla",
 	"workbench.template.save.nameLabel": "Título de la plantilla",
 	"workbench.template.save.namePlaceholder":
-		"p. ej. Consulta de cardiología (SOAP)",
+		"p. ej. Revisión diaria, Registro estándar",
 	"workbench.template.save.descLabel": "Descripción",
 	"workbench.template.save.descPlaceholder":
 		"Breve explicación de esta plantilla...",

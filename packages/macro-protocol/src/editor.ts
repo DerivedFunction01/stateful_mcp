@@ -12,7 +12,11 @@ export type EditorMode = "NORMAL" | "INSERT" | "VISUAL" | "COMMAND";
 export type SearchDirection = "forward" | "backward";
 export type InsertPosition = "above" | "below";
 
-export type MacroDocumentProviderId = "macro.text" | "file" | "scratchpad";
+export type MacroDocumentProviderId =
+	| "macro.text"
+	| "file"
+	| "scratchpad"
+	| "macro.template";
 
 export type ScratchpadLineStatus = "empty" | "valid" | "invalid" | "non-macro";
 
@@ -185,6 +189,16 @@ export interface ScratchpadTemplateDescriptor {
 	readonly pinnedMacroIds?: readonly string[];
 	readonly sourceExtensionId?: string;
 	readonly requiresProfile?: boolean;
+	readonly initialText?: string;
+	readonly tags?: readonly string[];
+	readonly source?: "extension" | "project" | "user";
+	readonly isReadonly?: boolean;
+	/**
+	 * Keys of slot arguments that are fixed literal constants across all instances
+	 * of this template. All other parsed arguments are treated as fillable placeholders.
+	 * Format: `"<macroName>/<argKey>"`, e.g. `"patient/dept"` or `"vitals/facility"`.
+	 */
+	readonly templateLiteralArgs?: readonly string[];
 }
 
 export interface EditorWorkspaceSnapshotDto {
@@ -370,6 +384,27 @@ export type EditorOperation =
 	| (EditorRequestBase & {
 			readonly operation: "editor.deleteScratchpad";
 			readonly scratchpadId: string;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.saveTemplate";
+			readonly template: ScratchpadTemplateDescriptor;
+			readonly scope: "project" | "user";
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.deleteTemplate";
+			readonly templateId: string;
+			readonly scope: "project" | "user";
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.openTemplateAsDocument";
+			readonly templateId: string;
+			readonly groupId?: string;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.updateTemplateLiteralArgs";
+			readonly templateId: string;
+			readonly scope: "project" | "user";
+			readonly literalArgs: readonly string[];
 	  });
 
 export interface ScratchpadExecutionReceiptDto {

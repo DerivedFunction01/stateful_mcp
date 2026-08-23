@@ -277,6 +277,12 @@ export function MenuBar({
 				onSelect: () => onCommand("editor.save"),
 			},
 			{
+				id: "file.saveScratchpadAsTemplate",
+				label: t("workbench.action.saveScratchpadAsTemplate"),
+				icon: <BookTemplate size={14} />,
+				onSelect: () => onCommand("workbench.action.saveScratchpadAsTemplate"),
+			},
+			{
 				id: "file.saveAll",
 				label: t("workspace.saveAll"),
 				icon: <Save size={14} />,

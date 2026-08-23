@@ -80,6 +80,9 @@ export interface WorkbenchShellProps {
 	readonly onCreateFolder?: (parent: string, name: string) => void;
 	readonly onOpenFileInGroup?: (groupId: string) => void;
 	readonly onCreateFileInGroup?: (groupId: string) => void;
+	readonly onEditTemplate?: (
+		template: import("@stateful-mcp/macro-protocol").ScratchpadTemplateDescriptor,
+	) => void;
 }
 
 export function WorkbenchShell({
@@ -110,6 +113,7 @@ export function WorkbenchShell({
 	onCreateFolder,
 	onOpenFileInGroup,
 	onCreateFileInGroup,
+	onEditTemplate,
 }: WorkbenchShellProps) {
 	const { t } = useI18n();
 	const registry = useEditorSurfaceRegistry();
@@ -369,6 +373,12 @@ export function WorkbenchShell({
 		/>
 	) : null;
 
+	const activeTemplateDescriptor = activeDocumentMeta?.templateId
+		? (snapshot.editor.templates.find(
+				(t) => t.templateId === activeDocumentMeta.templateId,
+			) ?? null)
+		: null;
+
 	const inspectorElement = (
 		<WorkbenchDockedInspector
 			document={snapshot.editor.activeDocument}
@@ -401,6 +411,27 @@ export function WorkbenchShell({
 			onOpenTemplatePicker={() =>
 				onCommand("workbench.action.newScratchpadFromTemplate")
 			}
+			activeTemplateDescriptor={activeTemplateDescriptor}
+			onToggleTemplateLiteralArg={(slotKey, isLiteral) => {
+				if (!activeTemplateDescriptor) return;
+				const current = activeTemplateDescriptor.templateLiteralArgs ?? [];
+				const next = isLiteral
+					? [...current.filter((k) => k !== slotKey), slotKey]
+					: current.filter((k) => k !== slotKey);
+				emitEditorOperation({
+					operation: "editor.updateTemplateLiteralArgs",
+					requestId: requestId(),
+					templateId: activeTemplateDescriptor.templateId,
+					scope:
+						activeTemplateDescriptor.source === "user" ? "user" : "project",
+					literalArgs: next,
+				});
+			}}
+			onEditTemplateMetadata={() => {
+				if (activeTemplateDescriptor) {
+					onEditTemplate?.(activeTemplateDescriptor);
+				}
+			}}
 		/>
 	);
 

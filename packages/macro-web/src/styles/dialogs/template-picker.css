@@ -80,6 +80,9 @@
 }
 
 .template-picker-search-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
 	padding: 10px 16px;
 	border-bottom: 1px solid var(--theme-border-subtle);
 	background: var(--theme-surface-primary);
@@ -98,6 +101,10 @@
 .search-input-wrapper:focus-within {
 	border-color: var(--theme-border-focus);
 	box-shadow: 0 0 0 1px var(--theme-border-focus);
+}
+
+.template-picker-search-row .search-input-wrapper {
+	flex: 1;
 }
 
 .search-input-icon {
@@ -352,6 +359,22 @@
 .preview-action-row {
 	margin-top: auto;
 	padding-top: 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	border-top: 1px solid var(--theme-border-subtle);
+}
+
+.preview-secondary-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	width: 100%;
+}
+
+.preview-secondary-actions > button {
+	flex: 1;
+	justify-content: center;
 }
 
 .template-empty-state,
@@ -364,4 +387,214 @@
 	font-size: 13px;
 	text-align: center;
 	padding: 20px;
+}
+/* =========================================================================
+   Template Editor Modal
+   ========================================================================= */
+
+.template-editor-dialog {
+	width: min(92vw, 680px);
+	max-height: 90vh;
+}
+
+.template-editor-form {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	padding: 22px 24px 16px;
+	overflow-y: auto;
+	min-height: 0;
+}
+
+.template-editor-form .field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.template-editor-form .field-label {
+	font-size: 12.5px;
+	font-weight: 600;
+	color: var(--theme-content-secondary);
+}
+
+.template-editor-form .field-hint {
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+	line-height: 1.3;
+}
+
+.template-chips-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.template-chips-container {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	min-height: 24px;
+}
+
+.template-chip {
+	display: inline-flex;
+	align-items: center;
+}
+
+.template-chip .badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	padding: 3px 8px;
+	font-size: 11.5px;
+	font-weight: 500;
+}
+
+.template-chip-icon {
+	opacity: 0.7;
+}
+
+.template-chip-remove {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	padding: 1px;
+	margin-left: 2px;
+	cursor: pointer;
+	color: inherit;
+	opacity: 0.65;
+	border-radius: 50%;
+	transition:
+		opacity 0.1s ease,
+		background-color 0.1s ease;
+}
+
+.template-chip-remove:hover {
+	opacity: 1;
+	background: rgba(255, 255, 255, 0.15);
+}
+
+.template-chip-input-wrap {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.template-chip-input {
+	flex: 1;
+}
+
+.template-scope-toggle {
+	display: flex;
+	gap: 8px;
+}
+
+.template-scope-toggle .button {
+	flex: 1;
+	justify-content: center;
+	font-size: 12px;
+	padding: 7px 12px;
+}
+
+.template-starter-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.template-dsl-editor {
+	display: flex;
+	border: 1px solid var(--theme-border-default);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-sunken);
+	overflow: hidden;
+	transition:
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
+}
+
+.template-dsl-editor:focus-within {
+	border-color: var(--theme-border-focus);
+	box-shadow: 0 0 0 1px var(--theme-border-focus);
+}
+
+.template-dsl-gutter {
+	user-select: none;
+	display: flex;
+	flex-direction: column;
+	padding: 10px 8px 10px 10px;
+	background: var(--theme-surface-secondary);
+	border-right: 1px solid var(--theme-border-subtle);
+	color: var(--theme-content-tertiary);
+	font-family: var(--theme-font-mono, "DM Mono", monospace);
+	font-size: 12px;
+	line-height: 1.5;
+	text-align: right;
+	min-width: 32px;
+}
+
+.template-dsl-line-num {
+	height: 18px;
+}
+
+.template-dsl-textarea {
+	flex: 1;
+	font-family: var(--theme-font-mono, "DM Mono", monospace);
+	font-size: 12.5px;
+	line-height: 1.5;
+	padding: 10px 12px;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: var(--theme-content-primary);
+	resize: vertical;
+	min-height: 140px;
+}
+
+.modal-footer {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	padding: 12px 24px;
+	border-top: 1px solid var(--theme-border-subtle);
+	background: var(--theme-surface-secondary);
+}
+
+/* =========================================================================
+   Tag Ribbon (Picker)
+   ========================================================================= */
+
+.template-tag-ribbon {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 16px;
+	border-bottom: 1px solid var(--theme-border-subtle);
+	background: var(--theme-surface-primary);
+}
+
+.template-tag-ribbon .button {
+	font-size: 11.5px;
+	padding: 3px 10px;
+	border-radius: 20px;
+}
+
+/* =========================================================================
+   Template Card Tags
+   ========================================================================= */
+
+.template-card-tags {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin-top: 2px;
+}
+
+.template-card-tags .badge {
+	font-size: 10px;
+	padding: 1px 6px;
 }

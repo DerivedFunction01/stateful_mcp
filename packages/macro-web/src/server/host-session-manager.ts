@@ -10,6 +10,7 @@ import {
 	writeFile,
 } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import type { MacroProjectManifest } from "@stateful-mcp/macro";
 import {
 	auditKeymapAndLogDiagnostics,
 	BUILTIN_KEYMAP_PROFILES,
@@ -1007,6 +1008,215 @@ export class HostSessionManager {
 
 		try {
 			switch (operation.operation) {
+				case "editor.saveTemplate": {
+					if (
+						operation.template.source === "extension" ||
+						operation.template.isReadonly
+					)
+						throw new DocumentManagerError(
+							"EDITOR_TEMPLATE_READONLY",
+							"Template is read-only",
+						);
+					const template: MacroDocumentTemplate = {
+						templateId: operation.template.templateId,
+						title: operation.template.title,
+						...(operation.template.description
+							? { description: operation.template.description }
+							: {}),
+						...(operation.template.initialText !== undefined
+							? { initialText: operation.template.initialText }
+							: {}),
+						...(operation.template.pinnedMacroIds
+							? { pinnedMacroIds: operation.template.pinnedMacroIds }
+							: {}),
+						...(operation.template.tags
+							? { tags: operation.template.tags }
+							: {}),
+						source: operation.scope,
+					};
+					if (operation.scope === "project") {
+						const project = session.loaded.project;
+						if (!project)
+							throw new DocumentManagerError(
+								"EDITOR_PROJECT_REQUIRED",
+								"A project workspace is required",
+							);
+						const templates = [...(project.manifest.templates ?? [])].filter(
+							(item) => item.templateId !== template.templateId,
+						);
+						await project.saveManifest(
+							{
+								...project.manifest,
+								templates: [...templates, template],
+							} as MacroProjectManifest,
+							project.descriptor.revision,
+						);
+					} else {
+						const path = resolve(
+							this.projectRoot ?? process.cwd(),
+							".macro-user",
+							"templates.json",
+						);
+						await mkdir(resolve(path, ".."), { recursive: true });
+						const existing = await readFile(path, "utf8")
+							.then((raw) => JSON.parse(raw) as MacroDocumentTemplate[])
+							.catch(() => []);
+						await writeFile(
+							path,
+							JSON.stringify(
+								[
+									...existing.filter(
+										(item) => item.templateId !== template.templateId,
+									),
+									template,
+								],
+								null,
+								2,
+							),
+							"utf8",
+						);
+					}
+					documents.saveTemplate(template);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted" };
+				}
+				case "editor.deleteTemplate": {
+					const existing = documents
+						.getTemplates()
+						.find((item) => item.templateId === operation.templateId);
+					if (existing?.source === "extension" || existing?.isReadonly)
+						throw new DocumentManagerError(
+							"EDITOR_TEMPLATE_READONLY",
+							"Template is read-only",
+						);
+					if (operation.scope === "project") {
+						const project = session.loaded.project;
+						if (!project)
+							throw new DocumentManagerError(
+								"EDITOR_PROJECT_REQUIRED",
+								"A project workspace is required",
+							);
+						await project.saveManifest(
+							{
+								...project.manifest,
+								templates: (project.manifest.templates ?? []).filter(
+									(item) => item.templateId !== operation.templateId,
+								),
+							},
+							project.descriptor.revision,
+						);
+					} else {
+						const path = resolve(
+							this.projectRoot ?? process.cwd(),
+							".macro-user",
+							"templates.json",
+						);
+						const existingUser = await readFile(path, "utf8")
+							.then((raw) => JSON.parse(raw) as MacroDocumentTemplate[])
+							.catch(() => []);
+						await writeFile(
+							path,
+							JSON.stringify(
+								existingUser.filter(
+									(item) => item.templateId !== operation.templateId,
+								),
+								null,
+								2,
+							),
+							"utf8",
+						);
+					}
+					documents.deleteTemplate(operation.templateId);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted" };
+				}
+				case "editor.openTemplateAsDocument": {
+					const document = documents.openTemplateForEditing(
+						operation.templateId,
+					);
+					const targetGroupId =
+						operation.groupId && workspace.editorGroups.get(operation.groupId)
+							? operation.groupId
+							: workspace.editorGroups.getActiveGroupId();
+					if (targetGroupId && workspace.editorGroups.get(targetGroupId)) {
+						workspace.editorGroups.moveDocument(
+							document.documentId,
+							targetGroupId,
+						);
+					}
+					documents.select(document.documentId);
+					this.emit(session, "workspace.changed");
+					return {
+						...base(),
+						status: "accepted",
+						documentId: document.documentId,
+						textRevision: document.textRevision,
+					};
+				}
+				case "editor.updateTemplateLiteralArgs": {
+					const tmpl = documents
+						.getTemplates()
+						.find((item) => item.templateId === operation.templateId);
+					if (!tmpl)
+						throw new DocumentManagerError(
+							"EDITOR_TEMPLATE_NOT_FOUND",
+							"Template not found",
+						);
+					if (tmpl.source === "extension" || tmpl.isReadonly)
+						throw new DocumentManagerError(
+							"EDITOR_TEMPLATE_READONLY",
+							"Template is read-only",
+						);
+					const updatedTemplate: MacroDocumentTemplate = {
+						...tmpl,
+						templateLiteralArgs: operation.literalArgs,
+					};
+					if (operation.scope === "project") {
+						const project = session.loaded.project;
+						if (!project)
+							throw new DocumentManagerError(
+								"EDITOR_PROJECT_REQUIRED",
+								"A project workspace is required",
+							);
+						const existingTemplates = [
+							...(project.manifest.templates ?? []),
+						].filter((item) => item.templateId !== operation.templateId);
+						await project.saveManifest(
+							{
+								...project.manifest,
+								templates: [...existingTemplates, updatedTemplate],
+							} as MacroProjectManifest,
+							project.descriptor.revision,
+						);
+					} else {
+						const userPath = resolve(
+							this.projectRoot ?? process.cwd(),
+							".macro-user",
+							"templates.json",
+						);
+						await mkdir(resolve(userPath, ".."), { recursive: true });
+						const existingUser = await readFile(userPath, "utf8")
+							.then((raw) => JSON.parse(raw) as MacroDocumentTemplate[])
+							.catch(() => []);
+						await writeFile(
+							userPath,
+							JSON.stringify(
+								[
+									...existingUser.filter(
+										(item) => item.templateId !== operation.templateId,
+									),
+									updatedTemplate,
+								],
+								null,
+								2,
+							),
+							"utf8",
+						);
+					}
+					documents.saveTemplate(updatedTemplate);
+					this.emit(session, "workspace.changed");
+					return { ...base(), status: "accepted" };
+				}
 				case "editor.newScratchpad": {
 					const document = documents.createBlank();
 					const targetGroupId =
@@ -1112,6 +1322,67 @@ export class HostSessionManager {
 							"EDITOR_DOCUMENT_NOT_FOUND",
 							this.message(session, "editor.document.notFound"),
 						);
+					// Template document: sync text back to template definition.
+					if (document.providerId === "macro.template" && document.templateId) {
+						const tmpl = documents
+							.getTemplates()
+							.find((item) => item.templateId === document.templateId);
+						if (tmpl && tmpl.source !== "extension" && !tmpl.isReadonly) {
+							const updatedTemplate: MacroDocumentTemplate = {
+								...tmpl,
+								initialText: document.editor.getLines().join("\n"),
+							};
+							const scope = tmpl.source ?? "user";
+							if (scope === "project") {
+								const project = session.loaded.project;
+								if (project) {
+									const existingTemplates = [
+										...(project.manifest.templates ?? []),
+									].filter((item) => item.templateId !== tmpl.templateId);
+									await project.saveManifest(
+										{
+											...project.manifest,
+											templates: [...existingTemplates, updatedTemplate],
+										} as MacroProjectManifest,
+										project.descriptor.revision,
+									);
+								}
+							} else {
+								const userPath = resolve(
+									this.projectRoot ?? process.cwd(),
+									".macro-user",
+									"templates.json",
+								);
+								await mkdir(resolve(userPath, ".."), { recursive: true });
+								const existingUser = await readFile(userPath, "utf8")
+									.then((raw) => JSON.parse(raw) as MacroDocumentTemplate[])
+									.catch(() => []);
+								await writeFile(
+									userPath,
+									JSON.stringify(
+										[
+											...existingUser.filter(
+												(item) => item.templateId !== tmpl.templateId,
+											),
+											updatedTemplate,
+										],
+										null,
+										2,
+									),
+									"utf8",
+								);
+							}
+							documents.saveTemplate(updatedTemplate);
+							documents.markSaved(document.documentId);
+							this.emit(session, "workspace.changed");
+							return {
+								...base(),
+								status: "accepted",
+								documentId: document.documentId,
+								textRevision: document.textRevision,
+							};
+						}
+					}
 					if (document.providerId !== "file" || !document.filePath)
 						return this.rejectedEditorResult(
 							session,
@@ -1785,6 +2056,12 @@ export class HostSessionManager {
 					? { sourceExtensionId: template.sourceExtensionId }
 					: {}),
 				...(template.requiresProfile ? { requiresProfile: true } : {}),
+				...(template.initialText !== undefined
+					? { initialText: template.initialText }
+					: {}),
+				...(template.tags ? { tags: template.tags } : {}),
+				...(template.source ? { source: template.source } : {}),
+				...(template.isReadonly ? { isReadonly: true } : {}),
 			}));
 		return {
 			documents: documents

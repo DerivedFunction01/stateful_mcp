@@ -3,11 +3,14 @@ import {
 	ScratchpadSession,
 	type ScratchpadSessionOptions,
 } from "../scratchpad/scratchpad-session";
+import { deduplicateTags, matchesTag } from "../tags/unicode-tag-resolver";
 import { EditorKernel } from "./editor-kernel";
 
 export const MACRO_TEXT_DOCUMENT_PROVIDER = "macro.text" as const;
+export const MACRO_TEMPLATE_PROVIDER = "macro.template" as const;
 export type MacroDocumentProviderKind =
 	| typeof MACRO_TEXT_DOCUMENT_PROVIDER
+	| typeof MACRO_TEMPLATE_PROVIDER
 	| "file"
 	| "scratchpad";
 
@@ -15,11 +18,19 @@ export interface MacroDocumentTemplate {
 	readonly templateId: string;
 	readonly title: string;
 	readonly description?: string;
+	readonly tags?: readonly string[];
+	readonly source?: "extension" | "project" | "user";
+	readonly isReadonly?: boolean;
 	readonly pinnedMacroIds?: readonly string[];
 	readonly sourceExtensionId?: string;
 	readonly requiresProfile?: boolean;
 	readonly initialText?: string;
 	readonly createText?: (runtime: ExtensionRuntime) => string;
+	/**
+	 * Encoded as `"<macroName>/<argKey>"` (e.g. `"patient/dept"`).
+	 * Arguments listed here are fixed literal constants; all others are placeholders.
+	 */
+	readonly templateLiteralArgs?: readonly string[];
 }
 
 export interface MacroDocument {
@@ -56,7 +67,7 @@ export class MacroDocumentManager {
 	private readonly documents = new Map<string, MacroDocument>();
 	private readonly documentUnsubs = new Map<string, () => void>();
 	private readonly listeners = new Set<() => void>();
-	private readonly templates: readonly MacroDocumentTemplate[];
+	private templates: MacroDocumentTemplate[];
 	private readonly scratchpadOptions: ScratchpadSessionOptions;
 	private readonly defaultTitle: string;
 	private activeDocumentId: string | null = null;
@@ -65,7 +76,7 @@ export class MacroDocumentManager {
 		private readonly runtime: ExtensionRuntime,
 		options: MacroDocumentManagerOptions = {},
 	) {
-		this.templates = options.templates ?? [];
+		this.templates = [...(options.templates ?? [])];
 		this.scratchpadOptions = options.scratchpad ?? {};
 		this.defaultTitle = options.defaultTitle ?? "";
 		this.createDocument({
@@ -109,6 +120,40 @@ export class MacroDocumentManager {
 		return this.templates;
 	}
 
+	findTemplatesByTags(
+		tags: readonly string[],
+	): readonly MacroDocumentTemplate[] {
+		if (tags.length === 0) return this.templates;
+		return this.templates.filter((template) =>
+			tags.every((queryTag) =>
+				(template.tags ?? []).some((targetTag) =>
+					matchesTag(queryTag, targetTag),
+				),
+			),
+		);
+	}
+
+	saveTemplate(template: MacroDocumentTemplate): void {
+		// Normalize tags to canonical NFC form before storage.
+		const normalized: MacroDocumentTemplate = template.tags
+			? { ...template, tags: deduplicateTags(template.tags) }
+			: template;
+		this.templates = [
+			...this.templates.filter(
+				(item) => item.templateId !== normalized.templateId,
+			),
+			normalized,
+		];
+		this.notify();
+	}
+
+	deleteTemplate(templateId: string): void {
+		this.templates = this.templates.filter(
+			(item) => item.templateId !== templateId,
+		);
+		this.notify();
+	}
+
 	select(documentId: string): MacroDocument {
 		const document = this.require(documentId);
 		if (this.activeDocumentId !== documentId) {
@@ -131,6 +176,14 @@ export class MacroDocumentManager {
 				"EDITOR_TEMPLATE_NOT_FOUND",
 				"The selected document template is unavailable",
 			);
+		const liveTemplate = this.list().find(
+			(item) =>
+				item.providerId === MACRO_TEMPLATE_PROVIDER &&
+				item.templateId === templateId,
+		);
+		const authoredText = liveTemplate
+			? liveTemplate.editor.getLines().join("\n")
+			: template.initialText;
 		for (const macroId of template.pinnedMacroIds ?? []) {
 			const available = this.runtime.adapters
 				.list()
@@ -147,7 +200,7 @@ export class MacroDocumentManager {
 		}
 		const document = this.createDocument({
 			initialText:
-				template.createText?.(this.runtime) ?? template.initialText ?? "",
+				template.createText?.(this.runtime) ?? authoredText ?? "",
 			title: template.title,
 			templateId: template.templateId,
 			pinnedMacroIds: template.pinnedMacroIds,
@@ -162,6 +215,53 @@ export class MacroDocumentManager {
 			document.session.createPinnedMacroLine();
 		}
 		// Template seeding is part of document creation, not a user edit.
+		document.savedLines = [...document.editor.getLines()];
+		document.savedTextRevision = document.textRevision;
+		document.dirty = false;
+		return document;
+	}
+
+	/**
+	 * Open a template as a live, editable "template document" in the editor canvas.
+	 *
+	 * Unlike `createFromTemplate` (which produces a user scratchpad), this method
+	 * opens the template itself for authoring: changes can be saved back to the
+	 * template definition via `editor.save`.
+	 *
+	 * If a document already exists for this templateId with `providerId === "macro.template"`,
+	 * it is selected and returned instead of creating a duplicate.
+	 */
+	openTemplateForEditing(templateId: string): MacroDocument {
+		const template = this.templates.find(
+			(item) => item.templateId === templateId,
+		);
+		if (!template)
+			throw new DocumentManagerError(
+				"EDITOR_TEMPLATE_NOT_FOUND",
+				"The selected template is unavailable",
+			);
+
+		// Reuse an existing open editor session for this template.
+		const existing = this.list().find(
+			(d) =>
+				d.templateId === templateId && d.providerId === MACRO_TEMPLATE_PROVIDER,
+		);
+		if (existing) {
+			this.select(existing.documentId);
+			return existing;
+		}
+
+		const document = this.createDocument({
+			initialText: template.initialText ?? "",
+			title: template.title,
+			templateId: template.templateId,
+			pinnedMacroIds: template.pinnedMacroIds,
+			providerId: MACRO_TEMPLATE_PROVIDER,
+		});
+		for (const macroId of template.pinnedMacroIds ?? []) {
+			document.session.setPinnedMacro(macroId);
+		}
+		// Opening for editing is not a user edit — mark as clean from the start.
 		document.savedLines = [...document.editor.getLines()];
 		document.savedTextRevision = document.textRevision;
 		document.dirty = false;
@@ -220,6 +320,18 @@ export class MacroDocumentManager {
 		if (!sameLines(document.editor.getLines(), request.lines)) {
 			document.editor.setLines(request.lines);
 			document.textRevision += 1;
+			if (document.providerId === MACRO_TEMPLATE_PROVIDER && document.templateId) {
+				const template = this.templates.find(
+					(item) => item.templateId === document.templateId,
+				);
+				if (template) {
+					this.templates = this.templates.map((item) =>
+						item.templateId === document.templateId
+							? { ...item, initialText: request.lines.join("\n") }
+							: item,
+					);
+				}
+			}
 			const isClean = document.savedLines
 				? sameLines(document.editor.getLines(), document.savedLines)
 				: document.textRevision === document.savedTextRevision;

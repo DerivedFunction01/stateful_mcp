@@ -1,6 +1,7 @@
 import type { ScratchpadTemplateDescriptor } from "@stateful-mcp/macro-protocol";
 import {
 	BookTemplate,
+	FileCode2,
 	Folder,
 	Layers,
 	Pin,
@@ -9,6 +10,7 @@ import {
 	X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { matchesTag } from "../../../macro/src/workspace/tags/unicode-tag-resolver";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { Badge, Button } from "./ui/primitives";
 
@@ -17,6 +19,10 @@ export interface TemplatePickerModalProps {
 	readonly onClose: () => void;
 	readonly templates: readonly ScratchpadTemplateDescriptor[];
 	readonly onSelectTemplate: (templateId: string) => void;
+	readonly onNewTemplate?: () => void;
+	readonly onEditTemplate?: (template: ScratchpadTemplateDescriptor) => void;
+	readonly onOpenTemplateInEditor?: (templateId: string) => void;
+	readonly onDeleteTemplate?: (template: ScratchpadTemplateDescriptor) => void;
 }
 
 export function TemplatePickerModal({
@@ -24,10 +30,20 @@ export function TemplatePickerModal({
 	onClose,
 	templates,
 	onSelectTemplate,
+	onNewTemplate,
+	onEditTemplate,
+	onOpenTemplateInEditor,
+	onDeleteTemplate,
 }: TemplatePickerModalProps) {
 	const { t } = useI18n();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+	const [selectedTags, setSelectedTags] = useState<readonly string[]>([]);
+	const tags = useMemo(
+		() =>
+			[...new Set(templates.flatMap((template) => template.tags ?? []))].sort(),
+		[templates],
+	);
 	const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
 		templates[0]?.templateId ?? null,
 	);
@@ -50,10 +66,21 @@ export function TemplatePickerModal({
 		return cats;
 	}, [templates]);
 
-	// Filtered templates matching search query and category
+	// Filtered templates matching search query, category, and selected tags
 	const filteredTemplates = useMemo(() => {
-		const query = searchQuery.trim().toLowerCase();
+		const query = searchQuery.trim();
 		return templates.filter((tmpl) => {
+			// Tag filter: all selected tags must match at least one tag on the template
+			// using locale-agnostic Intl.Collator matching.
+			if (
+				selectedTags.some(
+					(selectedTag) =>
+						!(tmpl.tags ?? []).some((templateTag) =>
+							matchesTag(selectedTag, templateTag),
+						),
+				)
+			)
+				return false;
 			if (selectedCategory && selectedCategory !== "all") {
 				let cat = "general";
 				if (tmpl.sourceExtensionId) {
@@ -65,16 +92,16 @@ export function TemplatePickerModal({
 				if (cat !== selectedCategory) return false;
 			}
 			if (!query) return true;
+			// Title/description/source search also uses locale-agnostic matching.
 			return (
-				tmpl.title.toLowerCase().includes(query) ||
-				(tmpl.description && tmpl.description.toLowerCase().includes(query)) ||
-				(tmpl.sourceExtensionId &&
-					tmpl.sourceExtensionId.toLowerCase().includes(query)) ||
+				matchesTag(query, tmpl.title) ||
+				(tmpl.description && matchesTag(query, tmpl.description)) ||
+				(tmpl.sourceExtensionId && matchesTag(query, tmpl.sourceExtensionId)) ||
 				(tmpl.pinnedMacroIds &&
-					tmpl.pinnedMacroIds.some((m) => m.toLowerCase().includes(query)))
+					tmpl.pinnedMacroIds.some((m) => matchesTag(query, m)))
 			);
 		});
-	}, [templates, searchQuery, selectedCategory]);
+	}, [templates, searchQuery, selectedCategory, selectedTags]);
 
 	// Active selected template for preview
 	const activeTemplate = useMemo(() => {
@@ -133,6 +160,35 @@ export function TemplatePickerModal({
 							</button>
 						)}
 					</div>
+					{onNewTemplate && (
+						<Button
+							variant="primary"
+							icon={<BookTemplate size={13} />}
+							onClick={onNewTemplate}
+						>
+							{t("workbench.template.picker.newTemplate")}
+						</Button>
+					)}
+				</div>
+				<div className="template-tag-ribbon">
+					<Button onClick={() => setSelectedTags([])}>
+						{t("workbench.template.picker.allTags")}
+					</Button>
+					{tags.map((tag) => (
+						<Button
+							key={tag}
+							variant={selectedTags.includes(tag) ? "primary" : "secondary"}
+							onClick={() =>
+								setSelectedTags(
+									selectedTags.includes(tag)
+										? selectedTags.filter((item) => item !== tag)
+										: [...selectedTags, tag],
+								)
+							}
+						>
+							{tag}
+						</Button>
+					))}
 				</div>
 
 				<div className="template-picker-body">
@@ -207,6 +263,13 @@ export function TemplatePickerModal({
 													</Badge>
 												)}
 											</div>
+											{tmpl.tags && (
+												<div className="template-card-tags">
+													{tmpl.tags.map((tag) => (
+														<Badge key={tag}>{tag}</Badge>
+													))}
+												</div>
+											)}
 											{tmpl.description && (
 												<p className="template-card-desc">{tmpl.description}</p>
 											)}
@@ -287,9 +350,56 @@ export function TemplatePickerModal({
 											onSelectTemplate(activeTemplate.templateId);
 											onClose();
 										}}
+										style={{ width: "100%", justifyContent: "center" }}
 									>
 										{t("workbench.template.picker.open")}
 									</Button>
+
+									<div className="preview-secondary-actions">
+										{activeTemplate.source !== "extension" ? (
+											<>
+												{onOpenTemplateInEditor && (
+													<Button
+														variant="secondary"
+														icon={<FileCode2 size={13} />}
+														onClick={() =>
+															onOpenTemplateInEditor(activeTemplate.templateId)
+														}
+													>
+														{t("workbench.template.editor.openInEditor")}
+													</Button>
+												)}
+												{onDeleteTemplate && (
+													<Button
+														variant="danger"
+														onClick={() => onDeleteTemplate(activeTemplate)}
+													>
+														{t("workbench.template.picker.deleteTemplate")}
+													</Button>
+												)}
+											</>
+										) : (
+											onEditTemplate && (
+												<Button
+													variant="secondary"
+													onClick={() =>
+														onEditTemplate({
+															...activeTemplate,
+															templateId: `${activeTemplate.templateId.replace(/^@[^:]+:/, "")}_copy`,
+															title: `${activeTemplate.title} (Copy)`,
+															source: "project",
+														})
+													}
+													style={{
+														width: "100%",
+														justifyContent: "center",
+													}}
+												>
+													{t("workbench.template.picker.forkTemplate")}
+												</Button>
+											)
+										)}
+									</div>
 								</div>
 							</div>
 						) : (

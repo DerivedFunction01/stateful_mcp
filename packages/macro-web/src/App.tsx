@@ -16,6 +16,7 @@ import { MenuBar } from "./components/MenuBar";
 import { OpenFolderModal } from "./components/OpenFolderModal";
 import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
+import { TemplateEditorModal } from "./components/TemplateEditorModal";
 import { TemplatePickerModal } from "./components/TemplatePickerModal";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { WorkbenchShell } from "./components/WorkbenchShell";
@@ -104,6 +105,11 @@ export function App() {
 	const [paletteCommandMode, setPaletteCommandMode] = useState(false);
 	const [paletteCommandToken, setPaletteCommandToken] = useState("");
 	const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
+	const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+	const [editingTemplate, setEditingTemplate] =
+		useState<
+			import("@stateful-mcp/macro-protocol").ScratchpadTemplateDescriptor
+		>();
 	const [announcement, setAnnouncement] = useState("");
 	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
@@ -277,6 +283,32 @@ export function App() {
 			} else {
 				setIsTemplatePickerOpen(true);
 			}
+			return;
+		}
+		if (
+			command === "workbench.action.saveScratchpadAsTemplate" ||
+			command === "editor.saveScratchpadAsTemplate"
+		) {
+			const activeDoc = snapshot?.editor.activeDocument;
+			const activeSummary = snapshot?.editor.documents.find(
+				(document) => document.documentId === snapshot.editor.activeDocumentId,
+			);
+			const draftLines = activeDoc
+				? workspaceState.editorDrafts[activeDoc.documentId]
+				: undefined;
+			const initialText = draftLines
+				? draftLines.join("\n")
+				: (activeDoc?.lines.map((l) => l.rawText).join("\n") ?? "");
+			setEditingTemplate({
+				templateId: "",
+				providerId: "macro.text",
+				title: activeSummary?.title ?? "",
+				initialText,
+				pinnedMacroIds: activeSummary?.pinnedMacroIds ?? [],
+				source:
+					snapshot?.project && !snapshot.project.ephemeral ? "project" : "user",
+			});
+			setIsTemplateEditorOpen(true);
 			return;
 		}
 		if (command === "editor.save") {
@@ -741,6 +773,10 @@ export function App() {
 								}}
 								onOpenFileInGroup={handleOpenFileInGroup}
 								onCreateFileInGroup={handleCreateFileInGroup}
+								onEditTemplate={(template) => {
+									setEditingTemplate(template);
+									setIsTemplateEditorOpen(true);
+								}}
 							/>
 						)}
 					</main>
@@ -859,6 +895,60 @@ export function App() {
 							requestId: crypto.randomUUID(),
 							templateId,
 						});
+					}}
+					onNewTemplate={() => {
+						setEditingTemplate(undefined);
+						setIsTemplateEditorOpen(true);
+					}}
+					onEditTemplate={(template) => {
+						setEditingTemplate(template);
+						setIsTemplateEditorOpen(true);
+					}}
+					onOpenTemplateInEditor={(templateId) => {
+						setIsTemplatePickerOpen(false);
+						void store.applyEditorOperation({
+							operation: "editor.openTemplateAsDocument",
+							requestId: crypto.randomUUID(),
+							templateId,
+						});
+					}}
+					onDeleteTemplate={(template) => {
+						void store.applyEditorOperation({
+							operation: "editor.deleteTemplate",
+							requestId: crypto.randomUUID(),
+							templateId: template.templateId,
+							scope: template.source === "user" ? "user" : "project",
+						});
+					}}
+				/>
+				<TemplateEditorModal
+					isOpen={isTemplateEditorOpen}
+					template={editingTemplate}
+					isProjectOpen={Boolean(
+						snapshot?.project && !snapshot.project.ephemeral,
+					)}
+					onClose={() => setIsTemplateEditorOpen(false)}
+					onSave={(template, scope) => {
+						const isCreateOrFork =
+							!editingTemplate || editingTemplate.source === "extension";
+						void store
+							.applyEditorOperation({
+								operation: "editor.saveTemplate",
+								requestId: crypto.randomUUID(),
+								template,
+								scope,
+							})
+							.then(() => {
+								if (isCreateOrFork) {
+									// Open the newly created template as an editable canvas document.
+									void store.applyEditorOperation({
+										operation: "editor.openTemplateAsDocument",
+										requestId: crypto.randomUUID(),
+										templateId: template.templateId,
+									});
+								}
+							});
+						setIsTemplateEditorOpen(false);
 					}}
 				/>
 			</div>
