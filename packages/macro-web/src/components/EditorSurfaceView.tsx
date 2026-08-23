@@ -510,6 +510,14 @@ function pointerPosition(
 	};
 }
 
+function getSourceKey(
+	lines: readonly string[],
+	filePath?: string,
+	title?: string,
+): string {
+	return `${JSON.stringify(lines)}:${filePath ?? ""}:${title ?? ""}`;
+}
+
 export function EditorSurfaceView({
 	documentId,
 	lines,
@@ -560,8 +568,17 @@ export function EditorSurfaceView({
 
 	useEffect(() => {
 		const root = rootRef.current;
-		if (!root || focusedRef.current) return;
-		const sourceKey = `${JSON.stringify(sourceLines)}:${filePath ?? ""}:${title ?? ""}`;
+		if (root) {
+			(root as any).__syncLastRendered = (lines: readonly string[]) => {
+				lastRenderedText.current = getSourceKey(lines, filePath, title);
+			};
+		}
+	}, [filePath, title]);
+
+	useEffect(() => {
+		const root = rootRef.current;
+		if (!root) return;
+		const sourceKey = getSourceKey(sourceLines, filePath, title);
 		if (lastRenderedText.current === sourceKey) return;
 		const lang = detectLanguage(filePath, title);
 		root.replaceChildren(
@@ -594,7 +611,10 @@ export function EditorSurfaceView({
 			}),
 		);
 		lastRenderedText.current = sourceKey;
-	}, [sourceLines, filePath, title]);
+		if (activeCellIndex !== undefined) {
+			setLineAndCol(root, activeCellIndex, 0);
+		}
+	}, [sourceLines, filePath, title, activeCellIndex]);
 
 	useEffect(() => {
 		if (activeCellIndex !== undefined) {
@@ -693,7 +713,7 @@ export function EditorSurfaceView({
 						}}
 						onInput={() => {
 							const next = linesFromSurface(rootRef.current!);
-							lastRenderedText.current = JSON.stringify(next);
+							lastRenderedText.current = getSourceKey(next, filePath, title);
 							onTextChange(next);
 							updateCursor();
 						}}
@@ -708,7 +728,9 @@ export function EditorSurfaceView({
 							const cellRows = visualRowsByCell[cellIdx] ?? [];
 							const lineDto = lines.find((l) => l.lineNumber === cellIdx + 1);
 							const isLineActive =
-								vimEnabled && vimMode !== "INSERT" && activeCellIndex !== undefined
+								vimEnabled &&
+								vimMode !== "INSERT" &&
+								activeCellIndex !== undefined
 									? activeCellIndex === cellIdx
 									: activeLineNumber === cellIdx + 1;
 							const isCellSelected =
@@ -886,6 +908,10 @@ export function getEditorSurfaceAdapter(
 		return res;
 	};
 
+	const syncLastRendered = (lines: readonly string[]) => {
+		(element as any)?.__syncLastRendered?.(lines);
+	};
+
 	return {
 		// ─── Cell-Aware Primitives ──────────────────────────────────────────
 		getActiveCellIndex: () => {
@@ -1008,12 +1034,18 @@ export function getEditorSurfaceAdapter(
 
 		splitCellAtCaret: () => {
 			const next = splitCellAtSelection(element);
-			if (next) onTextChange(next);
+			if (next) {
+				syncLastRendered(next);
+				onTextChange(next);
+			}
 		},
 
 		insertTextAtCaret: (text: string) => {
 			const next = insertTextAtSelection(element, text);
-			if (next) onTextChange(next);
+			if (next) {
+				syncLastRendered(next);
+				onTextChange(next);
+			}
 		},
 
 		searchText: (

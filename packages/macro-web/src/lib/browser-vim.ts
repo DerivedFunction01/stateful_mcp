@@ -528,7 +528,14 @@ export function createBrowserVimController(
 				}
 				if (matched?.command === "editor.splitLine") {
 					if (isScratchpad) {
+						const nextIdx = cellIndex() + 1;
 						adapter?.splitCellAtCaret?.();
+						const count = adapter?.getCellCount?.() ?? nextIdx + 1;
+						scratchpadStore?.dispatch({
+							type: "setActiveCell",
+							index: nextIdx,
+							count,
+						});
 					} else {
 						adapter?.insertTextAtCaret?.("\n");
 					}
@@ -703,17 +710,14 @@ export function createBrowserVimController(
 						case "insertBelow":
 						case "editor.insertBelow":
 							if (isScratchpad && adapter?.insertCell) {
-								adapter.insertCell("below");
-								const count = adapter.getCellCount?.() ?? 1;
+								const nextIdx = cellIndex() + 1;
 								scratchpadStore?.dispatch({
 									type: "setActiveCell",
-									index: cellIndex() + 1,
-									count,
+									index: nextIdx,
+									count: (adapter.getCellCount?.() ?? 1) + 1,
 								});
-								adapter.focusCellForEdit?.(
-									cellIndex(),
-									scratchpadStore?.getState().caretColumn ?? 0,
-								);
+								adapter.insertCell("below");
+								adapter.focusCellForEdit?.(nextIdx, 0);
 							} else {
 								adapter?.insertLine?.("below");
 							}
@@ -722,17 +726,14 @@ export function createBrowserVimController(
 						case "insertAbove":
 						case "editor.insertAbove":
 							if (isScratchpad && adapter?.insertCell) {
-								adapter.insertCell("above");
-								const count = adapter.getCellCount?.() ?? 1;
+								const curIdx = cellIndex();
 								scratchpadStore?.dispatch({
 									type: "setActiveCell",
-									index: cellIndex(),
-									count,
+									index: curIdx,
+									count: (adapter.getCellCount?.() ?? 1) + 1,
 								});
-								adapter.focusCellForEdit?.(
-									cellIndex(),
-									scratchpadStore?.getState().caretColumn ?? 0,
-								);
+								adapter.insertCell("above");
+								adapter.focusCellForEdit?.(curIdx, 0);
 							} else {
 								adapter?.insertLine?.("above");
 							}
