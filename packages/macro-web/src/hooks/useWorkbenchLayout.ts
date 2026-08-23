@@ -21,8 +21,8 @@ export function useWorkbenchLayout(
 	const isInspectorOpen = snapshot?.layout.sidepanelOpen ?? true;
 	const isSidebarOpen = snapshot?.layout.regions.activity?.open ?? true;
 
-	const toggleInspector = () => onCommand("workspace.toggleSidepanel");
-	const toggleSidebar = () => onCommand("workspace.toggleActivity");
+	const toggleInspector = () => onCommand("workbench.toggleInspector");
+	const toggleSidebar = () => onCommand("workbench.toggleSidepanel");
 	const setInspectorPosition = (pos: SidepanelPosition) =>
 		saveUserPreferences({ inspectorPosition: pos });
 
