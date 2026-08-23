@@ -12,9 +12,11 @@ import {
 	FolderGit2,
 	FolderPlus,
 	HelpCircle,
+	History,
 	PanelBottom,
 	PanelLeft,
 	PanelRight,
+	RotateCcw,
 	Save,
 	Settings,
 	Sparkles,
@@ -213,6 +215,12 @@ export function MenuBar({
 	const saveAsShortcut = displayShortcut(
 		getEffectiveCommandShortcut(snapshot, "workbench.saveAsProject"),
 	);
+	const journalShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "workbench.view.journal"),
+	);
+	const revertShortcut = displayShortcut(
+		getEffectiveCommandShortcut(snapshot, "journal.reverseLast"),
+	);
 
 	useEffect(() => {
 		function handleClickOutside(e: MouseEvent) {
@@ -315,6 +323,14 @@ export function MenuBar({
 				shortcut: paletteShortcut,
 				onSelect: () => onOpenPalette(),
 			},
+			{ kind: "separator", id: "edit.sep1" },
+			{
+				id: "edit.revertLast",
+				label: t("journal.reverseLast"),
+				icon: <RotateCcw size={14} />,
+				shortcut: revertShortcut,
+				onSelect: () => onCommand("journal.reverseLast"),
+			},
 		];
 
 		const viewItems: MenuItemConfig[] = [
@@ -325,6 +341,13 @@ export function MenuBar({
 				shortcut: sidepanelShortcut,
 				onSelect: () =>
 					onToggleSidebar?.() ?? onCommand("workbench.toggleSidepanel"),
+			},
+			{
+				id: "view.journalHistory",
+				label: t("menu.view.journal"),
+				icon: <History size={14} />,
+				shortcut: journalShortcut,
+				onSelect: () => onCommand("workbench.view.journal"),
 			},
 			{
 				id: "view.toggleInspector",

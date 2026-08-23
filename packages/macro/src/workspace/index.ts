@@ -622,6 +622,53 @@ export function createMacroWorkspace(
 			},
 		},
 	);
+	commands.registerCommand(
+		{
+			command: "workbench.view.journal",
+			titleI18nKey: "menu.view.journal",
+			categoryI18nKey: "menu.view",
+		},
+		{
+			execute: () => {
+				layout.toggleRegion("activity");
+				return { viewId: "journal" };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "journal.reverseLast",
+			titleI18nKey: "journal.reverseLast",
+			categoryI18nKey: "journal.title",
+		},
+		{
+			execute: async (request?: { reason?: string }) => {
+				const entries = journal.getEntries();
+				const committed = [...entries]
+					.reverse()
+					.find((e) => e.status === "committed");
+				if (committed) {
+					return journal.reverseEntry(
+						committed.id,
+						request?.reason ?? "Reversed by user via command palette",
+					);
+				}
+				return null;
+			},
+		},
+	);
+	commands.registerCommand(
+		{
+			command: "journal.refresh",
+			titleI18nKey: "journal.action.refresh",
+			categoryI18nKey: "journal.title",
+		},
+		{
+			execute: () => {
+				return { count: journal.getEntries().length };
+			},
+		},
+	);
 	const contributions = new ExtensionContributionManager(
 		views,
 		tabs,

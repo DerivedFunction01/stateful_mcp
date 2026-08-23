@@ -47,4 +47,5 @@ export const EN_JOURNAL: Record<string, string> = {
 	"journal.gated.title": "Deferred Actions",
 	"journal.gated.requiresAuth": "Requires Authentication",
 	"journal.reverseEntry": "Reverse Journal Entry",
+	"journal.reverseLast": "Revert Last Transaction",
 };

@@ -152,4 +152,16 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		modes: ["NORMAL", "INSERT", "VISUAL"],
 		labelI18nKey: "editor.group.switchFocus",
 	},
+	{
+		command: "workbench.view.journal",
+		chords: ["primary+shift+j"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "menu.view.journal",
+	},
+	{
+		command: "journal.reverseLast",
+		chords: ["primary+alt+z"],
+		modes: ["NORMAL", "INSERT", "VISUAL"],
+		labelI18nKey: "journal.reverseLast",
+	},
 ];

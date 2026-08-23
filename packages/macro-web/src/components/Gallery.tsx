@@ -765,6 +765,20 @@ const GALLERY_COMMANDS: readonly CommandDescriptorDto[] = [
 		categoryI18nKey: "common.workspace",
 		keybinding: "Ctrl+Shift+P",
 	},
+	{
+		id: "workbench.view.journal",
+		titleI18nKey: "menu.view.journal",
+		categoryI18nKey: "menu.view",
+		description: "Open the Journal History pane in the primary sidebar.",
+		keybinding: "Ctrl+Shift+J",
+	},
+	{
+		id: "journal.reverseLast",
+		titleI18nKey: "journal.reverseLast",
+		categoryI18nKey: "journal.title",
+		description: "Revert the most recent committed transaction.",
+		keybinding: "Ctrl+Alt+Z",
+	},
 ];
 
 function OverlayControlsStory() {
