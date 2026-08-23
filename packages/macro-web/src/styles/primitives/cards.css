@@ -1,0 +1,41 @@
+/* =========================================================================
+   Card & Container Primitives
+   ========================================================================= */
+
+.card {
+	background: var(--theme-surface-primary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-md);
+	padding: 16px;
+	margin-bottom: 16px;
+}
+
+.card-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 12px;
+}
+
+.card-header h2 {
+	font-size: 13.5px;
+	margin: 0;
+}
+
+.session-lines {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	font-size: 12.5px;
+}
+
+.session-lines span {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	color: var(--theme-content-secondary);
+}
+
+.session-lines strong {
+	color: var(--theme-content-primary);
+}

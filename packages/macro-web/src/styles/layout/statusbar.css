@@ -1,0 +1,83 @@
+/* =========================================================================
+   Status Bar (Bottom Continuous Bar)
+   ========================================================================= */
+
+/* =========================================================================
+   Status Bar (Bottom Continuous Bar)
+   ========================================================================= */
+
+.status-bar {
+	height: 24px;
+	min-height: 24px;
+	background: var(--theme-surface-navigation);
+	border-top: 1px solid var(--theme-border-subtle);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 8px;
+	font-size: 11px;
+	color: var(--theme-content-secondary);
+	user-select: none;
+	z-index: 50;
+}
+
+.status-group {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.status-segment {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	background: transparent;
+	border: 0;
+	color: inherit;
+	padding: 1px 4px;
+	border-radius: 3px;
+	font-size: 11px;
+}
+
+.status-segment:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.status-segment-icon {
+	display: flex;
+	align-items: center;
+}
+
+.status-tone-info {
+	color: var(--theme-status-info-content);
+}
+
+.status-tone-success {
+	color: var(--theme-status-success-content);
+}
+
+.status-tone-warning {
+	color: var(--theme-status-warning-content);
+}
+
+.status-tone-danger {
+	color: var(--theme-status-danger-content);
+}
+
+.status-tone-accent {
+	color: var(--theme-content-accent);
+}
+
+.status-icon {
+	background: transparent;
+	border: 0;
+	color: var(--theme-content-tertiary);
+	padding: 2px;
+	display: flex;
+	align-items: center;
+}
+
+.status-icon:hover {
+	color: var(--theme-content-primary);
+}

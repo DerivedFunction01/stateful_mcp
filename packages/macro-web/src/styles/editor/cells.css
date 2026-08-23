@@ -1,0 +1,256 @@
+/* =========================================================================
+   Jupyter-Style Hybrid Cell Containers, Gutters & Line Numbers
+   ========================================================================= */
+
+.editor-cell-decorations {
+	position: absolute;
+	top: 10px;
+	left: 0;
+	right: 0;
+	pointer-events: none;
+	z-index: 1;
+	display: flex;
+	flex-direction: column;
+}
+
+.editor-cell-unit {
+	display: flex;
+	flex-direction: column;
+	min-height: 24px;
+	position: relative;
+}
+
+.editor-cell-unit + .editor-cell-unit {
+	border-top: 1px solid
+		color-mix(in srgb, var(--theme-border-subtle) 70%, transparent);
+}
+
+.editor-cell-unit.cell-selected {
+	background: color-mix(in srgb, var(--theme-content-accent) 18%, transparent);
+	box-shadow: inset 3px 0 var(--theme-content-accent);
+}
+
+.editor-cell-unit.cell-selected.active {
+	outline: 1px solid var(--theme-content-accent);
+	outline-offset: -1px;
+}
+
+.editor-cell-gutter {
+	width: 58px;
+	min-width: 58px;
+	height: 24px;
+	min-height: 24px;
+	flex: 0 0 24px;
+	background: var(--theme-surface-navigation);
+	border-right: 1px solid var(--theme-border-subtle);
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	padding: 0 6px 0 2px;
+	font-size: 11.5px;
+	color: var(--theme-content-tertiary);
+	user-select: none;
+	position: relative;
+	pointer-events: auto;
+}
+
+.editor-cell-unit.cell-selected .editor-cell-gutter {
+	background: color-mix(
+		in srgb,
+		var(--theme-content-accent) 24%,
+		var(--theme-surface-navigation)
+	);
+	color: var(--theme-content-primary);
+}
+
+.editor-cell-gutter-rows {
+	position: absolute;
+	top: 0;
+	left: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.editor-cell-gutter.cell-continuation {
+	color: color-mix(in srgb, var(--theme-content-tertiary) 72%, transparent);
+}
+
+.editor-cell-unit.active .editor-cell-gutter {
+	color: var(--theme-content-primary);
+	font-weight: 600;
+}
+
+.editor-cell-unit.active .editor-cell-gutter-rows {
+	box-shadow: inset 3px 0 var(--theme-content-accent);
+}
+
+.editor-cell-unit.cell-selected .editor-cell-gutter-rows {
+	box-shadow: inset 3px 0 var(--theme-content-accent);
+}
+
+.gutter-marker {
+	width: 8px;
+	color: var(--theme-content-accent);
+	font-weight: bold;
+}
+
+.gutter-sign {
+	width: 14px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 2px;
+}
+
+.gutter-sign.error {
+	color: var(--theme-content-danger);
+}
+
+.gutter-sign.valid {
+	color: var(--theme-content-success);
+}
+
+.gutter-sign.pinned {
+	color: var(--theme-content-accent);
+}
+
+.gutter-number {
+	width: 22px;
+	text-align: right;
+	margin-right: 4px;
+	font-variant-numeric: tabular-nums;
+}
+
+.editor-cell-unit.pinned .gutter-number {
+	color: var(--theme-content-accent);
+}
+
+.editor-cell-unit.pinned .editor-cell-gutter.cell-continuation .gutter-number {
+	color: color-mix(in srgb, var(--theme-content-accent) 62%, transparent);
+}
+
+.gutter-border {
+	color: var(--theme-border-subtle);
+	font-weight: 300;
+}
+
+/* Per-line Companion Cell Output (Jupyter style) */
+.editor-cell-output {
+	display: flex;
+	margin-left: 58px;
+	margin-right: 16px;
+	margin-top: 2px;
+	margin-bottom: 6px;
+	background: color-mix(
+		in srgb,
+		var(--theme-surface-secondary) 85%,
+		transparent
+	);
+	border-left: 2px solid var(--theme-content-accent);
+	border-radius: 0 4px 4px 0;
+	pointer-events: auto;
+	font-size: 11.5px;
+	line-height: 22px;
+}
+
+.editor-cell-output.valid {
+	border-left-color: var(--theme-status-success-border);
+}
+
+.editor-cell-output.invalid {
+	border-left-color: var(--theme-status-danger-border);
+	background: var(--theme-surface-danger);
+}
+
+.cell-output-gutter {
+	display: none;
+}
+
+.cell-output-body {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 3px 10px;
+	width: 100%;
+}
+
+.cell-output-content {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.cell-diagnostic-text {
+	color: var(--theme-content-danger);
+}
+
+.cell-preview-text {
+	color: var(--theme-content-success);
+}
+
+.cell-macro-tag {
+	color: var(--theme-content-accent);
+	font-weight: 500;
+}
+
+.cell-output-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	margin-left: auto;
+}
+
+.cell-action-btn {
+	background: var(--theme-surface-tertiary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 3px;
+	color: var(--theme-content-secondary);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	padding: 0;
+}
+
+.cell-action-btn:hover {
+	color: var(--theme-content-accent);
+	border-color: var(--theme-content-accent);
+}
+
+.cell-action-btn.pinned {
+	color: var(--theme-content-accent);
+}
+
+/* Conflict Banner */
+.editor-conflict-banner {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	background: var(--theme-surface-danger);
+	border: 1px solid var(--theme-border-danger);
+	border-radius: 6px;
+	padding: 10px 14px;
+	margin: 12px;
+	color: var(--theme-content-danger);
+}
+
+.conflict-info {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.conflict-info span {
+	font-size: 12px;
+	color: var(--theme-content-secondary);
+}
+
+.conflict-actions {
+	margin-left: auto;
+	display: flex;
+	gap: 8px;
+}

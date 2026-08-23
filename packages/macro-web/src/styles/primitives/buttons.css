@@ -1,0 +1,102 @@
+/* =========================================================================
+   Button Primitives & Variants
+   ========================================================================= */
+
+.button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-height: 32px;
+	padding: 0 12px;
+	border: 1px solid transparent;
+	border-radius: var(--theme-radius-sm);
+	font-weight: 600;
+	line-height: 1;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease;
+}
+
+.button-primary {
+	color: var(--theme-action-primary-content);
+	background: var(--theme-action-primary-surface-default);
+	border-color: var(--theme-action-primary-border);
+}
+
+.button-primary:hover {
+	background: var(--theme-action-primary-surface-hover);
+}
+
+.button-primary:active {
+	background: var(--theme-action-primary-surface-pressed);
+}
+
+.button-secondary {
+	color: var(--theme-action-secondary-content);
+	background: var(--theme-action-secondary-surface-default);
+	border-color: var(--theme-action-secondary-border);
+}
+
+.button-secondary:hover {
+	background: var(--theme-action-secondary-surface-hover);
+}
+
+.button-secondary:active {
+	background: var(--theme-action-secondary-surface-pressed);
+}
+
+.button-ghost {
+	color: var(--theme-action-ghost-content);
+	background: var(--theme-action-ghost-surface-default);
+	border-color: transparent;
+}
+
+.button-ghost:hover {
+	background: var(--theme-action-ghost-surface-hover);
+}
+
+.button-ghost:active {
+	background: var(--theme-action-ghost-surface-pressed);
+}
+
+.button-danger {
+	color: var(--theme-action-danger-content);
+	background: var(--theme-action-danger-surface-default);
+}
+
+.button-danger:hover {
+	background: var(--theme-action-danger-surface-hover);
+}
+
+.button-danger:active {
+	background: var(--theme-action-danger-surface-pressed);
+}
+
+.icon-button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid transparent;
+	border-radius: var(--theme-radius-sm);
+	color: var(--theme-action-ghost-content);
+	background: var(--theme-action-ghost-surface-default);
+}
+
+.icon-button:hover {
+	color: var(--theme-content-primary);
+	background: var(--theme-action-ghost-surface-hover);
+}
+
+.icon-button:active {
+	background: var(--theme-action-ghost-surface-pressed);
+}
+
+.icon-button.active {
+	background: var(--theme-surface-elevated);
+	border-color: var(--theme-border-default);
+	color: var(--theme-content-accent);
+}

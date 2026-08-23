@@ -1,0 +1,154 @@
+/* =========================================================================
+   Editor Multi-Group Split Container & Splitters
+   ========================================================================= */
+
+/* ==========================================================================
+   Editor Multi-Group Split Container
+   ========================================================================== */
+
+.editor-split-container {
+	display: flex;
+	flex: 1;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+	position: relative;
+}
+
+.editor-split-container--vertical {
+	flex-direction: row;
+}
+
+.editor-split-container--horizontal {
+	flex-direction: column;
+}
+
+.editor-split-group-pane {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 100%;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
+	border: 1px solid var(--theme-border-subtle);
+	transition:
+		border-color 0.12s ease,
+		box-shadow 0.12s ease;
+}
+
+.editor-split-group-pane--active {
+	border-color: color-mix(
+		in srgb,
+		var(--theme-content-accent) 60%,
+		var(--theme-border-subtle)
+	);
+	box-shadow: inset 0 0 0 1px
+		color-mix(in srgb, var(--theme-content-accent) 35%, transparent);
+}
+
+.editor-empty-group {
+	align-items: center;
+	color: var(--theme-text-muted);
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 8px;
+	justify-content: center;
+	padding: 32px;
+	text-align: center;
+}
+
+.editor-empty-group strong {
+	color: var(--theme-text-primary);
+	font-size: 1.05rem;
+}
+
+.editor-empty-group__actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 12px;
+}
+
+.editor-empty-group__actions button {
+	align-items: center;
+	appearance: none;
+	background: var(--theme-action-secondary-surface-default);
+	border: 1px solid var(--theme-action-secondary-border);
+	border-radius: var(--theme-radius-sm);
+	color: var(--theme-action-secondary-content);
+	display: inline-flex;
+	font-size: 12px;
+	font-weight: 600;
+	gap: 6px;
+	justify-content: center;
+	min-height: 30px;
+	padding: 0 10px;
+	transition:
+		background-color 120ms ease,
+		border-color 120ms ease;
+}
+
+.editor-empty-group__actions button:hover {
+	background: var(--theme-action-secondary-surface-hover);
+	border-color: var(--theme-border-focus);
+	color: var(--theme-content-primary);
+}
+
+.editor-empty-group__actions button:active {
+	background: var(--theme-action-secondary-surface-pressed);
+}
+
+.editor-splitter {
+	flex-shrink: 0;
+	background: var(--theme-border-subtle);
+	position: relative;
+	z-index: 20;
+	touch-action: none;
+	user-select: none;
+	transition: background 0.15s ease;
+}
+
+.editor-splitter--vertical {
+	width: 2px;
+	cursor: col-resize;
+}
+
+.editor-splitter--vertical::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: -5px;
+	right: -5px;
+	cursor: col-resize;
+	z-index: 25;
+}
+
+.editor-splitter--horizontal {
+	height: 2px;
+	cursor: row-resize;
+}
+
+.editor-splitter--horizontal::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -5px;
+	bottom: -5px;
+	cursor: row-resize;
+	z-index: 25;
+}
+
+.editor-splitter:hover,
+.editor-splitter:active {
+	background: var(--theme-accent-primary, #60a5fa);
+}
+
+.editor-splitter:hover::before,
+.editor-splitter:active::before {
+	background: rgba(96, 165, 250, 0.15);
+}

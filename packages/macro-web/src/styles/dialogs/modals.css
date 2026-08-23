@@ -1,0 +1,84 @@
+/* =========================================================================
+   Base Modal Backdrops, Dialog Shells & Animations
+   ========================================================================= */
+
+.modal-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.65);
+	backdrop-filter: blur(4px);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 1000;
+}
+
+.modal-card {
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-default);
+	border-radius: var(--theme-radius-md);
+	box-shadow: var(--theme-shadow-lg);
+	padding: 24px;
+	max-width: 480px;
+	width: 90%;
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.modal-card h2 {
+	margin: 0;
+	font-size: 16px;
+}
+
+.modal-card p {
+	margin: 0;
+	color: var(--theme-content-secondary);
+	line-height: 1.5;
+}
+
+.create-file-dialog {
+	max-width: 430px;
+}
+
+.page-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+/* Generic Dialog & Modal Backdrop */
+.dialog-backdrop {
+	position: fixed;
+	inset: 0;
+	background: color-mix(in srgb, #000 60%, transparent);
+	backdrop-filter: blur(4px);
+	z-index: 1200;
+	animation: fadeIn 0.15s ease-out;
+}
+
+.dialog-modal {
+	position: fixed;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-default);
+	border-radius: var(--theme-radius-md);
+	box-shadow: 0 24px 80px color-mix(in srgb, #000 48%, transparent);
+	z-index: 1201;
+	animation: dialogPop 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+	outline: none;
+}
+
+@keyframes dialogPop {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -48%) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}

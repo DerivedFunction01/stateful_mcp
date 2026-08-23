@@ -1,0 +1,191 @@
+/* =========================================================================
+   Editor Conflict Diff Split View
+   ========================================================================= */
+
+/* ==========================================================================
+   Editor Conflict Diff Split View
+   ========================================================================== */
+
+.editor-conflict-diff-view {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: var(--theme-surface-canvas);
+	color: var(--theme-content-primary);
+	overflow: hidden;
+}
+
+.editor-conflict-diff-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 16px;
+	background: var(--theme-status-warning-surface, rgba(234, 179, 8, 0.1));
+	border-bottom: 1px solid
+		var(--theme-status-warning-border, rgba(234, 179, 8, 0.3));
+	gap: 16px;
+	flex-shrink: 0;
+}
+
+.editor-conflict-diff-header__info {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.editor-conflict-diff-header__icon {
+	color: var(--theme-status-warning-content, #eab308);
+	flex-shrink: 0;
+}
+
+.editor-conflict-diff-header__title {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	color: var(--theme-content-primary);
+}
+
+.editor-conflict-diff-header__desc {
+	display: block;
+	font-size: 12px;
+	color: var(--theme-content-secondary);
+}
+
+.editor-conflict-diff-header__actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+.editor-conflict-diff-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	font-weight: 500;
+	padding: 6px 12px;
+}
+
+.editor-conflict-diff-btn--revert {
+	background: var(--theme-action-secondary-surface-default);
+	border: 1px solid var(--theme-action-secondary-border);
+	color: var(--theme-action-secondary-content);
+}
+
+.editor-conflict-diff-btn--overwrite {
+	background: var(--theme-action-primary-surface-default);
+	border: 1px solid var(--theme-action-primary-border);
+	color: var(--theme-action-primary-content);
+}
+
+.editor-conflict-diff-panes {
+	display: flex;
+	flex: 1;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+.editor-conflict-pane {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.editor-conflict-pane--disk {
+	border-right: 1px solid var(--theme-border-subtle);
+	background: rgba(0, 0, 0, 0.08);
+}
+
+.editor-conflict-pane__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 6px 12px;
+	background: var(--theme-surface-elevated);
+	border-bottom: 1px solid var(--theme-border-subtle);
+	font-size: 12px;
+	font-weight: 500;
+	flex-shrink: 0;
+}
+
+.editor-conflict-pane__tag--disk {
+	color: var(--theme-status-warning-content, #eab308);
+}
+
+.editor-conflict-pane__tag--local {
+	color: var(--theme-accent-primary, #60a5fa);
+}
+
+.editor-conflict-pane__badge {
+	font-size: 10px;
+	padding: 2px 6px;
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-canvas);
+	color: var(--theme-content-tertiary);
+	border: 1px solid var(--theme-border-subtle);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.editor-conflict-pane__badge--modified {
+	color: var(--theme-accent-primary, #60a5fa);
+	border-color: rgba(96, 165, 250, 0.3);
+	background: rgba(96, 165, 250, 0.1);
+}
+
+.editor-conflict-pane__content {
+	flex: 1;
+	overflow-y: auto;
+	overflow-x: auto;
+	font-family: var(--theme-font-mono, monospace);
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+.editor-conflict-lines {
+	display: flex;
+	flex-direction: column;
+	min-width: 100%;
+	padding: 8px 0;
+}
+
+.editor-conflict-line {
+	display: flex;
+	align-items: flex-start;
+	min-height: 22px;
+	padding: 0 12px;
+}
+
+.editor-conflict-line--diff-disk {
+	background: rgba(239, 68, 68, 0.12);
+}
+
+.editor-conflict-line--diff-local {
+	background: rgba(34, 197, 94, 0.12);
+}
+
+.editor-conflict-line--empty {
+	opacity: 0.2;
+}
+
+.editor-conflict-line__number {
+	width: 36px;
+	text-align: right;
+	padding-right: 12px;
+	color: var(--theme-content-tertiary);
+	font-size: 11px;
+	user-select: none;
+	flex-shrink: 0;
+}
+
+.editor-conflict-line__text {
+	flex: 1;
+	white-space: pre;
+	word-break: break-all;
+}

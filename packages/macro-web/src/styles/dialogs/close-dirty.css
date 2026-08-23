@@ -1,0 +1,94 @@
+/* =========================================================================
+   Close Dirty File Confirmation Dialog
+   ========================================================================= */
+
+/* Close Dirty Dialog */
+.close-dirty-dialog {
+	width: min(90vw, 440px);
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 20px;
+}
+
+.close-dirty-dialog__header {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+}
+
+.close-dirty-dialog__icon {
+	flex-shrink: 0;
+	color: var(--theme-content-warning);
+	margin-top: 2px;
+}
+
+.close-dirty-dialog__text {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.close-dirty-dialog__title {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--theme-content-primary);
+	line-height: 1.35;
+}
+
+.close-dirty-dialog__description {
+	margin: 0;
+	font-size: 13px;
+	color: var(--theme-content-secondary);
+	line-height: 1.4;
+}
+
+.close-dirty-dialog__actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.close-dirty-dialog__button {
+	padding: 6px 14px;
+	font-size: 13px;
+	font-weight: 500;
+	border-radius: var(--theme-radius-sm);
+	cursor: pointer;
+	transition:
+		background 0.12s ease,
+		border-color 0.12s ease,
+		color 0.12s ease;
+}
+
+.close-dirty-dialog__button--cancel {
+	background: var(--theme-action-secondary-surface-default);
+	border: 1px solid var(--theme-action-secondary-border);
+	color: var(--theme-action-secondary-content);
+}
+
+.close-dirty-dialog__button--cancel:hover {
+	background: var(--theme-action-secondary-surface-hover);
+}
+
+.close-dirty-dialog__button--discard {
+	background: var(--theme-action-danger-surface-default);
+	border: 1px solid transparent;
+	color: var(--theme-action-danger-content);
+}
+
+.close-dirty-dialog__button--discard:hover {
+	background: var(--theme-action-danger-surface-hover);
+}
+
+.close-dirty-dialog__button--save {
+	background: var(--theme-action-primary-surface-default);
+	border: 1px solid var(--theme-action-primary-border);
+	color: var(--theme-action-primary-content);
+}
+
+.close-dirty-dialog__button--save:hover {
+	background: var(--theme-action-primary-surface-hover);
+}

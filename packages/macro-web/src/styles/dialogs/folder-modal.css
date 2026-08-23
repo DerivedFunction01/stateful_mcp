@@ -1,0 +1,211 @@
+/* =========================================================================
+   Open Folder & Project Picker Modal
+   ========================================================================= */
+
+/* =========================================================================
+   Open Folder & Project Picker Modal
+   ========================================================================= */
+
+.open-folder-modal {
+	max-width: 580px;
+	width: 95%;
+	max-height: 85vh;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	padding: 20px;
+}
+
+.modal-header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.modal-title {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--theme-content-primary);
+}
+
+.folder-path-form {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+}
+
+.folder-input-wrapper {
+	position: relative;
+	flex: 1;
+	display: flex;
+	align-items: center;
+}
+
+.folder-input-icon {
+	position: absolute;
+	left: 10px;
+	color: var(--theme-content-tertiary);
+	pointer-events: none;
+}
+
+.folder-path-input {
+	width: 100%;
+	padding: 7px 10px 7px 32px;
+	font-size: 13px;
+	font-family: "DM Mono", monospace;
+	background: var(--theme-surface-sunken);
+	border: 1px solid var(--theme-border-default);
+	border-radius: var(--theme-radius-sm);
+	color: var(--theme-content-primary);
+	outline: none;
+	transition: border-color 0.15s ease;
+}
+
+.folder-path-input:focus {
+	border-color: var(--theme-content-accent);
+}
+
+.folder-entries-container {
+	flex: 1;
+	min-height: 240px;
+	max-height: 320px;
+	overflow-y: auto;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-sunken);
+	padding: 4px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.folder-entry-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	border-radius: var(--theme-radius-sm);
+	border: 1px solid transparent;
+	background: transparent;
+	color: var(--theme-content-secondary);
+	font-size: 13px;
+	cursor: pointer;
+	text-align: left;
+	width: 100%;
+	transition:
+		background 0.1s ease,
+		color 0.1s ease;
+}
+
+.folder-entry-row:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.folder-entry-row.selected {
+	background: color-mix(in srgb, var(--theme-content-accent) 15%, transparent);
+	border-color: color-mix(
+		in srgb,
+		var(--theme-content-accent) 40%,
+		transparent
+	);
+	color: var(--theme-content-primary);
+}
+
+.folder-entry-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.folder-entry-hint,
+.folder-entry-type {
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+}
+
+.macro-proj-icon {
+	color: var(--theme-content-accent);
+}
+
+.folder-loading-state,
+.folder-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 40px 16px;
+	color: var(--theme-content-tertiary);
+	font-size: 13px;
+}
+
+.modal-actions-bar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-top: 8px;
+	gap: 12px;
+}
+
+.action-buttons-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.new-folder-toolbar {
+	display: flex;
+	align-items: center;
+}
+
+.new-folder-form {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.new-folder-input {
+	max-width: 280px;
+}
+
+.modal-error-banner {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-radius: var(--theme-radius-sm);
+	background: color-mix(in srgb, var(--theme-content-danger) 12%, transparent);
+	border: 1px solid var(--theme-content-danger);
+	color: var(--theme-content-danger);
+	font-size: 12px;
+}
+
+.create-file-dialog__parent {
+	font-size: 12px;
+	color: var(--theme-content-tertiary);
+	margin: -4px 0 4px;
+}
+
+.create-file-dialog__form {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.spin {
+	animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}

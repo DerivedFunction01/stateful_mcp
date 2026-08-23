@@ -1,0 +1,80 @@
+/* =========================================================================
+   Component Gallery Showcase, Swatch Tables & Story Layouts
+   ========================================================================= */
+
+.gallery-scratchpad-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.gallery-scratchpad-preview {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.gallery-scratchpad-preview .editor-surface-view {
+	min-height: 190px;
+	max-height: 260px;
+	overflow: hidden;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 6px;
+}
+
+.gallery-find-widget-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.gallery-find-widget-preview {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.gallery-find-widget-preview .editor-surface-view {
+	min-height: 190px;
+	max-height: 260px;
+	overflow: hidden;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 6px;
+}
+
+.gallery-overlay-story {
+	display: grid;
+	gap: 16px;
+}
+
+.gallery-modal-preview {
+	display: flex;
+	justify-content: center;
+	padding: 18px;
+	border: 1px dashed var(--theme-border-subtle);
+	border-radius: var(--theme-radius-md);
+	background: var(--theme-surface-secondary);
+}
+
+.gallery-modal-preview-surface {
+	width: min(100%, 420px);
+	padding: 16px;
+	gap: 8px;
+}
+
+.gallery-modal-preview-surface > span {
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+}
+
+@media (max-width: 900px) {
+	.gallery-scratchpad-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.gallery-find-widget-grid {
+		grid-template-columns: 1fr;
+	}
+}

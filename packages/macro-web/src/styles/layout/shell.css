@@ -1,0 +1,185 @@
+/* =========================================================================
+   App Shell, Workbench Grid & Responsive Layout
+   ========================================================================= */
+
+.app-shell {
+	display: flex;
+	flex-direction: column;
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+	background: var(--theme-surface-canvas);
+}
+
+.app-body {
+	display: flex;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
+}
+
+.app-content {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	overflow: hidden;
+	position: relative;
+}
+
+/* =========================================================================
+   Workbench Shell (Main Editor Multi-Pane Grid)
+   ========================================================================= */
+
+.workbench-shell {
+	display: flex;
+	width: 100%;
+	height: 100%;
+	flex: 1;
+	min-height: 0;
+	margin: 0;
+	max-width: none;
+	border: none;
+	border-radius: 0;
+	background: var(--theme-surface-canvas);
+	box-shadow: none;
+	overflow: hidden;
+}
+
+.splitter {
+	position: relative;
+	background: transparent;
+	outline: none;
+}
+
+.splitter-vertical {
+	width: 4px;
+	align-self: stretch;
+	cursor: col-resize;
+	background: var(--theme-border-subtle);
+	transition: background-color 0.15s ease;
+	z-index: 2;
+	flex-shrink: 0;
+}
+
+.splitter-vertical:hover,
+.splitter-vertical:focus-visible {
+	background: var(--theme-content-accent);
+}
+
+.workbench-primary-sidebar {
+	display: flex;
+	flex-direction: column;
+	width: calc(var(--sidebar-ratio, 0.2) * 100%);
+	min-width: 180px;
+	max-width: 500px;
+	flex-shrink: 0;
+	background: var(--theme-surface-navigation);
+	border-right: 1px solid var(--theme-border-subtle);
+	overflow-y: auto;
+	user-select: none;
+}
+
+.workbench-center {
+	display: flex;
+	flex: 1 1 0%;
+	flex-direction: column;
+	min-width: 0;
+	min-height: 0;
+	background: var(--theme-surface-primary);
+	overflow: hidden;
+}
+
+.gallery-page,
+.settings-page,
+.host-route {
+	padding: 24px clamp(16px, 3vw, 48px);
+	overflow-y: auto;
+	height: 100%;
+	max-width: 1200px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.page-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	margin-bottom: 24px;
+}
+
+.page-header h1 {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 24px;
+	margin: 4px 0 6px;
+}
+
+.page-header p {
+	color: var(--theme-content-secondary);
+	margin: 0;
+}
+
+/* =========================================================================
+   Responsive Breakpoints
+   ========================================================================= */
+
+@media (max-width: 1100px) {
+	.workbench-shell {
+		grid-template-columns:
+			minmax(110px, var(--domain-rail-track)) 4px
+			minmax(0, 1fr) 4px minmax(180px, var(--inspector-track));
+		--workbench-total-fr: calc(
+			var(--domain-rail-ratio) +
+			1 +
+			var(--inspector-ratio)
+		);
+	}
+	.workbench-sidebar,
+	.splitter-sidebar {
+		display: none;
+	}
+}
+
+@media (max-width: 760px) {
+	.workbench-shell {
+		grid-template-columns: minmax(0, 1fr);
+		--workbench-total-fr: 1;
+	}
+	.workbench-domain-rail,
+	.workbench-inspector,
+	.splitter-domain,
+	.splitter-sidebar,
+	.splitter-inspector {
+		display: none;
+	}
+}
+
+/* =========================================================================
+   Dock-Left Ordering (after media queries to preserve specificity cascade)
+   ========================================================================= */
+
+.workbench-shell.dock-left .workbench-primary-sidebar {
+	order: 4;
+	border-right: none;
+	border-left: 1px solid var(--theme-border-subtle);
+}
+
+.workbench-shell.dock-left .workbench-center {
+	order: 2;
+}
+
+.workbench-shell.dock-left .workbench-inspector {
+	order: 0;
+}
+
+.workbench-shell.dock-left [data-region="inspector"] {
+	order: 1;
+}
+
+.workbench-shell.dock-left [data-region="sidebar"] {
+	order: 3;
+}

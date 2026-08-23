@@ -1,0 +1,88 @@
+/* =========================================================================
+   Activity Rail (Left Vertical Icon Strip)
+   ========================================================================= */
+
+/* =========================================================================
+   Activity Rail (Left-most vertical strip)
+   ========================================================================= */
+
+.activity-rail {
+	width: 48px;
+	min-width: 48px;
+	background: var(--theme-surface-navigation);
+	border-right: 1px solid var(--theme-border-subtle);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 10px 0;
+	z-index: 10;
+	user-select: none;
+}
+
+/* Keep the activity rail opposite the inspector, like VS Code's layout. */
+.app-body.inspector-docked-left .activity-rail {
+	order: 2;
+	border-right: none;
+	border-left: 1px solid var(--theme-border-subtle);
+}
+
+.app-body.inspector-docked-left .app-content {
+	order: 1;
+}
+
+.brand-mark {
+	width: 32px;
+	height: 32px;
+	border-radius: 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--theme-content-accent);
+	background: var(--theme-surface-accent);
+	margin-bottom: 12px;
+}
+
+.rail-top,
+.rail-bottom {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	width: 100%;
+	align-items: center;
+}
+
+.rail-bottom {
+	margin-top: auto;
+}
+
+.rail-button {
+	width: 36px;
+	height: 36px;
+	border-radius: 6px;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--theme-content-tertiary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition:
+		color 0.15s ease,
+		background-color 0.15s ease;
+}
+
+.rail-button:hover,
+.rail-button.active {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-accent);
+}
+
+.rail-button.active {
+	border-left: 2px solid var(--theme-content-accent);
+	border-radius: 0 6px 6px 0;
+}
+
+.app-body.inspector-docked-left .rail-button.active {
+	border-left: none;
+	border-right: 2px solid var(--theme-content-accent);
+	border-radius: 6px 0 0 6px;
+}

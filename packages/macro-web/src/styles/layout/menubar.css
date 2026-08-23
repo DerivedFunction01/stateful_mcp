@@ -1,0 +1,229 @@
+/* =========================================================================
+   Top Menu Bar, Dropdowns & Submenus
+   ========================================================================= */
+
+.workbench-menubar {
+	height: 34px;
+	min-height: 34px;
+	background: var(--theme-surface-navigation);
+	border-bottom: 1px solid var(--theme-border-subtle);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 10px;
+	user-select: none;
+	z-index: 50;
+}
+
+.menubar-left {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	height: 100%;
+}
+
+.menubar-brand {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	color: var(--theme-content-accent);
+	font-weight: 600;
+	font-size: 13px;
+	padding-right: 6px;
+	border-right: 1px solid var(--theme-border-subtle);
+}
+
+.menubar-nav {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	height: 100%;
+}
+
+.menu-dropdown-container {
+	position: relative;
+	height: 100%;
+	display: flex;
+	align-items: center;
+}
+
+.menubar-item {
+	background: transparent;
+	border: 0;
+	color: var(--theme-content-secondary);
+	padding: 3px 8px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	display: flex;
+	align-items: center;
+	height: 24px;
+}
+
+.menubar-item:hover,
+.menubar-item.active {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.menu-dropdown {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-default);
+	border-radius: 6px;
+	box-shadow: var(--theme-shadow-lg);
+	padding: 4px;
+	min-width: 220px;
+	width: max-content;
+	white-space: nowrap;
+	z-index: 100;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.menu-item {
+	background: transparent;
+	border: 0;
+	border-radius: 4px;
+	color: var(--theme-content-primary);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 10px;
+	font-size: 12px;
+	width: 100%;
+	text-align: left;
+	white-space: nowrap;
+	cursor: pointer;
+}
+
+.menu-item span {
+	white-space: nowrap;
+	flex: 1;
+}
+
+.menu-item:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-accent);
+}
+
+.menu-shortcut {
+	margin-left: 20px;
+	font-size: 10px;
+	color: var(--theme-content-tertiary);
+	background: var(--theme-surface-secondary);
+	padding: 1px 5px;
+	border-radius: 3px;
+	border: 1px solid var(--theme-border-subtle);
+	white-space: nowrap;
+	flex-shrink: 0;
+}
+
+.menu-separator {
+	height: 1px;
+	background: var(--theme-border-subtle);
+	margin: 3px 0;
+	border: 0;
+}
+
+.menu-submenu-container {
+	position: relative;
+	width: 100%;
+}
+
+.menu-item-submenu {
+	position: relative;
+}
+
+.submenu-arrow {
+	margin-left: auto;
+	color: var(--theme-content-tertiary);
+}
+
+.menu-submenu {
+	position: absolute;
+	top: 0;
+	left: 100%;
+	margin-left: 2px;
+	min-width: 170px;
+}
+
+.menubar-breadcrumb {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--theme-content-tertiary);
+	margin-left: 8px;
+	padding-left: 8px;
+	border-left: 1px solid var(--theme-border-subtle);
+}
+
+.breadcrumb-root {
+	color: var(--theme-content-tertiary);
+}
+
+.breadcrumb-current {
+	color: var(--theme-content-primary);
+	font-weight: 500;
+}
+
+.menubar-right {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.layout-controls-group {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	background: var(--theme-surface-secondary);
+	padding: 2px 4px;
+	border-radius: var(--theme-radius-sm);
+	border: 1px solid var(--theme-border-subtle);
+}
+
+.layout-toggle-btn {
+	width: 26px;
+	height: 24px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	color: var(--theme-content-tertiary);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.layout-toggle-btn:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.layout-toggle-btn.active {
+	background: var(--theme-surface-elevated);
+	border-color: var(--theme-border-default);
+	color: var(--theme-content-accent);
+}
+
+.theme-toggle-btn {
+	background: transparent;
+	border: none;
+	padding: 0;
+}
+
+.kbd-shortcut {
+	font-size: 10px;
+	color: var(--theme-content-tertiary);
+	background: var(--theme-surface-secondary);
+	padding: 2px 5px;
+	border-radius: 3px;
+	border: 1px solid var(--theme-border-subtle);
+	margin-left: 4px;
+}

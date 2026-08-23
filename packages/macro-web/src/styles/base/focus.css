@@ -1,0 +1,10 @@
+/* =========================================================================
+   Focus Ring & Accessibility Styles
+   ========================================================================= */
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+	outline: var(--theme-focus-ring-width) solid var(--theme-border-focus);
+	outline-offset: 1px;
+}

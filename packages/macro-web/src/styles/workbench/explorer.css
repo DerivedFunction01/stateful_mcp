@@ -1,0 +1,404 @@
+/* =========================================================================
+   Primary Sidebar Explorer, Accordion & File Tree
+   ========================================================================= */
+
+.sidebar-view-pane {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+}
+
+.sidebar-view-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 16px 8px;
+	border-bottom: 1px solid var(--theme-border-subtle);
+}
+
+.sidebar-view-title {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--theme-content-secondary);
+}
+
+.sidebar-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.sidebar-icon-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 4px;
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--theme-content-tertiary);
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+
+.sidebar-icon-action:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.sidebar-accordion-section {
+	display: flex;
+	flex-direction: column;
+	border-bottom: 1px solid var(--theme-border-subtle);
+}
+
+.sidebar-accordion-section.flex-1 {
+	flex: 1;
+}
+
+.sidebar-section-header {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 12px;
+	background: transparent;
+	border: none;
+	cursor: pointer;
+	text-align: left;
+	width: 100%;
+	transition: background 0.12s ease;
+}
+
+.sidebar-section-header:hover {
+	background: var(--theme-action-ghost-surface-hover);
+}
+
+.section-chevron {
+	color: var(--theme-content-tertiary);
+	display: flex;
+	align-items: center;
+}
+
+.section-title {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	color: var(--theme-content-primary);
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.sidebar-items-list {
+	display: flex;
+	flex-direction: column;
+	padding: 2px 0 6px;
+}
+
+.sidebar-open-editors-list {
+	max-height: min(35vh, 280px);
+	overflow-y: auto;
+}
+
+.sidebar-doc-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 4px 16px 4px 24px;
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+	cursor: pointer;
+	position: relative;
+	transition: background 0.12s ease;
+}
+
+.sidebar-doc-item:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.sidebar-doc-item.active {
+	background: var(--theme-surface-elevated);
+	color: var(--theme-content-accent);
+	font-weight: 500;
+}
+
+.sidebar-doc-item.active::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: var(--theme-content-accent);
+}
+
+.doc-icon {
+	color: var(--theme-content-tertiary);
+	flex-shrink: 0;
+}
+
+.doc-name {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.doc-dirty-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--theme-content-accent);
+	margin-right: 4px;
+}
+
+.doc-close-btn {
+	display: none;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 18px;
+	border-radius: 3px;
+	background: transparent;
+	border: none;
+	color: var(--theme-content-tertiary);
+	cursor: pointer;
+}
+
+.sidebar-doc-item:hover .doc-close-btn {
+	display: flex;
+}
+
+.doc-close-btn:hover {
+	background: var(--theme-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.sidebar-workspace-content {
+	padding: 12px 16px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.no-folder-state {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.no-folder-description {
+	font-size: 12px;
+	color: var(--theme-content-secondary);
+	line-height: 1.4;
+	margin: 0;
+}
+
+.no-folder-actions {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.vscode-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 7px 12px;
+	border-radius: 4px;
+	font-size: 12px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.15s ease;
+	border: 1px solid transparent;
+	width: 100%;
+}
+
+.vscode-btn.primary {
+	background: #0078d4;
+	color: #ffffff;
+}
+
+.vscode-btn.primary:hover {
+	background: #006cc1;
+}
+
+.vscode-btn.secondary {
+	background: var(--theme-surface-secondary);
+	color: var(--theme-content-primary);
+	border-color: var(--theme-border-default);
+}
+
+.vscode-btn.secondary:hover {
+	background: var(--theme-surface-elevated);
+	border-color: var(--theme-border-active);
+}
+
+.file-tree-row {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	background: transparent;
+	border: none;
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+	cursor: pointer;
+	border-radius: 4px;
+	text-align: left;
+	width: 100%;
+}
+
+.file-tree-view {
+	min-width: 0;
+	width: 100%;
+	color: var(--theme-content-secondary);
+}
+
+.file-tree-toolbar {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	padding: 2px 8px 7px;
+	flex-wrap: wrap;
+}
+
+.file-tree-toolbar-button {
+	appearance: none;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 24px;
+	padding: 3px 7px;
+	border: 1px solid transparent;
+	border-radius: 3px;
+	background: transparent;
+	color: var(--theme-content-tertiary);
+	font-family: Inter, system-ui, sans-serif;
+	font-size: 11px;
+	font-weight: 500;
+	line-height: 1.2;
+	white-space: nowrap;
+	cursor: pointer;
+	width: 26px;
+	height: 26px;
+	transition:
+		background 120ms ease,
+		border-color 120ms ease,
+		color 120ms ease;
+}
+
+.file-tree-toolbar-button svg {
+	flex: 0 0 auto;
+}
+
+.file-tree-toolbar-button:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	border-color: var(--theme-border-subtle);
+	color: var(--theme-content-primary);
+}
+
+.file-tree-toolbar-button:active {
+	background: var(--theme-surface-elevated);
+}
+
+.file-tree-toolbar-button:focus-visible,
+.file-tree-create-input:focus-visible {
+	outline: var(--theme-focus-ring-width) solid var(--theme-border-focus);
+	outline-offset: 1px;
+}
+
+.file-tree-create-input {
+	display: block;
+	width: calc(100% - 16px);
+	min-height: 26px;
+	margin: 0 8px 6px;
+	padding: 4px 7px;
+	border: 1px solid var(--theme-border-focus);
+	border-radius: 3px;
+	background: var(--theme-surface-secondary);
+	box-shadow: 0 0 0 1px
+		color-mix(in srgb, var(--theme-border-focus) 25%, transparent);
+	color: var(--theme-content-primary);
+	font-size: 12px;
+}
+
+.file-tree-create-input::placeholder {
+	color: var(--theme-content-tertiary);
+}
+
+.file-tree-chevron,
+.file-tree-entry,
+.file-tree-delete {
+	appearance: none;
+	border: 0;
+	background: transparent;
+	color: inherit;
+}
+
+.file-tree-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 20px;
+	padding: 0;
+	color: var(--theme-content-tertiary);
+	flex: 0 0 16px;
+}
+
+.file-tree-entry {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+	flex: 1;
+	padding: 2px 0;
+	text-align: left;
+	font-size: 12px;
+	cursor: pointer;
+}
+
+.file-tree-entry > span:last-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.file-tree-entry:hover,
+.file-tree-chevron:hover,
+.file-tree-delete:hover {
+	color: var(--theme-content-primary);
+}
+
+.file-tree-git {
+	min-width: 12px;
+	margin-left: 4px;
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	font-weight: 700;
+	text-align: center;
+}
+
+.file-tree-delete {
+	display: none;
+	padding: 1px 4px;
+	font-size: 14px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.file-tree-row:hover .file-tree-delete {
+	display: inline-flex;
+}
+
+.file-tree-row:hover,
+.file-tree-row.active {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}

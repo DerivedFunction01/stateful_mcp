@@ -1,0 +1,48 @@
+/* =========================================================================
+   Badge, Chip & Status Indicator Primitives
+   ========================================================================= */
+
+.badge {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 6px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 500;
+}
+
+.badge-info {
+	background: var(--theme-status-info-surface);
+	color: var(--theme-status-info-content);
+	border: 1px solid var(--theme-status-info-border);
+}
+
+.badge-success {
+	background: var(--theme-status-success-surface);
+	color: var(--theme-status-success-content);
+	border: 1px solid var(--theme-status-success-border);
+}
+
+.badge-warning {
+	background: var(--theme-status-warning-surface);
+	color: var(--theme-status-warning-content);
+	border: 1px solid var(--theme-status-warning-border);
+}
+
+.badge-danger {
+	background: var(--theme-status-danger-surface);
+	color: var(--theme-status-danger-content);
+	border: 1px solid var(--theme-status-danger-border);
+}
+
+.sr-only {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border-width: 0;
+}

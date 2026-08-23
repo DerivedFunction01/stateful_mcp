@@ -1,0 +1,98 @@
+/* =========================================================================
+   Editor Floating Find & Replace Widget
+   ========================================================================= */
+
+.editor-find-widget {
+	position: absolute;
+	top: 10px;
+	right: 16px;
+	z-index: 5;
+	width: min(520px, calc(100% - 32px));
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 10px;
+	background: var(--theme-surface-elevated);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 6px;
+	box-shadow: 0 8px 24px color-mix(in srgb, #000 28%, transparent);
+}
+
+.find-row {
+	display: grid;
+	grid-template-columns: 72px minmax(0, 1fr) auto;
+	gap: 8px;
+	align-items: center;
+}
+
+.find-row label {
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+}
+
+.find-row input {
+	min-width: 0;
+	background: var(--theme-surface-navigation);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 4px;
+	color: var(--theme-content-primary);
+	padding: 7px 9px;
+}
+
+.find-row .editor-find-textarea {
+	min-width: 0;
+	width: 100%;
+	background: var(--theme-surface-navigation);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 4px;
+	color: var(--theme-content-primary);
+	padding: 7px 9px;
+}
+
+.editor-find-textarea.single-line {
+	overflow-y: hidden;
+}
+
+.find-message {
+	color: var(--theme-content-tertiary);
+	font-size: 12px;
+}
+
+.find-message.no-results {
+	color: var(--theme-content-danger);
+}
+
+::highlight(search-match) {
+	background-color: rgba(245, 158, 11, 0.35);
+	color: inherit;
+}
+
+::highlight(search-current) {
+	background-color: #f59e0b;
+	color: #000000;
+}
+
+.search-match-highlight {
+	background-color: #f59e0b;
+	color: #000000;
+	padding: 1px 3px;
+	border-radius: 2px;
+	font-weight: 600;
+}
+
+.find-actions {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+}
+
+.find-actions .find-message {
+	min-width: 58px;
+	margin-right: 2px;
+	text-align: right;
+}
+
+.find-replace-row input,
+.find-replace-row .editor-find-textarea {
+	grid-column: 2;
+}

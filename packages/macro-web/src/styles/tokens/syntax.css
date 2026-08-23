@@ -1,0 +1,93 @@
+/* =========================================================================
+   Syntax Highlighting & Highlight.js Overrides
+   ========================================================================= */
+
+.syntax-keyword {
+	color: var(--syntax-keyword);
+}
+.syntax-variable {
+	color: var(--syntax-variable);
+}
+.syntax-function {
+	color: var(--syntax-function);
+}
+.syntax-string {
+	color: var(--syntax-string);
+}
+.syntax-number {
+	color: var(--syntax-number);
+}
+.syntax-comment {
+	color: var(--syntax-comment);
+}
+.syntax-operator {
+	color: var(--syntax-operator);
+}
+.syntax-punctuation {
+	color: var(--syntax-punctuation);
+}
+.syntax-type {
+	color: var(--syntax-type);
+}
+
+.hljs-keyword,
+.hljs-built_in,
+.hljs-literal {
+	color: var(--syntax-keyword);
+}
+
+.hljs-variable,
+.hljs-attr,
+.hljs-attribute,
+.hljs-property,
+.hljs-params {
+	color: var(--syntax-variable);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-title.function_,
+.hljs-name,
+.hljs-section {
+	color: var(--syntax-function);
+}
+
+.hljs-string,
+.hljs-subst {
+	color: var(--syntax-string);
+}
+
+.hljs-number {
+	color: var(--syntax-number);
+}
+
+.hljs-comment,
+.hljs-meta {
+	color: var(--syntax-comment);
+	font-style: italic;
+}
+
+.hljs-operator,
+.hljs-tag {
+	color: var(--syntax-operator);
+}
+
+.hljs-punctuation {
+	color: var(--syntax-punctuation);
+}
+
+.hljs-type,
+.hljs-title.class_,
+.hljs-selector-class {
+	color: var(--syntax-type);
+}
+.file-tree-git-modified {
+	color: var(--theme-content-warning);
+}
+.file-tree-git-untracked,
+.file-tree-git-staged {
+	color: var(--theme-content-success);
+}
+.file-tree-git-deleted {
+	color: var(--theme-content-danger);
+}

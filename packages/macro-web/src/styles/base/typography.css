@@ -1,0 +1,12 @@
+/* =========================================================================
+   Typography & Monospace Font Assignments
+   ========================================================================= */
+
+code,
+.eyebrow,
+.field-label,
+.status-segment,
+.badge,
+kbd {
+	font-family: "DM Mono", monospace;
+}

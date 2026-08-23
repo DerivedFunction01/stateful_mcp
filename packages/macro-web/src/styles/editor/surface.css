@@ -1,0 +1,77 @@
+/* =========================================================================
+   Editor Surface View (Lined-Cell Native Editor)
+   ========================================================================= */
+
+.editor-vim-notice {
+	background: var(--theme-surface-warning);
+	color: var(--theme-content-warning);
+	padding: 4px 12px;
+	font-size: 11px;
+	border-bottom: 1px solid var(--theme-border-subtle);
+}
+
+/* =========================================================================
+   Editor Surface View (Lined-Cell Native Editor)
+   ========================================================================= */
+
+.editor-main-canvas {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	position: relative;
+	background: var(--theme-surface-primary);
+}
+
+.editor-surface-view {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: auto;
+	position: relative;
+}
+
+.editor-canvas {
+	min-height: 100%;
+	width: max-content;
+	min-width: 100%;
+	font-family: "DM Mono", monospace;
+	font-size: 13px;
+	line-height: 24px;
+	position: relative;
+}
+
+.editor-cells-wrapper {
+	position: relative;
+	min-height: 100%;
+	width: max-content;
+	min-width: 100%;
+}
+
+/* Authored text input */
+.editor-authored-input {
+	outline: none;
+	min-height: 100%;
+	color: var(--theme-content-primary);
+	white-space: pre;
+	word-break: normal;
+	tab-size: 2;
+	padding: 10px 16px 10px 68px;
+	position: relative;
+	z-index: 2;
+}
+
+.editor-authored-input.vim-native-caret-hidden {
+	caret-color: transparent;
+}
+
+.editor-line-row {
+	min-height: 24px;
+	line-height: 24px;
+	display: block;
+}
+
+.editor-surface-view {
+	position: relative;
+}
