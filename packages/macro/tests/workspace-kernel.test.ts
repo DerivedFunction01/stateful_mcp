@@ -667,6 +667,61 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			);
 			expect(journal.getCommittedEntries()).toHaveLength(0);
 			expect(journal.getEntries()).toHaveLength(1); // Audit record retained
+
+			// Test query filtering
+			const receipt2 = {
+				lineNumber: 2,
+				rawText: "^rx #med amoxicillin",
+				macroId: "@pharmacy/orders:rx",
+				invokedAs: "rx",
+				success: true,
+				result: { med: "amoxicillin" },
+				executedAt: Date.now() + 500,
+			};
+			await journal.recordExecution(receipt2);
+
+			// Query all
+			const allQuery = await journal.query();
+			expect(allQuery.total).toBe(2);
+			expect(allQuery.entries).toHaveLength(2);
+
+			// Query by status = committed
+			const committedQuery = await journal.query({
+				filter: { status: "committed" },
+			});
+			expect(committedQuery.total).toBe(1);
+			expect(committedQuery.entries[0]?.macroId).toBe("@pharmacy/orders:rx");
+
+			// Query by status = reversed
+			const reversedQuery = await journal.query({
+				filter: { status: "reversed" },
+			});
+			expect(reversedQuery.total).toBe(1);
+			expect(reversedQuery.entries[0]?.reversalReason).toBe("Incorrect diagnostic");
+
+			// Query by macroId prefix
+			const macroQuery = await journal.query({
+				filter: { macroId: "pharmacy" },
+			});
+			expect(macroQuery.total).toBe(1);
+			expect(macroQuery.entries[0]?.invokedAs).toBe("rx");
+
+			// Query by free-text search
+			const textQuery = await journal.query({
+				filter: { textQuery: "amoxicillin" },
+			});
+			expect(textQuery.total).toBe(1);
+
+			// Query with sort asc
+			const sortAsc = await journal.query({
+				sort: { field: "executedAt", direction: "asc" },
+			});
+			expect(sortAsc.entries[0]?.macroId).toBe("@test/clinical:evaluacion");
+
+			// Query with pagination limit
+			const paginated = await journal.query({ limit: 1, offset: 0 });
+			expect(paginated.entries).toHaveLength(1);
+			expect(paginated.hasMore).toBe(true);
 		});
 	});
 

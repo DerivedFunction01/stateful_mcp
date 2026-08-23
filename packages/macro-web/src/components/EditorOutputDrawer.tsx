@@ -276,7 +276,7 @@ export function EditorOutputDrawer({
 										</strong>
 										{receipt.invokedAs && (
 											<span className="receipt-invoked">
-												(^{receipt.invokedAs})
+												({t("journal.entry.via", { trigger: receipt.invokedAs })})
 											</span>
 										)}
 										<span className="receipt-outcome">

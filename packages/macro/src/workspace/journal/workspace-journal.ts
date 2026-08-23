@@ -20,8 +20,32 @@ export interface JournalEntry {
 	readonly reversedAt?: number;
 }
 
+export interface JournalFilterCriteria {
+	readonly status?: JournalEntryStatus | "all";
+	readonly macroId?: string;
+	readonly textQuery?: string;
+	readonly dateRange?: { readonly from?: number; readonly to?: number };
+}
+
+export interface JournalQueryOptions {
+	readonly filter?: JournalFilterCriteria;
+	readonly sort?: {
+		readonly field: "executedAt" | "lineNumber";
+		readonly direction: "asc" | "desc";
+	};
+	readonly limit?: number;
+	readonly offset?: number;
+}
+
+export interface JournalQueryResult {
+	readonly entries: readonly JournalEntry[];
+	readonly total: number;
+	readonly hasMore: boolean;
+}
+
 export interface JournalStorageAdapter {
 	list(): Promise<readonly JournalEntry[]>;
+	query?(options: JournalQueryOptions): Promise<JournalQueryResult>;
 	set(id: string, entry: JournalEntry): Promise<void>;
 	clear(): Promise<void>;
 }
@@ -72,6 +96,74 @@ export class WorkspaceJournal {
 
 	getCommittedEntries(): readonly JournalEntry[] {
 		return this.entries.filter((e) => e.status === "committed");
+	}
+
+	async query(options: JournalQueryOptions = {}): Promise<JournalQueryResult> {
+		if (this.options.store?.query) {
+			return this.options.store.query(options);
+		}
+
+		let filtered = [...this.entries];
+
+		if (options.filter) {
+			const { status, macroId, textQuery, dateRange } = options.filter;
+
+			if (status && status !== "all") {
+				filtered = filtered.filter((e) => e.status === status);
+			}
+
+			if (macroId) {
+				const lowerMacro = macroId.toLowerCase();
+				filtered = filtered.filter((e) =>
+					e.macroId.toLowerCase().includes(lowerMacro),
+				);
+			}
+
+			if (dateRange) {
+				if (dateRange.from !== undefined) {
+					filtered = filtered.filter((e) => e.executedAt >= dateRange.from!);
+				}
+				if (dateRange.to !== undefined) {
+					filtered = filtered.filter((e) => e.executedAt <= dateRange.to!);
+				}
+			}
+
+			if (textQuery) {
+				const q = textQuery.toLowerCase().trim();
+				filtered = filtered.filter((e) => {
+					if (e.macroId.toLowerCase().includes(q)) return true;
+					if (e.invokedAs?.toLowerCase().includes(q)) return true;
+					if (e.rawText.toLowerCase().includes(q)) return true;
+					if (e.id.toLowerCase().includes(q)) return true;
+					if (e.fingerprint.toLowerCase().includes(q)) return true;
+					if (e.reversalReason?.toLowerCase().includes(q)) return true;
+					return false;
+				});
+			}
+		}
+
+		const sortField = options.sort?.field ?? "executedAt";
+		const sortDirection = options.sort?.direction ?? "desc";
+
+		filtered.sort((a, b) => {
+			const valA = a[sortField] ?? 0;
+			const valB = b[sortField] ?? 0;
+			return sortDirection === "asc"
+				? valA > valB
+					? 1
+					: -1
+				: valA < valB
+					? 1
+					: -1;
+		});
+
+		const total = filtered.length;
+		const offset = options.offset ?? 0;
+		const limit = options.limit ?? 100;
+		const entries = filtered.slice(offset, offset + limit);
+		const hasMore = offset + limit < total;
+
+		return { entries, total, hasMore };
 	}
 
 	async recordExecution(

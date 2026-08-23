@@ -1859,6 +1859,9 @@ export class HostSessionManager {
 				availability: entry.availability ?? "legacy",
 				...(entry.identity ? { identity: entry.identity } : {}),
 				lineNumber: entry.lineNumber,
+				rawText: entry.rawText,
+				macroId: entry.macroId,
+				...(entry.invokedAs ? { invokedAs: entry.invokedAs } : {}),
 				status:
 					entry.status === "reversed"
 						? "reversed"
@@ -1874,6 +1877,10 @@ export class HostSessionManager {
 							}),
 						}),
 				...(entry.errorCode ? { errorCode: entry.errorCode } : {}),
+				...(entry.reversalReason
+					? { reversalReason: entry.reversalReason }
+					: {}),
+				fingerprint: entry.fingerprint,
 				executedAt: entry.executedAt,
 			})),
 			hasMore: entries.length > bounded.length,

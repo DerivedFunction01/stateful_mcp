@@ -29,6 +29,41 @@ export type EditorPayloadAvailability =
 	| "unavailable"
 	| "redacted";
 
+export interface MacroDisplayFacetsDto {
+	readonly text?: string;
+	readonly data?: EditorJsonValue;
+	readonly markdown?: string;
+	readonly table?: {
+		readonly headers: readonly string[];
+		readonly rows: readonly (readonly EditorJsonValue[])[];
+	};
+}
+
+export interface MacroArtifactDescriptorDto {
+	readonly id: string;
+	readonly name: string;
+	readonly mimeType: string;
+	readonly sizeBytes?: number;
+	readonly targetPath?: string;
+	readonly downloadUrl?: string;
+	readonly previewSnippet?: string;
+}
+
+export interface GatedActionDescriptorDto {
+	readonly actionId: string;
+	readonly label: string;
+	readonly referenceId?: string;
+	readonly kind?: "download" | "invoke" | "view" | "external";
+	readonly requiresPermissionCheck?: boolean;
+	readonly expiresAt?: number;
+}
+
+export interface MacroExecutionPayloadDto {
+	readonly facets?: MacroDisplayFacetsDto;
+	readonly artifacts?: readonly MacroArtifactDescriptorDto[];
+	readonly gatedActions?: readonly GatedActionDescriptorDto[];
+}
+
 export interface EditorPayloadEnvelope {
 	readonly ownerId?: string;
 	readonly kind: string;
@@ -118,9 +153,14 @@ export interface EditorOutputEntryDto {
 	readonly availability: "available" | "legacy";
 	readonly identity?: EditorOutputIdentityDto;
 	readonly lineNumber?: number;
+	readonly rawText?: string;
+	readonly macroId?: string;
+	readonly invokedAs?: string;
 	readonly status: "preview" | "committed" | "skipped" | "failed" | "reversed";
 	readonly result?: EditorPayloadEnvelope;
 	readonly errorCode?: string;
+	readonly reversalReason?: string;
+	readonly fingerprint?: string;
 	readonly executedAt: number;
 }
 

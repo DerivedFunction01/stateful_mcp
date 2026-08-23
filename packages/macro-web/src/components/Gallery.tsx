@@ -61,6 +61,7 @@ import {
 	Toggle,
 } from "./ui/primitives";
 import { WorkbenchInspector } from "./WorkbenchInspector";
+import { JournalPaneBody } from "./workbench/PrimarySidebarJournal";
 
 export function Gallery() {
 	const { themeId, setThemeId, theme } = useTheme();
@@ -122,6 +123,7 @@ export function Gallery() {
 				<ExecutionToolbarAndUndoStory />
 				<UserPreferencesStory />
 				<MenuBarStory />
+				<JournalHistoryStory />
 				<WorkbenchInspectorStory />
 				<QuickRunChipsBarStory />
 				<IslandsOfOrderAndDisambiguationStory />
@@ -1519,6 +1521,151 @@ function MenuBarStory() {
 					<div className="cell-raw-preview" style={{ padding: 8 }}>
 						<strong>Triggered: </strong>
 						<code>{lastTriggered}</code>
+					</div>
+				)}
+			</div>
+		</Card>
+	);
+}
+
+function JournalHistoryStory() {
+	const { t } = useI18n();
+	const [lastAction, setLastAction] = useState<string>("");
+
+	const mockSnapshot: any = {
+		editor: {
+			output: {
+				hasMore: false,
+				entries: [
+					{
+						outputId: "journal_1724431200000_8f2a1b",
+						availability: "available",
+						lineNumber: 14,
+						rawText: "^v #bp 120/80 #hr 72",
+						macroId: "@stateful-mcp/clinical:vitals",
+						invokedAs: "v",
+						status: "committed",
+						result: {
+							facets: {
+								text: "Blood Pressure: 120/80 mmHg (Sitting, Right Arm), Pulse: 72 bpm.",
+								data: {
+									systolic: 120,
+									diastolic: 80,
+									pulse: 72,
+									unit: "mmHg",
+								},
+							},
+							fingerprint:
+								"8f2a1b9c4e20d6f78a12bc443189ef00a918471b63ef21098877665544332211",
+						},
+						fingerprint:
+							"8f2a1b9c4e20d6f78a12bc443189ef00a918471b63ef21098877665544332211",
+						executedAt: Date.now() - 120000,
+					},
+					{
+						outputId: "journal_1724431000000_c91e40",
+						availability: "available",
+						lineNumber: 16,
+						rawText: '^export #format "parquet" #range "30d"',
+						macroId: "@stateful-mcp/analytics:export",
+						invokedAs: "export",
+						status: "committed",
+						result: {
+							facets: {
+								text: "Exported 14,250 transaction records to Parquet format.",
+							},
+							artifacts: [
+								{
+									id: "art_c91e40",
+									name: "metrics_monthly.parquet",
+									mimeType: "application/vnd.apache.parquet",
+									sizeBytes: 2457600,
+									downloadUrl: "#download-parquet",
+								},
+								{
+									id: "art_c91e41",
+									name: "summary.csv",
+									mimeType: "text/csv",
+									sizeBytes: 143360,
+									downloadUrl: "#download-csv",
+								},
+							],
+							gatedActions: [
+								{
+									actionId: "analytics.runPipeline",
+									label: "Trigger Downstream ETL",
+									kind: "invoke",
+								},
+							],
+						},
+						fingerprint:
+							"c91e40a8f21908bc443189ef00a918471b63ef210988776655443322118f2a1b",
+						executedAt: Date.now() - 360000,
+					},
+					{
+						outputId: "journal_1724430500000_e04d12",
+						availability: "available",
+						lineNumber: 10,
+						rawText: '^dx #term "asthma"',
+						macroId: "@stateful-mcp/clinical:dx",
+						invokedAs: "dx",
+						status: "reversed",
+						reversalReason: "Incorrect diagnostic code entered by provider",
+						fingerprint:
+							"e04d1278a12bc443189ef00a918471b63ef210988776655443322118f2a1bc91",
+						executedAt: Date.now() - 900000,
+					},
+					{
+						outputId: "journal_1724430000000_f55a33",
+						availability: "available",
+						lineNumber: 22,
+						rawText: "^lab #panel cbc",
+						macroId: "@stateful-mcp/lab:orders",
+						invokedAs: "lab",
+						status: "failed",
+						errorCode: "LAB_SERVICE_TIMEOUT",
+						fingerprint:
+							"f55a33189ef00a918471b63ef210988776655443322118f2a1bc91e04d1278a",
+						executedAt: Date.now() - 3600000,
+					},
+				],
+			},
+		},
+	};
+
+	return (
+		<Card
+			title="Transaction Ledger & Journal History"
+			action={<Badge tone="accent">Ledger / UI</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<div
+					style={{
+						height: 480,
+						border: "1px solid var(--theme-border-subtle)",
+						borderRadius: 6,
+						overflow: "hidden",
+						background: "var(--theme-surface-navigation)",
+					}}
+				>
+					<JournalPaneBody
+						props={{
+							snapshot: mockSnapshot,
+							onJumpToLine: (line) => setLastAction(`Jump to line: L${line}`),
+							onCommand: (cmd, args) =>
+								setLastAction(`Command: ${cmd} (${JSON.stringify(args)})`),
+						}}
+						helpers={
+							{
+								t,
+							} as any
+						}
+					/>
+				</div>
+				{lastAction && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Triggered: </strong>
+						<code>{lastAction}</code>
 					</div>
 				)}
 			</div>
