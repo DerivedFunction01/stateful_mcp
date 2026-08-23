@@ -272,8 +272,13 @@ export function EditorOutputDrawer({
 									>
 										<span className="receipt-line">L{receipt.lineNumber}</span>
 										<strong className="receipt-macro">
-											{receipt.macroName}
+											{receipt.macroId}
 										</strong>
+										{receipt.invokedAs && (
+											<span className="receipt-invoked">
+												(^{receipt.invokedAs})
+											</span>
+										)}
 										<span className="receipt-outcome">
 											{receipt.success ? (
 												<Badge tone="success">

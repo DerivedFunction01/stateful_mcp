@@ -565,7 +565,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			// Execute first line
 			const receipt = await session.executeLine(0);
 			expect(receipt).not.toBeNull();
-			expect(receipt?.macroName).toBe("evaluacion");
+			expect(receipt?.macroId).toBeDefined();
+			expect(receipt?.invokedAs).toBe("evaluacion");
 			expect((receipt?.result as any)!.dx).toBe("asma");
 			expect((receipt?.result as any)!.hallazgos).toEqual(["sibilancias"]);
 
@@ -638,7 +639,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			const receipt = {
 				lineNumber: 1,
 				rawText: "^evaluacion #asma",
-				macroName: "evaluacion",
+				macroId: "@test/clinical:evaluacion",
+				invokedAs: "evaluacion",
 				success: true,
 				result: { dx: "asma" },
 				executedAt: Date.now(),
@@ -646,6 +648,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 
 			const entry = await journal.recordExecution(receipt);
 			expect(entry.status).toBe("committed");
+			expect(entry.macroId).toBe("@test/clinical:evaluacion");
+			expect(entry.invokedAs).toBe("evaluacion");
 			expect(entry.fingerprint).toMatch(/^[0-9a-f]{64}$/);
 			expect(journal.getEntries()).toHaveLength(1);
 			expect(journal.getCommittedEntries()).toHaveLength(1);

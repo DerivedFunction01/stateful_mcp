@@ -66,6 +66,7 @@ import {
 	type KeymapBindingDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
+	type ScratchpadExecutionReceiptDto,
 	type ScratchpadLineDto,
 	type ScratchpadLineStatus,
 	type ScratchpadTemplateDescriptor,
@@ -1869,7 +1870,7 @@ export class HostSessionManager {
 					: {
 							result: toEditorPayload(entry.result, {
 								kind: "journal-result",
-								ownerId: entry.macroName,
+								ownerId: entry.macroId,
 							}),
 						}),
 				...(entry.errorCode ? { errorCode: entry.errorCode } : {}),
@@ -2039,7 +2040,8 @@ export class HostSessionManager {
 		receipt: {
 			readonly lineNumber: number;
 			readonly rawText: string;
-			readonly macroName: string;
+			readonly macroId: string;
+			readonly invokedAs?: string;
 			readonly success: boolean;
 			readonly result?: unknown;
 			readonly error?: string;
@@ -2055,7 +2057,7 @@ export class HostSessionManager {
 			}
 		>,
 		session: Session,
-	) {
+	): ScratchpadExecutionReceiptDto {
 		return {
 			documentId: operation.documentId,
 			requestId: operation.requestId,
@@ -2066,14 +2068,15 @@ export class HostSessionManager {
 					: 0,
 			lineNumber: receipt.lineNumber,
 			rawText: receipt.rawText,
-			macroName: receipt.macroName,
+			macroId: receipt.macroId,
+			...(receipt.invokedAs ? { invokedAs: receipt.invokedAs } : {}),
 			success: receipt.success,
 			...(receipt.result === undefined
 				? {}
 				: {
 						result: toEditorPayload(receipt.result, {
 							kind: "execution-result",
-							ownerId: receipt.macroName,
+							ownerId: receipt.macroId,
 						}),
 					}),
 			...(receipt.error

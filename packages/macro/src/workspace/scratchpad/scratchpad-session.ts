@@ -11,7 +11,8 @@ import {
 export interface ScratchpadExecutionReceipt {
 	readonly lineNumber: number;
 	readonly rawText: string;
-	readonly macroName: string;
+	readonly macroId: string;
+	readonly invokedAs?: string;
 	readonly success: boolean;
 	readonly result?: unknown;
 	readonly error?: string;
@@ -370,9 +371,15 @@ export class ScratchpadSession {
 			return null;
 		}
 
+		const prefix = this.runtime.context.syntax.macroStartToken;
+		const trimmed = line.rawText.trim();
+		const withoutPrefix =
+			prefix && trimmed.startsWith(prefix)
+				? trimmed.slice(prefix.length).trim()
+				: trimmed;
+		const invokedAs = withoutPrefix.split(/\s+/u)[0] || line.macroName;
+
 		try {
-			const prefix = this.runtime.context.syntax.macroStartToken;
-			const trimmed = line.rawText.trim();
 			const parseText = matchesMacroVerb(trimmed, line.macroName, prefix)
 				? line.rawText
 				: prefix
@@ -387,7 +394,8 @@ export class ScratchpadSession {
 			return {
 				lineNumber: line.lineNumber,
 				rawText: line.rawText,
-				macroName: line.macroName,
+				macroId: line.adapterId,
+				invokedAs,
 				success: true,
 				result,
 				executedAt: Date.now(),
@@ -402,7 +410,8 @@ export class ScratchpadSession {
 			return {
 				lineNumber: line.lineNumber,
 				rawText: line.rawText,
-				macroName: line.macroName,
+				macroId: line.adapterId,
+				invokedAs,
 				success: false,
 				error: errorMessage,
 				executedAt: Date.now(),

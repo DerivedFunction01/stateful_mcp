@@ -5,7 +5,8 @@ export type JournalEntryStatus = "committed" | "reversed" | "superseded";
 export interface JournalEntry {
 	readonly id: string;
 	readonly lineNumber: number;
-	readonly macroName: string;
+	readonly macroId: string;
+	readonly invokedAs?: string;
 	readonly rawText: string;
 	readonly result: unknown;
 	readonly success?: boolean;
@@ -79,7 +80,8 @@ export class WorkspaceJournal {
 		const entry: JournalEntry = {
 			id: `journal_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
 			lineNumber: receipt.lineNumber,
-			macroName: receipt.macroName,
+			macroId: receipt.macroId,
+			invokedAs: receipt.invokedAs,
 			rawText: receipt.rawText,
 			result: receipt.result,
 			success: receipt.success,
@@ -161,7 +163,8 @@ async function fingerprintReceipt(
 		canonicalize({
 			lineNumber: receipt.lineNumber,
 			rawText: receipt.rawText,
-			macroName: receipt.macroName,
+			macroId: receipt.macroId,
+			invokedAs: receipt.invokedAs,
 			success: receipt.success,
 			result: receipt.result,
 			error: receipt.error,

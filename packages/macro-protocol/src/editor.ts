@@ -338,7 +338,8 @@ export interface ScratchpadExecutionReceiptDto {
 	readonly textRevision: number;
 	readonly lineNumber: number;
 	readonly rawText: string;
-	readonly macroName: string;
+	readonly macroId: string;
+	readonly invokedAs?: string;
 	readonly success: boolean;
 	readonly result?: EditorPayloadEnvelope;
 	readonly error?: string;
