@@ -697,13 +697,7 @@ export function App() {
 										setIsDrawerOpen((open) => !open);
 										return;
 									}
-									void store
-										.executeCommand(command, args)
-										.then(() => {
-											if (command === "workspace.openSettings")
-												navigate("settings");
-										})
-										.catch(() => undefined);
+									void runCommand(command, args);
 								}}
 								onEditorOperation={(operation: EditorOperation) => {
 									void store

@@ -6,10 +6,27 @@ const shellSource = readFileSync(
 	resolve(import.meta.dir, "../src/components/WorkbenchShell.tsx"),
 	"utf8",
 );
-const stylesSource = readFileSync(
+const indexCss = readFileSync(
 	resolve(import.meta.dir, "../src/styles/index.css"),
 	"utf8",
 );
+const stylesSource = indexCss
+	.split("\n")
+	.map((line) => {
+		const match = line.match(/@import\s+"([^"]+)";/);
+		if (match && match[1]) {
+			try {
+				return readFileSync(
+					resolve(import.meta.dir, "../src/styles", match[1]),
+					"utf8",
+				);
+			} catch {
+				return "";
+			}
+		}
+		return line;
+	})
+	.join("\n");
 
 describe("workbench dock ordering", () => {
 	test("adds the inspector dock direction to the shell", () => {

@@ -1019,6 +1019,7 @@ export class HostSessionManager {
 							targetGroupId,
 						);
 					}
+					documents.select(document.documentId);
 					this.emit(session, "workspace.changed");
 					return {
 						...base(),
@@ -1039,6 +1040,7 @@ export class HostSessionManager {
 							targetGroupId,
 						);
 					}
+					documents.select(document.documentId);
 					await document.session.parseAllLines();
 					this.emit(session, "workspace.changed");
 					return {

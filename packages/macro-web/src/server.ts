@@ -161,7 +161,9 @@ function errorResponse(id: string, error: unknown): Response {
 					error instanceof Error ? error.message : "Host request failed",
 				);
 	const status =
-		hostErrorValue.code === "SESSION_NOT_FOUND"
+		hostErrorValue.code === "SESSION_NOT_FOUND" ||
+		hostErrorValue.code === "COMMAND_NOT_FOUND" ||
+		hostErrorValue.code.endsWith("_NOT_FOUND")
 			? 404
 			: hostErrorValue.code === "PROJECT_NOT_CONFIGURED"
 				? 503
