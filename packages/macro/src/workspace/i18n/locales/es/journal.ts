@@ -3,7 +3,8 @@ export const ES_JOURNAL: Record<string, string> = {
 	"journal.subtitle": "Transacciones y libro de ejecución",
 	"journal.count": "{count} transacciones",
 	"journal.empty": "No hay transacciones registradas.",
-	"journal.empty.description": "Las celdas de macro ejecutadas y las operaciones de sesión aparecerán aquí en un registro de auditoría inmutable.",
+	"journal.empty.description":
+		"Las celdas de macro ejecutadas y las operaciones de sesión aparecerán aquí en un registro de auditoría inmutable.",
 	"journal.density.compact": "Compacto",
 	"journal.density.detailed": "Detallado",
 	"journal.sort.newest": "Más recientes primero",

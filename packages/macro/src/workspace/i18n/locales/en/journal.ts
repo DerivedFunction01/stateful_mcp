@@ -3,7 +3,8 @@ export const EN_JOURNAL: Record<string, string> = {
 	"journal.subtitle": "Transactions and execution ledger",
 	"journal.count": "{count} transactions",
 	"journal.empty": "No transactions recorded.",
-	"journal.empty.description": "Executed macro cells and session operations will appear here in an immutable audit log.",
+	"journal.empty.description":
+		"Executed macro cells and session operations will appear here in an immutable audit log.",
 	"journal.density.compact": "Compact",
 	"journal.density.detailed": "Detailed",
 	"journal.sort.newest": "Newest first",

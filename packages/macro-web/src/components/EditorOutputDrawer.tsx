@@ -98,7 +98,6 @@ export function EditorOutputDrawer({
 			aria-label={t("editor.output.title")}
 		>
 			{isOpen && (
-				// biome-ignore lint/a11y/useSemanticElements: interactive window splitter widget requires div with role=separator
 				<div
 					className="output-drawer-resizer"
 					role="separator"
@@ -271,12 +270,12 @@ export function EditorOutputDrawer({
 										key={`${receipt.requestId}:${receipt.lineNumber}`}
 									>
 										<span className="receipt-line">L{receipt.lineNumber}</span>
-										<strong className="receipt-macro">
-											{receipt.macroId}
-										</strong>
+										<strong className="receipt-macro">{receipt.macroId}</strong>
 										{receipt.invokedAs && (
 											<span className="receipt-invoked">
-												({t("journal.entry.via", { trigger: receipt.invokedAs })})
+												(
+												{t("journal.entry.via", { trigger: receipt.invokedAs })}
+												)
 											</span>
 										)}
 										<span className="receipt-outcome">

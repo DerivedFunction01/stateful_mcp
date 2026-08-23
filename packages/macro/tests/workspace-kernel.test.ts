@@ -697,7 +697,9 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 				filter: { status: "reversed" },
 			});
 			expect(reversedQuery.total).toBe(1);
-			expect(reversedQuery.entries[0]?.reversalReason).toBe("Incorrect diagnostic");
+			expect(reversedQuery.entries[0]?.reversalReason).toBe(
+				"Incorrect diagnostic",
+			);
 
 			// Query by macroId prefix
 			const macroQuery = await journal.query({

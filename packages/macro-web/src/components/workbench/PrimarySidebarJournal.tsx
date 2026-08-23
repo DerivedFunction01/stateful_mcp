@@ -14,7 +14,6 @@ import {
 	ChevronRight,
 	Copy,
 	CornerDownLeft,
-	Database,
 	Download,
 	ExternalLink,
 	FileCode2,
@@ -115,9 +114,7 @@ export function JournalPaneBody({ props, helpers }: SidebarPaneProps) {
 					const matchRaw = entry.rawText?.toLowerCase().includes(q);
 					const matchId = entry.outputId?.toLowerCase().includes(q);
 					const matchFp = entry.fingerprint?.toLowerCase().includes(q);
-					const matchReversal = entry.reversalReason
-						?.toLowerCase()
-						.includes(q);
+					const matchReversal = entry.reversalReason?.toLowerCase().includes(q);
 					if (
 						!matchMacro &&
 						!matchInvoked &&
@@ -203,7 +200,9 @@ export function JournalPaneBody({ props, helpers }: SidebarPaneProps) {
 			e.preventDefault();
 			const current = filteredEntries[index];
 			if (current) {
-				setSelectedId(selectedId === current.outputId ? null : current.outputId);
+				setSelectedId(
+					selectedId === current.outputId ? null : current.outputId,
+				);
 			}
 		} else if (e.key === "Escape") {
 			setSelectedId(null);
@@ -229,9 +228,7 @@ export function JournalPaneBody({ props, helpers }: SidebarPaneProps) {
 				onToggleDensity={() =>
 					setDensity(density === "compact" ? "detailed" : "compact")
 				}
-				onToggleSort={() =>
-					setSortOrder(sortOrder === "desc" ? "asc" : "desc")
-				}
+				onToggleSort={() => setSortOrder(sortOrder === "desc" ? "asc" : "desc")}
 				onToggleFilters={() => setFiltersExpanded(!filtersExpanded)}
 				onSearchChange={setSearchQuery}
 				onStatusChange={setStatusFilter}
@@ -347,7 +344,11 @@ function JournalToolbar({
 						}
 						onClick={onToggleDensity}
 					>
-						{density === "compact" ? <List size={14} /> : <ListFilter size={14} />}
+						{density === "compact" ? (
+							<List size={14} />
+						) : (
+							<ListFilter size={14} />
+						)}
 					</IconButton>
 					<IconButton
 						label={
@@ -422,7 +423,9 @@ function JournalToolbar({
 						>
 							<option value="all">{t("journal.filter.time.all")}</option>
 							<option value="today">{t("journal.filter.time.today")}</option>
-							<option value="last24h">{t("journal.filter.time.last24h")}</option>
+							<option value="last24h">
+								{t("journal.filter.time.last24h")}
+							</option>
 							<option value="last7d">{t("journal.filter.time.last7d")}</option>
 							<option value="custom">{t("journal.filter.time.custom")}</option>
 						</select>
@@ -488,9 +491,7 @@ function JournalToolbar({
 	);
 }
 
-function JournalEmptyState({
-	t,
-}: { readonly t: I18nFn }) {
+function JournalEmptyState({ t }: { readonly t: I18nFn }) {
 	return (
 		<div className="journal-empty-state">
 			<History size={32} className="journal-empty-icon" />
@@ -566,7 +567,6 @@ function JournalEntryCard({
 	return (
 		<div
 			role="listitem"
-			tabIndex={0}
 			className={`journal-entry-card ${density} ${isSelected ? "selected" : ""} status-${entry.status}`}
 			onClick={onSelect}
 			onKeyDown={onKeyDown}
@@ -575,26 +575,17 @@ function JournalEntryCard({
 				<div className="journal-entry-status-node">
 					{entry.status === "committed" && (
 						<span title={t("journal.filter.committed")}>
-							<CheckCircle2
-								size={13}
-								className="status-glyph committed"
-							/>
+							<CheckCircle2 size={13} className="status-glyph committed" />
 						</span>
 					)}
 					{entry.status === "reversed" && (
 						<span title={t("journal.filter.reversed")}>
-							<RotateCcw
-								size={13}
-								className="status-glyph reversed"
-							/>
+							<RotateCcw size={13} className="status-glyph reversed" />
 						</span>
 					)}
 					{entry.status === "failed" && (
 						<span title={t("journal.filter.failed")}>
-							<XCircle
-								size={13}
-								className="status-glyph failed"
-							/>
+							<XCircle size={13} className="status-glyph failed" />
 						</span>
 					)}
 				</div>
@@ -743,10 +734,7 @@ function JournalEntryCard({
 							<span className="inspector-label">
 								{t("journal.entry.fingerprint")}
 							</span>
-							<code
-								className="inspector-fingerprint"
-								title={entry.fingerprint}
-							>
+							<code className="inspector-fingerprint" title={entry.fingerprint}>
 								{entry.fingerprint}
 							</code>
 						</div>

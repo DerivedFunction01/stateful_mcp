@@ -168,91 +168,93 @@ export function EditorGroupHeader({
 				</button>
 			</div>
 
-			<div className="editor-group-actions">
-				<button
-					type="button"
-					className="editor-split-btn"
-					title={t("editor.splitRight")}
-					disabled={!canSplit || pendingEditor}
-					onClick={() => onSplitGroup("vertical")}
-				>
-					<Columns2 size={14} />
-				</button>
-
-				<button
-					type="button"
-					className="editor-split-btn"
-					title={t("editor.splitDown")}
-					disabled={!canSplit || pendingEditor}
-					onClick={() => onSplitGroup("horizontal")}
-				>
-					<Rows2 size={14} />
-				</button>
-
-				{canCloseGroup && (
+			{isActiveGroup && (
+				<div className="editor-group-actions">
 					<button
 						type="button"
 						className="editor-split-btn"
-						title={t("editor.split.closeGroup")}
-						onClick={onCloseGroup}
+						title={t("editor.splitRight")}
+						disabled={!canSplit || pendingEditor}
+						onClick={() => onSplitGroup("vertical")}
 					>
-						<X size={14} />
+						<Columns2 size={14} />
 					</button>
-				)}
 
-				{isScratchpad && (
-					<>
-						<button
-							type="button"
-							className="editor-preview-btn"
-							title={t("editor.execution.validLines")}
-							disabled={isActionDisabled}
-							onClick={onExecuteValidLines}
-						>
-							<Play size={13} />
-						</button>
-						<button
-							type="button"
-							className="editor-split-btn"
-							title={t("editor.clearExecuted")}
-							disabled={isActionDisabled}
-							onClick={onClearExecutedLines}
-						>
-							<Eraser size={14} />
-						</button>
+					<button
+						type="button"
+						className="editor-split-btn"
+						title={t("editor.splitDown")}
+						disabled={!canSplit || pendingEditor}
+						onClick={() => onSplitGroup("horizontal")}
+					>
+						<Rows2 size={14} />
+					</button>
+
+					{canCloseGroup && (
 						<button
 							type="button"
 							className="editor-split-btn"
-							title={t("editor.resetExecution")}
-							disabled={isActionDisabled}
-							onClick={onResetExecutionState}
+							title={t("editor.split.closeGroup")}
+							onClick={onCloseGroup}
 						>
-							<RotateCcw size={14} />
+							<X size={14} />
 						</button>
-						{pinnedMacros && pinnedMacros.length > 0 && (
-							<div className="editor-quickrun-bar">
-								<span className="quickrun-label">
-									<Pin size={11} />
-								</span>
-								{pinnedMacros.map((macro) => (
-									<button
-										key={macro.id}
-										type="button"
-										className={`quickrun-chip quickrun-${macro.source}`}
-										title={macro.title ?? `Quick-run ^${macro.macroName}`}
-										onClick={() => {
-											const snippet = macro.snippet ?? `^${macro.macroName} `;
-											onInsertSnippet(snippet);
-										}}
-									>
-										^{macro.macroName}
-									</button>
-								))}
-							</div>
-						)}
-					</>
-				)}
-			</div>
+					)}
+
+					{isScratchpad && (
+						<>
+							<button
+								type="button"
+								className="editor-preview-btn"
+								title={t("editor.execution.validLines")}
+								disabled={isActionDisabled}
+								onClick={onExecuteValidLines}
+							>
+								<Play size={13} />
+							</button>
+							<button
+								type="button"
+								className="editor-split-btn"
+								title={t("editor.clearExecuted")}
+								disabled={isActionDisabled}
+								onClick={onClearExecutedLines}
+							>
+								<Eraser size={14} />
+							</button>
+							<button
+								type="button"
+								className="editor-split-btn"
+								title={t("editor.resetExecution")}
+								disabled={isActionDisabled}
+								onClick={onResetExecutionState}
+							>
+								<RotateCcw size={14} />
+							</button>
+							{pinnedMacros && pinnedMacros.length > 0 && (
+								<div className="editor-quickrun-bar">
+									<span className="quickrun-label">
+										<Pin size={11} />
+									</span>
+									{pinnedMacros.map((macro) => (
+										<button
+											key={macro.id}
+											type="button"
+											className={`quickrun-chip quickrun-${macro.source}`}
+											title={macro.title ?? `Quick-run ^${macro.macroName}`}
+											onClick={() => {
+												const snippet = macro.snippet ?? `^${macro.macroName} `;
+												onInsertSnippet(snippet);
+											}}
+										>
+											^{macro.macroName}
+										</button>
+									))}
+								</div>
+							)}
+						</>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
