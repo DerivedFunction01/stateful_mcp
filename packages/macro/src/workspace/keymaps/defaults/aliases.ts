@@ -14,6 +14,7 @@ export const DEFAULT_COMMAND_ALIASES: Readonly<
 	"workspace.openExtensions": ["extensions", "plugins"],
 	"editor.duplicateDocument": ["duplicate", "dup", "copy"],
 	"editor.newScratchpad": ["new", "tabnew", "newtab", "scratchpad"],
+	"editor.newScratchpadFromTemplate": ["template", "newtemplate", "tmpl"],
 	"editor.createSplitGroup": ["vsplit", "vs", "vsp"],
 	"editor.splitRight": ["vsplit", "vs", "vsp"],
 	"editor.splitDown": ["split", "sp"],

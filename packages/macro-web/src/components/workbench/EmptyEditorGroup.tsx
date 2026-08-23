@@ -1,14 +1,16 @@
-import { FilePlus, FilePlus2, FolderOpen } from "lucide-react";
+import { BookTemplate, FilePlus, FilePlus2, FolderOpen } from "lucide-react";
 import { useI18n } from "../../lib/macro-i18n-provider";
 
 export interface EmptyEditorGroupProps {
 	readonly onNewScratchpad: () => void;
+	readonly onNewFromTemplate?: () => void;
 	readonly onOpenFile?: () => void;
 	readonly onCreateFile?: () => void;
 }
 
 export function EmptyEditorGroup({
 	onNewScratchpad,
+	onNewFromTemplate,
 	onOpenFile,
 	onCreateFile,
 }: EmptyEditorGroupProps) {
@@ -26,6 +28,12 @@ export function EmptyEditorGroup({
 					<FilePlus size={14} />
 					{t("editor.document.new")}
 				</button>
+				{onNewFromTemplate && (
+					<button type="button" onClick={onNewFromTemplate}>
+						<BookTemplate size={14} />
+						{t("workbench.template.picker.newFromTemplate")}
+					</button>
+				)}
 				{onOpenFile && (
 					<button type="button" onClick={onOpenFile}>
 						<FolderOpen size={14} />

@@ -272,6 +272,28 @@ export function createMacroWorkspace(
 	);
 	commands.registerCommand(
 		{
+			command: "editor.newScratchpadFromTemplate",
+			titleI18nKey: "workbench.template.picker.newFromTemplate",
+			categoryI18nKey: "common.editor",
+		},
+		{
+			execute: (options?: {
+				readonly templateId?: string;
+				readonly groupId?: string;
+			}) => {
+				if (!options?.templateId) {
+					return { status: "pending_picker" };
+				}
+				const doc = documents.createFromTemplate(options.templateId);
+				if (options?.groupId)
+					editorGroups.moveDocument(doc.documentId, options.groupId);
+				else documents.select(doc.documentId);
+				return { documentId: doc.documentId, title: doc.title };
+			},
+		},
+	);
+	commands.registerCommand(
+		{
 			command: "editor.duplicateDocument",
 			titleI18nKey: "editor.document.duplicate",
 			categoryI18nKey: "common.editor",

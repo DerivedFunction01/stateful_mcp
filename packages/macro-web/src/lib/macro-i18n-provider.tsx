@@ -40,12 +40,13 @@ function valueForKernel(kernel: I18nKernel): MacroWebI18n {
 }
 
 export function I18nProvider({ children }: { readonly children: ReactNode }) {
-	const kernel = useMemo(() => createDefaultI18nKernel("en"), []);
-	useEffect(() => {
-		for (const [locale, dictionary] of Object.entries(GALLERY_TRANSLATIONS))
-			kernel.registerTranslations(locale, dictionary, "macro-web-core");
-		return () => kernel.unregisterOwner("macro-web-core");
-	}, [kernel]);
+	const kernel = useMemo(() => {
+		const k = createDefaultI18nKernel("en");
+		for (const [locale, dictionary] of Object.entries(GALLERY_TRANSLATIONS)) {
+			k.registerTranslations(locale, dictionary, "macro-web-core");
+		}
+		return k;
+	}, []);
 	const locale = useSyncExternalStore(
 		(listener) => kernel.subscribe(listener),
 		() => kernel.getActiveLocale(),

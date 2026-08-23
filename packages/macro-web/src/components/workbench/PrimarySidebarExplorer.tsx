@@ -126,6 +126,17 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 									>
 										{t("workbench.newScratchpad")}
 									</button>
+									<button
+										type="button"
+										className="vscode-btn secondary"
+										onClick={() =>
+											props.onCommand?.(
+												"workbench.action.newScratchpadFromTemplate",
+											)
+										}
+									>
+										{t("workbench.template.picker.newFromTemplate")}
+									</button>
 								</div>
 							</div>
 						) : (

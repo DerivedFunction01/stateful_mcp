@@ -3,6 +3,7 @@ import type {
 	WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import {
+	BookTemplate,
 	ChevronRight,
 	Columns2,
 	Command,
@@ -71,6 +72,7 @@ export interface MenuBarProps {
 	readonly onCommand: (command: string, args?: readonly unknown[]) => void;
 	readonly onOpenPalette: () => void;
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
+	readonly onOpenTemplatePicker?: () => void;
 	readonly onCloseProject?: () => void;
 	readonly onNavigate: (route: AppRoute) => void;
 	readonly currentRoute: AppRoute | string;
@@ -108,17 +110,15 @@ function MenuItemRenderer({
 			>
 				<button
 					type="button"
-					className="menu-item menu-item-submenu"
-					onClick={() => setSubmenuOpen((prev) => !prev)}
-					aria-haspopup="true"
-					aria-expanded={submenuOpen}
+					className="menu-item menu-submenu-trigger"
+					onClick={(e) => e.stopPropagation()}
 				>
 					{item.icon}
 					<span>{item.label}</span>
 					<ChevronRight size={12} className="submenu-arrow" />
 				</button>
 				{submenuOpen && (
-					<div className="menu-dropdown menu-submenu" role="menu">
+					<div className="menu-dropdown submenu-dropdown" role="menu">
 						{item.items.map((subItem) => (
 							<MenuItemRenderer
 								key={subItem.id}
@@ -156,6 +156,7 @@ export function MenuBar({
 	onCommand,
 	onOpenPalette,
 	onOpenFolderModal,
+	onOpenTemplatePicker,
 	onCloseProject,
 	onNavigate,
 	currentRoute,
@@ -252,6 +253,15 @@ export function MenuBar({
 				label: t("editor.document.new"),
 				icon: <FilePlus size={14} />,
 				onSelect: () => onCommand("editor.newScratchpad"),
+			},
+			{
+				id: "file.newScratchpadFromTemplate",
+				label: t("workbench.template.picker.newFromTemplate"),
+				icon: <BookTemplate size={14} />,
+				onSelect: () =>
+					onOpenTemplatePicker
+						? onOpenTemplatePicker()
+						: onCommand("workbench.action.newScratchpadFromTemplate"),
 			},
 			{
 				id: "file.duplicateDocument",

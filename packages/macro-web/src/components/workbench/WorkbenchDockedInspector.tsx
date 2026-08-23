@@ -19,6 +19,7 @@ export interface WorkbenchDockedInspectorProps {
 	readonly onPin: (macroId: string | null) => void;
 	readonly onJumpToLine: (lineNumber: number) => void;
 	readonly onInsertSnippet: (snippet: string) => void;
+	readonly onOpenTemplatePicker?: () => void;
 }
 
 export function WorkbenchDockedInspector({
@@ -33,6 +34,7 @@ export function WorkbenchDockedInspector({
 	onPin,
 	onJumpToLine,
 	onInsertSnippet,
+	onOpenTemplatePicker,
 }: WorkbenchDockedInspectorProps) {
 	const { t } = useI18n();
 
@@ -54,6 +56,7 @@ export function WorkbenchDockedInspector({
 				onPin={onPin}
 				onJumpToLine={onJumpToLine}
 				onInsertSnippet={onInsertSnippet}
+				onOpenTemplatePicker={onOpenTemplatePicker}
 			/>
 		</aside>
 	);

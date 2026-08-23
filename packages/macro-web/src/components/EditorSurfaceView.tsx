@@ -20,6 +20,7 @@ import type {
 	EditorSearchResult,
 } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { PinnedMacroBar } from "./PinnedMacroBar";
 
 export interface EditorSurfaceViewHandle {
 	readonly element: HTMLElement | null;
@@ -681,6 +682,26 @@ export function EditorSurfaceView({
 				pointerDownRef.current = null;
 			}}
 		>
+			{pinnedMacroIds && pinnedMacroIds.length > 0 && (
+				<PinnedMacroBar
+					pinnedMacroIds={pinnedMacroIds}
+					onInsertMacro={(macroId) => {
+						const verb = macroId.split(":").pop() ?? macroId;
+						const snippet = `^${verb} `;
+						const authored = rootRef.current;
+						if (authored) {
+							const { lineIdx, col } = getActiveLineAndCol(authored);
+							const currentLines = linesFromSurface(authored);
+							const currentLine = currentLines[lineIdx] ?? "";
+							currentLines[lineIdx] =
+								`${currentLine.slice(0, col)}${snippet}${currentLine.slice(col)}`;
+							onTextChange(currentLines);
+							setLineAndCol(authored, lineIdx, col + snippet.length);
+							updateCursor();
+						}
+					}}
+				/>
+			)}
 			{searchWidget}
 			<div className="editor-canvas">
 				{/* Lined Cells Container: Hybrid Jupyter/Editor per-cell companion layout */}

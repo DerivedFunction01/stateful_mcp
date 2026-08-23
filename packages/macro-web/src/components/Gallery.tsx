@@ -11,6 +11,7 @@ import type {
 } from "@stateful-mcp/macro-protocol";
 import {
 	Activity,
+	BookTemplate,
 	CheckCircle2,
 	Code2,
 	Database,
@@ -49,6 +50,9 @@ import { EditorSurfaceView } from "./EditorSurfaceView";
 import { FindOverlay } from "./FindOverlay";
 import { MenuBar } from "./MenuBar";
 import { OpenFolderModal } from "./OpenFolderModal";
+import { PinnedMacroBar } from "./PinnedMacroBar";
+import { ProjectInitModal } from "./ProjectInitModal";
+import { TemplatePickerModal } from "./TemplatePickerModal";
 import {
 	Badge,
 	Button,
@@ -112,10 +116,12 @@ export function Gallery() {
 						<Button variant="danger">{t("gallery.danger")}</Button>
 					</div>
 					<div className="badge-row">
-						<Badge tone="success">Saved</Badge>
-						<Badge tone="warning">Unsaved</Badge>
-						<Badge tone="danger">3 errors</Badge>
-						<Badge tone="info">Host info</Badge>
+						<Badge tone="success">{t("gallery.badge.saved")}</Badge>
+						<Badge tone="warning">{t("gallery.badge.unsaved")}</Badge>
+						<Badge tone="danger">
+							{t("gallery.badge.errors", { count: 3 })}
+						</Badge>
+						<Badge tone="info">{t("gallery.badge.hostInfo")}</Badge>
 					</div>
 				</Card>
 				<OverlayControlsStory />
@@ -127,21 +133,24 @@ export function Gallery() {
 				<WorkbenchInspectorStory />
 				<QuickRunChipsBarStory />
 				<IslandsOfOrderAndDisambiguationStory />
+				<TemplatePickerStory />
+				<PinnedMacroBarStory />
+				<ProjectInitModalStory />
 				<Card title={t("gallery.formStates")}>
 					<div className="form-grid">
 						<TextInput
-							label="Macro title"
-							defaultValue="Daily note"
-							hint="A reusable title value."
+							label={t("gallery.form.titleLabel")}
+							defaultValue={t("gallery.form.titleDefault")}
+							hint={t("gallery.form.titleHint")}
 						/>
 						<TextInput
-							label="Invalid date"
-							defaultValue="tomorrow-ish"
-							error="Use a recognized date format."
+							label={t("gallery.form.invalidDate")}
+							defaultValue={t("gallery.form.dateDefault")}
+							error={t("gallery.form.dateError")}
 						/>
 					</div>
 					<Toggle
-						label="Enable domain suggestions"
+						label={t("gallery.form.enableSuggestions")}
 						checked={true}
 						onChange={() => undefined}
 					/>
@@ -1682,6 +1691,214 @@ function JournalHistoryStory() {
 						<code>{lastAction}</code>
 					</div>
 				)}
+			</div>
+		</Card>
+	);
+}
+
+const FIXTURE_TEMPLATES = [
+	{
+		templateId: "builtin:@clinical-fhir:soap_consult",
+		providerId: "macro.text",
+		title: "Cardiology Consult (SOAP)",
+		description:
+			"Comprehensive inpatient cardiology consultation with pre-seeded vitals, EKG findings, and care plan.",
+		sourceExtensionId: "@stateful-mcp/clinical-fhir",
+		pinnedMacroIds: [
+			"@clinical/patient",
+			"@clinical/vitals",
+			"@clinical/ekg",
+			"@clinical/plan",
+		],
+		requiresProfile: true,
+	},
+	{
+		templateId: "builtin:@clinical-fhir:peds_growth",
+		providerId: "macro.text",
+		title: "Pediatric Milestone & Growth Check",
+		description:
+			"Standard pediatric well-child visit with percentiles, growth chart tags, and immunization checklist.",
+		sourceExtensionId: "@stateful-mcp/clinical-fhir",
+		pinnedMacroIds: [
+			"@clinical/patient",
+			"@clinical/growth",
+			"@clinical/vaccines",
+		],
+	},
+	{
+		templateId: "builtin:@apple-health:vitals_trend",
+		providerId: "macro.text",
+		title: "Apple Health Trend Analysis",
+		description:
+			"Syncs step counts, resting heart rate, and sleep staging directly into active clinical note.",
+		sourceExtensionId: "@stateful-mcp/apple-health",
+		pinnedMacroIds: [
+			"@apple-health/vitals",
+			"@apple-health/hr_trend",
+			"@apple-health/sleep",
+		],
+	},
+	{
+		templateId: "builtin:@financial:option_straddle",
+		providerId: "macro.text",
+		title: "Options Volatility Straddle Ticket",
+		description:
+			"Pre-computed delta-neutral straddle order with underlying price anchors and Greeks monitoring.",
+		sourceExtensionId: "@stateful-mcp/financial-suite",
+		pinnedMacroIds: ["@fin/options", "@fin/underlying", "@fin/greeks"],
+	},
+	{
+		templateId: "user:quick_triage",
+		providerId: "macro.text",
+		title: "Quick Triage Note",
+		description: "One-click rapid intake note with acute vitals only.",
+		sourceExtensionId: "@stateful-mcp/clinical-fhir",
+		pinnedMacroIds: ["@clinical/vitals"],
+	},
+] as const;
+
+function TemplatePickerStory() {
+	const { t } = useI18n();
+	const [isOpen, setIsOpen] = useState(false);
+	const [selectedId, setSelectedId] = useState<string | null>(null);
+
+	return (
+		<Card
+			title={t("gallery.templatePickerTitle")}
+			action={<Badge tone="accent">Scaffolds</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<p
+					style={{
+						margin: 0,
+						fontSize: 12.5,
+						color: "var(--theme-content-secondary)",
+					}}
+				>
+					Interactive modal with virtual category tree, search filtering, and
+					live pinned macro palette preview.
+				</p>
+				<div>
+					<Button
+						variant="primary"
+						icon={<BookTemplate size={14} />}
+						onClick={() => setIsOpen(true)}
+					>
+						{t("workbench.template.picker.newFromTemplate")}
+					</Button>
+				</div>
+				{selectedId && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Instantiated Template: </strong>
+						<code>{selectedId}</code>
+					</div>
+				)}
+				<TemplatePickerModal
+					isOpen={isOpen}
+					onClose={() => setIsOpen(false)}
+					templates={FIXTURE_TEMPLATES as any}
+					onSelectTemplate={(id) => setSelectedId(id)}
+				/>
+			</div>
+		</Card>
+	);
+}
+
+function PinnedMacroBarStory() {
+	const { t } = useI18n();
+	const [inserted, setInserted] = useState<string | null>(null);
+
+	return (
+		<Card
+			title={t("gallery.pinnedBarTitle")}
+			action={<Badge tone="accent">Toolbar</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<p
+					style={{
+						margin: 0,
+						fontSize: 12.5,
+						color: "var(--theme-content-secondary)",
+					}}
+				>
+					Pinned macro palette docked above the scratchpad canvas for 1-click
+					token insertion.
+				</p>
+				<div
+					style={{
+						border: "1px solid var(--theme-border-subtle)",
+						borderRadius: 6,
+						overflow: "hidden",
+					}}
+				>
+					<PinnedMacroBar
+						pinnedMacroIds={[
+							"@clinical/patient",
+							"@clinical/vitals",
+							"@clinical/ekg",
+							"@clinical/plan",
+						]}
+						onInsertMacro={(macroId) =>
+							setInserted(`^${macroId.split(":").pop() ?? macroId} `)
+						}
+						onOpenMacroPalette={() => setInserted("Opened Pin Palette...")}
+					/>
+				</div>
+				{inserted && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Action Feedback: </strong>
+						<code>{inserted}</code>
+					</div>
+				)}
+			</div>
+		</Card>
+	);
+}
+
+function ProjectInitModalStory() {
+	const { t } = useI18n();
+	const [isOpen, setIsOpen] = useState(false);
+	const [initReport, setInitReport] = useState<string | null>(null);
+
+	return (
+		<Card
+			title={t("gallery.projectInitTitle")}
+			action={<Badge tone="accent">Project Lifecycle</Badge>}
+		>
+			<div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+				<p
+					style={{
+						margin: 0,
+						fontSize: 12.5,
+						color: "var(--theme-content-secondary)",
+					}}
+				>
+					Guided wizard modal to initialize .macro/project.json and runtime
+					storage in uninitialized directories.
+				</p>
+				<div>
+					<Button
+						variant="secondary"
+						icon={<FolderPlus size={14} />}
+						onClick={() => setIsOpen(true)}
+					>
+						{t("workbench.project.init.title")}
+					</Button>
+				</div>
+				{initReport && (
+					<div className="cell-raw-preview" style={{ padding: 8 }}>
+						<strong>Initialized: </strong>
+						<code>{initReport}</code>
+					</div>
+				)}
+				<ProjectInitModal
+					isOpen={isOpen}
+					onClose={() => setIsOpen(false)}
+					currentPath="/encounters/patient_consult_2026_08_23"
+					onInitProject={async (path, name) => {
+						setInitReport(`Initialized project at ${path} (name: ${name})`);
+					}}
+				/>
 			</div>
 		</Card>
 	);

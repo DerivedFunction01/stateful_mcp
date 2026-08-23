@@ -42,6 +42,7 @@ export interface EditorCanvasProps {
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onNewScratchpad?: () => void;
+	readonly onNewFromTemplate?: () => void;
 	readonly onOpenFile?: () => void;
 	readonly onCreateFile?: () => void;
 }
@@ -69,6 +70,7 @@ export function EditorCanvas({
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
 	onNewScratchpad,
+	onNewFromTemplate,
 	onOpenFile,
 	onCreateFile,
 }: EditorCanvasProps) {
@@ -124,6 +126,7 @@ export function EditorCanvas({
 			) : (
 				<EmptyEditorGroup
 					onNewScratchpad={onNewScratchpad ?? (() => undefined)}
+					onNewFromTemplate={onNewFromTemplate}
 					onOpenFile={onOpenFile}
 					onCreateFile={onCreateFile}
 				/>

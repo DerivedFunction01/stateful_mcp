@@ -16,6 +16,7 @@ import { MenuBar } from "./components/MenuBar";
 import { OpenFolderModal } from "./components/OpenFolderModal";
 import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
+import { TemplatePickerModal } from "./components/TemplatePickerModal";
 import { UnsavedChangesModal } from "./components/UnsavedChangesModal";
 import { WorkbenchShell } from "./components/WorkbenchShell";
 import { CreateFileDialog } from "./components/workbench/CreateFileDialog";
@@ -102,6 +103,7 @@ export function App() {
 	>({});
 	const [paletteCommandMode, setPaletteCommandMode] = useState(false);
 	const [paletteCommandToken, setPaletteCommandToken] = useState("");
+	const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
 	const [announcement, setAnnouncement] = useState("");
 	const [editorCursor, setEditorCursor] = useState("");
 	const lastFocused = useRef<Element | null>(null);
@@ -260,6 +262,21 @@ export function App() {
 		}
 		if (command === "workbench.saveAsProject") {
 			setFolderModalMode("saveAs");
+			return;
+		}
+		if (
+			command === "workbench.action.newScratchpadFromTemplate" ||
+			command === "editor.newScratchpadFromTemplate"
+		) {
+			if (args && typeof args[0] === "string") {
+				await store.applyEditorOperation({
+					operation: "editor.newScratchpadFromTemplate",
+					requestId: crypto.randomUUID(),
+					templateId: args[0],
+				});
+			} else {
+				setIsTemplatePickerOpen(true);
+			}
 			return;
 		}
 		if (command === "editor.save") {
@@ -632,6 +649,7 @@ export function App() {
 					onToggleDrawer={() => setIsDrawerOpen((open) => !open)}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}
+					onOpenTemplatePicker={() => setIsTemplatePickerOpen(true)}
 					onCloseProject={() => void store.closeProject()}
 					onNavigate={navigate}
 					currentRoute={route}
@@ -835,6 +853,19 @@ export function App() {
 					}}
 					error={createFileError}
 					submitting={createFileSubmitting}
+				/>
+
+				<TemplatePickerModal
+					isOpen={isTemplatePickerOpen}
+					onClose={() => setIsTemplatePickerOpen(false)}
+					templates={snapshot?.editor.templates ?? []}
+					onSelectTemplate={(templateId) => {
+						void store.applyEditorOperation({
+							operation: "editor.newScratchpadFromTemplate",
+							requestId: crypto.randomUUID(),
+							templateId,
+						});
+					}}
 				/>
 			</div>
 		</EditorSurfaceRegistryContext.Provider>

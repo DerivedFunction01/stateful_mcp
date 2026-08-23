@@ -67,6 +67,7 @@ export interface EditorGroupPaneProps {
 	readonly onEditorCursorChange?: (cursor: string) => void;
 	readonly onOpenFile?: (groupId: string) => void;
 	readonly onCreateFile?: (groupId: string) => void;
+	readonly onNewFromTemplate?: () => void;
 }
 
 export function EditorGroupPane({
@@ -97,6 +98,7 @@ export function EditorGroupPane({
 	onEditorCursorChange,
 	onOpenFile,
 	onCreateFile,
+	onNewFromTemplate,
 }: EditorGroupPaneProps) {
 	const [surfaceFocused, setSurfaceFocused] = useState(false);
 	const surfaceRef = useRef<HTMLElement | null>(null);
@@ -288,6 +290,7 @@ export function EditorGroupPane({
 					onSetEditorDraft(groupActiveDocMeta.documentId, lines)
 				}
 				onNewScratchpad={() => onNewScratchpad(group.groupId)}
+				onNewFromTemplate={onNewFromTemplate}
 				onOpenFile={() => onOpenFile?.(group.groupId)}
 				onCreateFile={() => onCreateFile?.(group.groupId)}
 				onFocusChange={(focused) => {

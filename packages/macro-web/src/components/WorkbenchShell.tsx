@@ -398,6 +398,9 @@ export function WorkbenchShell({
 				);
 			}}
 			onInsertSnippet={handleInsertSnippet}
+			onOpenTemplatePicker={() =>
+				onCommand("workbench.action.newScratchpadFromTemplate")
+			}
 		/>
 	);
 
@@ -622,6 +625,9 @@ export function WorkbenchShell({
 											? groupId
 											: (activeGroup?.groupId ?? groupId),
 									)
+								}
+								onNewFromTemplate={() =>
+									onCommand("workbench.action.newScratchpadFromTemplate")
 								}
 							/>
 						);

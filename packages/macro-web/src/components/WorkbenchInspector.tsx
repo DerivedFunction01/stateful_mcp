@@ -8,16 +8,14 @@ import type {
 import {
 	AlertCircle,
 	AlertTriangle,
+	BookTemplate,
 	Check,
 	CheckCircle2,
-	ChevronLeft,
-	ChevronRight,
 	Layers,
 	Pin,
 	Plus,
 	ShieldAlert,
 	Sparkles,
-	X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useI18n } from "../lib/macro-i18n-provider";
@@ -42,6 +40,7 @@ export interface WorkbenchInspectorProps {
 	readonly onPin?: (macroId: string | null) => void;
 	readonly onJumpToLine?: (lineNumber: number) => void;
 	readonly onInsertSnippet?: (snippet: string) => void;
+	readonly onOpenTemplatePicker?: () => void;
 	readonly contributedViews?: readonly ContributedInspectorView[];
 }
 
@@ -60,6 +59,7 @@ export function WorkbenchInspector({
 	onPin,
 	onJumpToLine,
 	onInsertSnippet,
+	onOpenTemplatePicker,
 	contributedViews = [],
 }: WorkbenchInspectorProps) {
 	const { t } = useI18n();
@@ -556,6 +556,18 @@ export function WorkbenchInspector({
 													)}
 											</div>
 										))
+									)}
+									{onOpenTemplatePicker && (
+										<div style={{ marginTop: 16 }}>
+											<Button
+												variant="secondary"
+												icon={<BookTemplate size={13} />}
+												onClick={onOpenTemplatePicker}
+												style={{ width: "100%", justifyContent: "center" }}
+											>
+												{t("workbench.template.picker.newFromTemplate")}
+											</Button>
+										</div>
 									)}
 								</div>
 							</div>
