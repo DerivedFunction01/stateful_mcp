@@ -234,33 +234,6 @@ export function WorkbenchInspector({
 				})}
 
 				<div className="inspector-strip-spacer" />
-
-				{/* Close / Collapse Button */}
-				{onToggleOpen && (
-					<button
-						type="button"
-						className="inspector-strip-btn"
-						title={t(
-							isOpen
-								? "workbench.collapseInspector"
-								: "workbench.expandInspector",
-						)}
-						onClick={onToggleOpen}
-						aria-label={t("workbench.toggleInspectorVisibility")}
-					>
-						{isOpen ? (
-							dockPosition === "right" ? (
-								<ChevronRight size={18} />
-							) : (
-								<ChevronLeft size={18} />
-							)
-						) : dockPosition === "right" ? (
-							<ChevronLeft size={18} />
-						) : (
-							<ChevronRight size={18} />
-						)}
-					</button>
-				)}
 			</nav>
 
 			{/* Main Inspector Panel Body (Visible when open) */}
@@ -274,19 +247,6 @@ export function WorkbenchInspector({
 								<Badge tone={errorCount > 0 ? "danger" : "warning"}>
 									{allDiagnostics.length}
 								</Badge>
-							)}
-						</div>
-						<div className="inspector-header-actions">
-							{onToggleOpen && (
-								<button
-									type="button"
-									className="icon-button"
-									title={t("workbench.closeInspector")}
-									onClick={onToggleOpen}
-									aria-label={t("workbench.closeInspector")}
-								>
-									<X size={13} />
-								</button>
 							)}
 						</div>
 					</header>
