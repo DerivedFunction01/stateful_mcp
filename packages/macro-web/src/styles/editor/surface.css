@@ -75,3 +75,172 @@
 .editor-surface-view {
 	position: relative;
 }
+
+/* =========================================================================
+   Editor Group Header & Tabs
+   ========================================================================= */
+
+.editor-group-header {
+	height: 35px;
+	min-height: 35px;
+	background: var(--theme-surface-secondary);
+	border-bottom: 1px solid var(--theme-border-subtle);
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	overflow: hidden;
+	padding: 0 6px 0 0;
+	user-select: none;
+	transition: opacity 0.15s ease;
+}
+
+.editor-group-header--active {
+	opacity: 1;
+}
+
+.editor-group-header--inactive {
+	opacity: 0.78;
+}
+
+.workbench-tabs {
+	display: flex;
+	align-items: stretch;
+	flex: 1;
+	min-width: 0;
+	height: 100%;
+	overflow-x: auto;
+	overflow-y: hidden;
+	gap: 1px;
+	scrollbar-width: none;
+}
+
+.workbench-tabs::-webkit-scrollbar {
+	display: none;
+}
+
+.workbench-document-tab {
+	display: flex;
+	align-items: center;
+	padding: 0 10px;
+	background: var(--theme-surface-tertiary);
+	border-right: 1px solid var(--theme-border-subtle);
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+	gap: 6px;
+	height: 100%;
+	flex: 0 0 auto;
+	min-width: 90px;
+	max-width: 180px;
+	white-space: nowrap;
+	user-select: none;
+	cursor: pointer;
+	border-top: 2px solid transparent;
+	transition:
+		background-color 0.15s ease,
+		border-top-color 0.15s ease;
+}
+
+.workbench-document-tab.active {
+	background: var(--theme-surface-primary);
+	color: var(--theme-content-primary);
+	font-weight: 500;
+	border-top-color: var(--theme-border-focus);
+}
+
+.workbench-document-tab.active.group-focused {
+	border-top-color: var(--theme-content-accent);
+}
+
+.tab-title-btn {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	flex: 1;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.tab-title-btn span:first-child {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	min-width: 0;
+	flex: 1;
+}
+
+.tab-dirty-indicator {
+	color: var(--theme-content-accent);
+	font-weight: bold;
+	flex-shrink: 0;
+}
+
+.workbench-tab-close {
+	background: transparent;
+	border: 0;
+	color: var(--theme-content-tertiary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2px;
+	border-radius: 3px;
+	flex-shrink: 0;
+}
+
+.workbench-tab-close:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
+
+.tab-new-btn {
+	background: transparent;
+	border: 0;
+	color: var(--theme-content-tertiary);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 0 8px;
+	height: 100%;
+	flex-shrink: 0;
+}
+
+.tab-new-btn:hover {
+	color: var(--theme-content-accent);
+}
+
+.editor-group-actions {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	flex-shrink: 0;
+	margin-left: auto;
+	z-index: 2;
+	padding-left: 6px;
+	border-left: 1px solid var(--theme-border-subtle);
+	box-shadow: -4px 0 8px
+		color-mix(in srgb, var(--theme-surface-secondary) 85%, transparent);
+}
+
+.editor-split-btn,
+.editor-preview-btn {
+	background: var(--theme-surface-tertiary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 4px;
+	color: var(--theme-content-secondary);
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	font-size: 11px;
+	height: 24px;
+}
+
+.editor-split-btn:hover,
+.editor-preview-btn:hover {
+	background: var(--theme-action-ghost-surface-hover);
+	color: var(--theme-content-primary);
+}
