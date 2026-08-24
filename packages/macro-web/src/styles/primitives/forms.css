@@ -139,3 +139,79 @@
 .search-box input::placeholder {
 	color: var(--theme-content-tertiary);
 }
+
+/* Toggle Switch (Radix Switch.Root + .toggle-row wrapper) */
+.toggle-row {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	font-size: 13px;
+	color: var(--theme-content-secondary);
+	user-select: none;
+	white-space: nowrap;
+	transition: color 0.15s ease;
+}
+
+.toggle-row:hover {
+	color: var(--theme-content-primary);
+}
+
+.toggle {
+	all: unset;
+	box-sizing: border-box;
+	position: relative;
+	width: 36px;
+	height: 20px;
+	background: var(--theme-surface-tertiary);
+	border: 1px solid var(--theme-border-default);
+	border-radius: 10px;
+	flex-shrink: 0;
+	cursor: pointer;
+	transition:
+		background-color 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.toggle:hover {
+	background: var(--theme-surface-elevated);
+	border-color: var(--theme-border-strong);
+}
+
+.toggle:focus-visible {
+	outline: var(--theme-focus-ring-width) solid var(--theme-border-focus);
+	outline-offset: 2px;
+}
+
+.toggle[data-state="checked"],
+.toggle.toggle-checked {
+	background: var(--theme-action-primary-surface-default);
+	border-color: var(--theme-action-primary-border);
+}
+
+.toggle[data-state="checked"]:hover,
+.toggle.toggle-checked:hover {
+	background: var(--theme-action-primary-surface-hover);
+}
+
+.toggle > span,
+.toggle > [data-radix-collection-item] {
+	all: unset;
+	display: block;
+	box-sizing: border-box;
+	width: 14px;
+	height: 14px;
+	background: var(--theme-content-primary);
+	border-radius: 50%;
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	box-shadow: 0 1px 3px rgb(0 0 0 / 20%);
+	transition: transform 0.15s ease;
+}
+
+.toggle[data-state="checked"] > span,
+.toggle.toggle-checked > [data-radix-collection-item] {
+	transform: translateX(16px);
+	background: var(--theme-action-primary-content);
+}
