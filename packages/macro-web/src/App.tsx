@@ -9,6 +9,7 @@ import {
 	type PrimarySidebarTab,
 } from "./components/ActivityRail";
 import { CommandPalette } from "./components/CommandPalette";
+import { ExtensionActivationGroupsModal } from "./components/ExtensionActivationGroupsModal";
 import { FindOverlay } from "./components/FindOverlay";
 import { Gallery } from "./components/Gallery";
 import { HostRoute } from "./components/HostRoute";
@@ -108,6 +109,7 @@ export function App() {
 	const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
 	const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
 	const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
+	const [isActivationGroupsOpen, setIsActivationGroupsOpen] = useState(false);
 	const [editingTemplate, setEditingTemplate] =
 		useState<
 			import("@stateful-mcp/macro-protocol").ScratchpadTemplateDescriptor
@@ -597,7 +599,9 @@ export function App() {
 				initialReplacement={findSession.replacement}
 				vimMode={findSession.vimSearch}
 				onFind={(query, direction, navigate, options) => {
-					const result = findAdapter()?.searchText?.(
+					const adapter = findAdapter();
+					if (!adapter?.searchText) return undefined;
+					const result = adapter.searchText(
 						query,
 						direction,
 						navigate,
@@ -969,8 +973,21 @@ export function App() {
 						setIsProjectSettingsOpen(false);
 						setIsTemplatePickerOpen(true);
 					}}
+					onManageActivationGroups={() => {
+						setIsProjectSettingsOpen(false);
+						setIsActivationGroupsOpen(true);
+					}}
 					onUpdated={(result) => {
-						if (result.status === "accepted")
+						if (result.status === "accepted" && result.snapshot)
+							store.installSnapshot(result.snapshot);
+					}}
+				/>
+				<ExtensionActivationGroupsModal
+					isOpen={isActivationGroupsOpen}
+					client={host}
+					onClose={() => setIsActivationGroupsOpen(false)}
+					onUpdated={(result) => {
+						if (result.status === "accepted" && result.snapshot)
 							store.installSnapshot(result.snapshot);
 					}}
 				/>

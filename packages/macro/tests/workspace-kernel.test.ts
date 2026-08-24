@@ -385,8 +385,8 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			expect(i18n.t("greeting", { name: "Antigravity" })).toBe(
 				"¡Hola, Antigravity!",
 			);
-			// Cascades to English for missing Spanish key
-			expect(i18n.t("count", { count: 5 })).toBe("5 items found");
+			// Missing translations are visible as their translation key.
+			expect(i18n.t("count", { count: 5 })).toBe("count");
 		});
 
 		test("default i18n kernel contains built-in shell strings", () => {

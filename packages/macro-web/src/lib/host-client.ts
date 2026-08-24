@@ -9,6 +9,10 @@ import {
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
 	type ProjectConfigurationDto,
+	type ProjectConfigurationEditDto,
+	type ProjectExtensionGroupDraft,
+	type ProjectExtensionGroupOperationResult,
+	type ProjectExtensionGroupPatch,
 	type ProjectMigrationJournalStatusDto,
 	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
@@ -103,9 +107,44 @@ export interface HostClient {
 	closeProject(): Promise<HostWorkspaceSnapshot>;
 	getProjectConfiguration?(): Promise<ProjectConfigurationDto>;
 	updateProjectConfiguration?(
-		configuration: ProjectConfigurationDto,
+		configuration: ProjectConfigurationEditDto,
 		expectedRevision: string,
 	): Promise<ProjectOperationResult>;
+	previewExtensionGroup?(
+		groupId?: string,
+		extensionIds?: readonly string[],
+		setActive?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
+	updateExtensionGroup?(
+		patch: ProjectExtensionGroupPatch,
+		expectedRevision: string,
+		apply?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
+	createExtensionGroup?(
+		group: ProjectExtensionGroupDraft,
+		expectedRevision: string,
+		apply?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
+	duplicateExtensionGroup?(
+		sourceGroupId: string,
+		expectedRevision: string,
+		displayName?: string,
+		groupId?: string,
+		setActive?: boolean,
+		apply?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
+	deleteExtensionGroup?(
+		groupId: string,
+		expectedRevision: string,
+		replacementGroupId?: string,
+		clearActive?: boolean,
+		apply?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
+	setActiveExtensionGroup?(
+		groupId: string | null,
+		expectedRevision: string,
+		apply?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult>;
 	previewBackendMigration?(
 		target: ProjectConfigurationDto["backend"],
 	): Promise<ProjectOperationResult>;
@@ -435,7 +474,7 @@ export class BrowserHostClient implements HostClient {
 	}
 
 	async updateProjectConfiguration(
-		configuration: ProjectConfigurationDto,
+		configuration: ProjectConfigurationEditDto,
 		expectedRevision: string,
 	): Promise<ProjectOperationResult> {
 		const sessionId = this.requireSession();
@@ -453,6 +492,121 @@ export class BrowserHostClient implements HostClient {
 			},
 		);
 		if (result.status === "accepted") this.snapshot = result.snapshot;
+		return result;
+	}
+
+	async previewExtensionGroup(
+		groupId?: string,
+		extensionIds?: readonly string[],
+		setActive?: boolean,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectExtensionGroupOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.previewExtensionGroup",
+				sessionId,
+				payload: {
+					operation: "project.previewExtensionGroup",
+					requestId: crypto.randomUUID(),
+					...(groupId === undefined ? {} : { groupId }),
+					...(extensionIds === undefined ? {} : { extensionIds }),
+					...(setActive === undefined ? {} : { setActive }),
+				},
+			},
+		);
+	}
+
+	async updateExtensionGroup(
+		patch: ProjectExtensionGroupPatch,
+		expectedRevision: string,
+		apply = false,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.requestGroupOperation("project.updateExtensionGroup", {
+			patch,
+			expectedRevision,
+			apply,
+		});
+	}
+
+	async createExtensionGroup(
+		group: ProjectExtensionGroupDraft,
+		expectedRevision: string,
+		apply = false,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.requestGroupOperation("project.createExtensionGroup", {
+			group,
+			expectedRevision,
+			apply,
+		});
+	}
+
+	async duplicateExtensionGroup(
+		sourceGroupId: string,
+		expectedRevision: string,
+		displayName?: string,
+		groupId?: string,
+		setActive?: boolean,
+		apply = false,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.requestGroupOperation("project.duplicateExtensionGroup", {
+			sourceGroupId,
+			expectedRevision,
+			...(displayName === undefined ? {} : { displayName }),
+			...(groupId === undefined ? {} : { groupId }),
+			...(setActive === undefined ? {} : { setActive }),
+			apply,
+		});
+	}
+
+	async deleteExtensionGroup(
+		groupId: string,
+		expectedRevision: string,
+		replacementGroupId?: string,
+		clearActive?: boolean,
+		apply = false,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.requestGroupOperation("project.deleteExtensionGroup", {
+			groupId,
+			expectedRevision,
+			...(replacementGroupId === undefined ? {} : { replacementGroupId }),
+			...(clearActive === undefined ? {} : { clearActive }),
+			apply,
+		});
+	}
+
+	async setActiveExtensionGroup(
+		groupId: string | null,
+		expectedRevision: string,
+		apply = false,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.requestGroupOperation("project.setActiveExtensionGroup", {
+			groupId,
+			expectedRevision,
+			apply,
+		});
+	}
+
+	private async requestGroupOperation(
+		operation:
+			| "project.updateExtensionGroup"
+			| "project.createExtensionGroup"
+			| "project.duplicateExtensionGroup"
+			| "project.deleteExtensionGroup"
+			| "project.setActiveExtensionGroup",
+		payload: Record<string, unknown>,
+	): Promise<ProjectExtensionGroupOperationResult> {
+		const sessionId = this.requireSession();
+		const result = await this.request<ProjectExtensionGroupOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: operation,
+				sessionId,
+				payload: { operation, requestId: crypto.randomUUID(), ...payload },
+			},
+		);
+		if (result.status === "accepted" && result.snapshot)
+			this.snapshot = result.snapshot;
 		return result;
 	}
 

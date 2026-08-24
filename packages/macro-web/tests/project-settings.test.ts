@@ -2,7 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createMacroHost } from "@stateful-mcp/macro-host";
-import type { ProjectConfigurationDto } from "@stateful-mcp/macro-protocol";
+import type {
+	ProjectConfigurationDto,
+	ProjectConfigurationEditDto,
+} from "@stateful-mcp/macro-protocol";
 import { HostSessionManager } from "../src/server/host-session-manager";
 
 async function createProjectSession() {
@@ -16,12 +19,23 @@ async function createProjectSession() {
 	return { host, sessions, root, sessionId: snapshot.sessionId };
 }
 
+function editable(
+	configuration: ProjectConfigurationDto,
+): ProjectConfigurationEditDto {
+	const {
+		extensionGroups: _extensionGroups,
+		activeExtensionGroupId: _activeExtensionGroupId,
+		...result
+	} = configuration;
+	return result;
+}
+
 describe("project configuration", () => {
 	test("reads and persists editable manifest fields", async () => {
 		const context = await createProjectSession();
 		const current = context.sessions.getProjectConfiguration(context.sessionId);
 		const updated = {
-			...current,
+			...editable(current),
 			displayName: "Updated Project",
 			uiLocale: "es",
 		};
@@ -50,7 +64,7 @@ describe("project configuration", () => {
 		const result = await context.sessions.updateProjectConfiguration(
 			context.sessionId,
 			{
-				configuration: { ...current, displayName: "Stale" },
+				configuration: { ...editable(current), displayName: "Stale" },
 				expectedRevision: "stale-revision",
 			},
 		);
@@ -62,21 +76,17 @@ describe("project configuration", () => {
 		await context.host.dispose();
 	});
 
-	test("rejects an unknown active extension profile", async () => {
+	test("rejects extension group fields on general configuration updates", async () => {
 		const context = await createProjectSession();
 		const current = context.sessions.getProjectConfiguration(context.sessionId);
 		const result = await context.sessions.updateProjectConfiguration(
 			context.sessionId,
 			{
-				configuration: { ...current, activeExtensionProfileId: "ghost" },
+				configuration: current,
 				expectedRevision: current.revision,
 			},
 		);
 		expect(result.status).toBe("rejected");
-		expect(
-			context.sessions.getProjectConfiguration(context.sessionId)
-				.activeExtensionProfileId,
-		).toBeUndefined();
 		await context.sessions.disposeAll();
 		await context.host.dispose();
 	});
@@ -87,7 +97,7 @@ describe("project configuration", () => {
 		const result = await context.sessions.updateProjectConfiguration(
 			context.sessionId,
 			{
-				configuration: { ...current, uiLocale: "fr" },
+				configuration: { ...editable(current), uiLocale: "fr" },
 				expectedRevision: current.revision,
 			},
 		);
@@ -102,8 +112,8 @@ describe("project configuration", () => {
 	test("requires migration before changing backend", async () => {
 		const context = await createProjectSession();
 		const current = context.sessions.getProjectConfiguration(context.sessionId);
-		const target: ProjectConfigurationDto = {
-			...current,
+		const target: ProjectConfigurationEditDto = {
+			...editable(current),
 			backend: { kind: "sqlite", path: ".macro/state.sqlite" },
 		};
 		const result = await context.sessions.updateProjectConfiguration(

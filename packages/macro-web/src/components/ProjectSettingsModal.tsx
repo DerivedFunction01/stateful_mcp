@@ -5,31 +5,14 @@ import type {
 	ProjectOperationResult,
 	ProjectSettingsContributionDto,
 } from "@stateful-mcp/macro-protocol";
-import { Copy, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Settings2, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import type { HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
-import {
-	Badge,
-	Button,
-	Diagnostic,
-	IconButton,
-	TextInput,
-} from "./ui/primitives";
+import { Badge, Button, Diagnostic, TextInput } from "./ui/primitives";
 
 function jsonText(value: unknown): string {
 	return JSON.stringify(value ?? [], null, 2);
-}
-
-function sanitizeProfileId(raw: string): string {
-	const cleaned = raw
-		.trim()
-		.toLowerCase()
-		.replace(/\s+/g, "-")
-		.replace(/[^a-z0-9_-]/g, "")
-		.replace(/-+/g, "-")
-		.replace(/^-|-$/g, "");
-	return cleaned;
 }
 
 export function ProjectSettingsModal({
@@ -38,17 +21,18 @@ export function ProjectSettingsModal({
 	onClose,
 	onUpdated,
 	onManageTemplates,
+	onManageActivationGroups,
 }: {
 	readonly isOpen: boolean;
 	readonly client: HostClient;
 	readonly onClose: () => void;
 	readonly onUpdated?: (result: ProjectOperationResult) => void;
 	readonly onManageTemplates?: () => void;
+	readonly onManageActivationGroups?: () => void;
 }) {
 	const { t, availableLocales } = useI18n();
 	const [configuration, setConfiguration] = useState<ProjectConfigurationDto>();
 	const [draft, setDraft] = useState<ProjectConfigurationDto>();
-	const [activeExtensionProfileId, setActiveExtensionProfileId] = useState("");
 	const [projectSettings, setProjectSettings] = useState<
 		ProjectConfigurationDto["projectSettings"]
 	>({});
@@ -63,12 +47,6 @@ export function ProjectSettingsModal({
 	const [journalBusy, setJournalBusy] = useState(false);
 	const [journalResult, setJournalResult] =
 		useState<ProjectMigrationRecoveryResultDto | null>(null);
-	const [creatingProfile, setCreatingProfile] = useState(false);
-	const [newProfileName, setNewProfileName] = useState("");
-	const [renamingProfileId, setRenamingProfileId] = useState<string | null>(
-		null,
-	);
-	const [renameValue, setRenameValue] = useState("");
 
 	useEffect(() => {
 		if (!isOpen) return;
@@ -79,9 +57,6 @@ export function ProjectSettingsModal({
 		setConfiguration(undefined);
 		setDraft(undefined);
 		setError(undefined);
-		setCreatingProfile(false);
-		setNewProfileName("");
-		setRenamingProfileId(null);
 		setMigrationJournal(null);
 		setJournalResult(null);
 		void client
@@ -89,7 +64,6 @@ export function ProjectSettingsModal({
 			.then((value) => {
 				setConfiguration(value);
 				setDraft(value);
-				setActiveExtensionProfileId(value.activeExtensionProfileId ?? "");
 				setProjectSettings(value.projectSettings ?? {});
 				setTargetBackend(value.backend.kind);
 				if (client.getMigrationJournal) void refreshJournal();
@@ -102,34 +76,36 @@ export function ProjectSettingsModal({
 	// Keep every hook above the closed-modal early return. The modal remains
 	// mounted while closed, so conditional hook execution would change the hook
 	// order when project data is loaded/opened.
-	const extensionsById = useMemo(
-		() =>
-			new Map(
-				(draft?.extensions ?? []).map((extension) => [extension.id, extension]),
-			),
-		[draft?.extensions],
-	);
 
 	if (!isOpen) return null;
 
 	const update = (change: Partial<ProjectConfigurationDto>) =>
 		setDraft((value) => (value ? { ...value, ...change } : value));
-	const profileIds = draft ? Object.keys(draft.extensionProfiles ?? {}) : [];
 	const resolvedLocale = Intl.DateTimeFormat().resolvedOptions().locale;
 	const localeIds = availableLocales.map((locale) => locale.id);
 	const localeDisplayNames = new Intl.DisplayNames([resolvedLocale], {
 		type: "language",
 	});
 
+	const activeGroupId = draft?.activeExtensionGroupId ?? "";
+	const groupCount = Object.keys(draft?.extensionGroups ?? {}).length;
+	const activeMemberCount = activeGroupId
+		? (draft?.extensionGroups?.[activeGroupId]?.extensionIds?.length ?? 0)
+		: 0;
+
 	const save = async () => {
 		if (!draft || !configuration || !client.updateProjectConfiguration) return;
 		setBusy(true);
 		setError(undefined);
 		try {
+			const {
+				extensionGroups: _extensionGroups,
+				activeExtensionGroupId: _activeExtensionGroupId,
+				...editableConfiguration
+			} = draft;
 			const result = await client.updateProjectConfiguration(
 				{
-					...draft,
-					activeExtensionProfileId: activeExtensionProfileId || undefined,
+					...editableConfiguration,
 					projectSettings,
 				},
 				configuration.revision,
@@ -199,7 +175,6 @@ export function ProjectSettingsModal({
 					const refreshed = await client.getProjectConfiguration();
 					setConfiguration(refreshed);
 					setDraft(refreshed);
-					setActiveExtensionProfileId(refreshed.activeExtensionProfileId ?? "");
 					setProjectSettings(refreshed.projectSettings ?? {});
 					setTargetBackend(refreshed.backend.kind);
 				}
@@ -280,7 +255,6 @@ export function ProjectSettingsModal({
 				const refreshed = await client.getProjectConfiguration();
 				setConfiguration(refreshed);
 				setDraft(refreshed);
-				setActiveExtensionProfileId(refreshed.activeExtensionProfileId ?? "");
 				setProjectSettings(refreshed.projectSettings ?? {});
 				setTargetBackend(refreshed.backend.kind);
 			}
@@ -291,109 +265,6 @@ export function ProjectSettingsModal({
 		} finally {
 			setJournalBusy(false);
 		}
-	};
-
-	// ---- Activation group (extension profile) CRUD --------------------------
-
-	const commitCreateProfile = () => {
-		if (!draft) return;
-		const existing = draft.extensionProfiles ?? {};
-		const id =
-			sanitizeProfileId(newProfileName) || `group-${profileIds.length + 1}`;
-		if (id in existing) {
-			setError(t("project.settings.duplicateGroupName", { name: id }));
-			return;
-		}
-		update({ extensionProfiles: { ...existing, [id]: [] } });
-		setActiveExtensionProfileId(id);
-		setCreatingProfile(false);
-		setNewProfileName("");
-		setError(undefined);
-	};
-
-	const commitRenameProfile = (oldId: string) => {
-		if (!draft) return;
-		const existing = draft.extensionProfiles ?? {};
-		const id = sanitizeProfileId(renameValue) || oldId;
-		if (id !== oldId) {
-			if (id in existing) {
-				setError(t("project.settings.duplicateGroupName", { name: id }));
-				return;
-			}
-			const next = { ...existing, [id]: existing[oldId] ?? [] };
-			delete next[oldId];
-			update({ extensionProfiles: next });
-			if (activeExtensionProfileId === oldId) setActiveExtensionProfileId(id);
-		}
-		setRenamingProfileId(null);
-		setError(undefined);
-	};
-
-	const duplicateProfile = (sourceId: string) => {
-		if (!draft) return;
-		const existing = draft.extensionProfiles ?? {};
-		let id = `${sourceId}-copy`;
-		let n = 1;
-		while (id in existing) id = `${sourceId}-copy-${++n}`;
-		update({
-			extensionProfiles: { ...existing, [id]: existing[sourceId] ?? [] },
-		});
-		setActiveExtensionProfileId(id);
-	};
-
-	const deleteProfile = (id: string) => {
-		if (!draft) return;
-		if (!window.confirm(t("project.settings.confirmDeleteGroup", { name: id })))
-			return;
-		const existing = draft.extensionProfiles ?? {};
-		const next = { ...existing };
-		delete next[id];
-		update({ extensionProfiles: next });
-		if (activeExtensionProfileId === id) setActiveExtensionProfileId("");
-	};
-
-	// ---- Dependency-aware membership editing --------------------------------
-
-	const activeMembers = activeExtensionProfileId
-		? (draft?.extensionProfiles?.[activeExtensionProfileId] ?? [])
-		: [];
-
-	const setMembers = (profileId: string, ids: readonly string[]) => {
-		if (!draft) return;
-		update({
-			extensionProfiles: {
-				...(draft.extensionProfiles ?? {}),
-				[profileId]: ids,
-			},
-		});
-	};
-
-	const toggleExtension = (extensionId: string, checked: boolean) => {
-		if (!activeExtensionProfileId) return;
-		const current = new Set(activeMembers);
-		if (checked) {
-			current.add(extensionId);
-			const queue = [extensionId];
-			while (queue.length) {
-				const id = queue.shift() as string;
-				for (const dependency of extensionsById.get(id)?.requires ?? []) {
-					if (!current.has(dependency)) {
-						current.add(dependency);
-						queue.push(dependency);
-					}
-				}
-			}
-		} else {
-			current.delete(extensionId);
-		}
-		setMembers(activeExtensionProfileId, [...current]);
-	};
-
-	const isLocked = (extensionId: string): boolean => {
-		if (!activeExtensionProfileId) return false;
-		return (draft?.extensions ?? [])
-			.filter((extension) => extension.requires?.includes(extensionId))
-			.some((extension) => activeMembers.includes(extension.id));
 	};
 
 	return (
@@ -442,189 +313,28 @@ export function ProjectSettingsModal({
 								label: localeDisplayNames.of(value) ?? value,
 							}))}
 						/>
-						<SelectField
-							label={t("project.settings.activeExtensionProfile")}
-							value={activeExtensionProfileId}
-							onChange={setActiveExtensionProfileId}
-							options={profileIds.map((value) => ({ value, label: value }))}
-							emptyLabel={t("project.settings.noProfile")}
-						/>
-
 						<section className="project-settings-section">
 							<div className="project-settings-section-heading">
-								<h3>{t("project.settings.extensionProfiles")}</h3>
-								<Button
-									variant="ghost"
-									icon={<Plus size={14} />}
-									onClick={() => {
-										setCreatingProfile(true);
-										setNewProfileName("");
-									}}
-								>
-									{t("project.settings.createGroup")}
+								<h3>{t("project.settings.activeGroup")}</h3>
+								<Button onClick={onManageActivationGroups}>
+									{t("project.settings.manageActivationGroups")}
 								</Button>
 							</div>
-							{creatingProfile && (
-								<div className="project-settings-profile-create">
-									<TextInput
-										label={t("project.settings.groupName")}
-										value={newProfileName}
-										placeholder={t("project.settings.groupNamePlaceholder")}
-										onChange={(event) => setNewProfileName(event.target.value)}
-										autoFocus
-									/>
-									<div className="project-settings-profile-actions">
-										<Button
-											variant="primary"
-											onClick={() => commitCreateProfile()}
-										>
-											{t("project.settings.add")}
-										</Button>
-										<Button
-											variant="ghost"
-											onClick={() => setCreatingProfile(false)}
-										>
-											{t("project.settings.cancel")}
-										</Button>
-									</div>
+							{activeGroupId ? (
+								<div className="project-settings-group-summary">
+									<strong>{activeGroupId}</strong>
+									<span>
+										{t("project.settings.activationGroupsSummary", {
+											count: groupCount,
+											members: activeMemberCount,
+										})}
+									</span>
 								</div>
-							)}
-							{profileIds.length === 0 && !creatingProfile && (
+							) : (
 								<span className="project-settings-hint">
-									{t("project.settings.noGroups")}
+									{t("project.settings.noActiveGroup")}
 								</span>
 							)}
-							{profileIds.map((profileId) => {
-								const isActive = profileId === activeExtensionProfileId;
-								const memberCount =
-									draft.extensionProfiles?.[profileId]?.length ?? 0;
-								return (
-									<div
-										className={
-											isActive
-												? "project-settings-profile-row active"
-												: "project-settings-profile-row"
-										}
-										key={profileId}
-									>
-										<button
-											type="button"
-											className="project-settings-profile-select"
-											onClick={() => setActiveExtensionProfileId(profileId)}
-											aria-pressed={isActive}
-										>
-											{renamingProfileId === profileId ? (
-												<TextInput
-													label=""
-													value={renameValue}
-													onChange={(event) =>
-														setRenameValue(event.target.value)
-													}
-													autoFocus
-													onKeyDown={(event) => {
-														if (event.key === "Enter")
-															commitRenameProfile(profileId);
-														if (event.key === "Escape")
-															setRenamingProfileId(null);
-													}}
-												/>
-											) : (
-												<>
-													<strong>{profileId}</strong>
-													<small>
-														{t("project.settings.memberCount", {
-															count: memberCount,
-														})}
-													</small>
-												</>
-											)}
-										</button>
-										<div className="project-settings-profile-actions">
-											{renamingProfileId === profileId ? (
-												<Button
-													variant="primary"
-													onClick={() => commitRenameProfile(profileId)}
-												>
-													{t("project.settings.renameGroup")}
-												</Button>
-											) : (
-												<IconButton
-													label={t("project.settings.renameGroup")}
-													onClick={() => {
-														setRenamingProfileId(profileId);
-														setRenameValue(profileId);
-													}}
-												>
-													<Pencil size={14} />
-												</IconButton>
-											)}
-											<IconButton
-												label={t("project.settings.duplicateGroup")}
-												onClick={() => duplicateProfile(profileId)}
-											>
-												<Copy size={14} />
-											</IconButton>
-											<IconButton
-												label={t("project.settings.deleteGroup")}
-												onClick={() => deleteProfile(profileId)}
-											>
-												<Trash2 size={14} />
-											</IconButton>
-										</div>
-									</div>
-								);
-							})}
-						</section>
-
-						<section className="project-settings-section">
-							<h3>{t("project.settings.extensions")}</h3>
-							{!activeExtensionProfileId && (
-								<span className="project-settings-hint">
-									{t("project.settings.membershipHint")}
-								</span>
-							)}
-							{(draft.extensions ?? []).map((extension) => {
-								const enabled = activeMembers.includes(extension.id);
-								const locked = isLocked(extension.id);
-								return (
-									<label
-										className={
-											locked
-												? "project-settings-extension-row locked"
-												: "project-settings-extension-row"
-										}
-										key={extension.id}
-									>
-										<input
-											type="checkbox"
-											checked={enabled}
-											disabled={!activeExtensionProfileId || locked}
-											onChange={(event) =>
-												toggleExtension(extension.id, event.target.checked)
-											}
-										/>
-										<span>
-											<strong>{extension.id}</strong>
-											<small>
-												{extension.source} · {extension.version}
-											</small>
-											{extension.requires?.length ? (
-												<small>
-													{" "}
-													{t("project.settings.requires", {
-														names: extension.requires.join(", "),
-													})}
-												</small>
-											) : null}
-										</span>
-										{locked && (
-											<Badge tone="info">
-												{t("project.settings.lockedDependency")}
-											</Badge>
-										)}
-									</label>
-								);
-							})}
 						</section>
 
 						{draft.projectSettingsContributions.map((contribution) => (

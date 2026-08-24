@@ -30,7 +30,20 @@ describe("MacroHost", () => {
 					{ id: "alpha", source: "./extensions/alpha.ts", version: "1.0.0" },
 					{ id: "beta", source: "./extensions/beta.ts", version: "1.0.0" },
 				],
-				profiles: { alpha: ["alpha"], beta: ["beta"] },
+				extensionGroups: {
+					alpha: {
+						id: "alpha",
+						displayName: "alpha",
+						extensionIds: ["alpha"],
+						source: "project",
+					},
+					beta: {
+						id: "beta",
+						displayName: "beta",
+						extensionIds: ["beta"],
+						source: "project",
+					},
+				},
 			}),
 		);
 
@@ -38,8 +51,8 @@ describe("MacroHost", () => {
 			workspacePath: manifestPath,
 			defaults: {},
 		});
-		const alpha = await host.createWorkspace({ extensionProfileId: "alpha" });
-		const beta = await host.createWorkspace({ extensionProfileId: "beta" });
+		const alpha = await host.createWorkspace({ extensionGroupId: "alpha" });
+		const beta = await host.createWorkspace({ extensionGroupId: "beta" });
 
 		expect(alpha.workspace).not.toBe(beta.workspace);
 		expect(
@@ -54,19 +67,32 @@ describe("MacroHost", () => {
 		await host.dispose();
 	});
 
-	test("resolves an explicitly selected profile without mutating the manifest", () => {
+	test("resolves an explicitly selected group without mutating the manifest", () => {
 		const manifest: MacroWorkspaceManifest = {
 			extensions: [
 				{ id: "alpha", source: "alpha.ts", version: "1.0.0" },
 				{ id: "beta", source: "beta.ts", version: "1.0.0" },
 			],
-			profiles: { alpha: ["alpha"], beta: ["beta"] },
-			activeProfile: "alpha",
+			extensionGroups: {
+				alpha: {
+					id: "alpha",
+					displayName: "alpha",
+					extensionIds: ["alpha"],
+					source: "project",
+				},
+				beta: {
+					id: "beta",
+					displayName: "beta",
+					extensionIds: ["beta"],
+					source: "project",
+				},
+			},
+			activeExtensionGroupId: "alpha",
 		};
 
 		const resolved = resolveWorkspaceExtensions(manifest, "beta");
-		expect(resolved.activeProfile).toBe("beta");
+		expect(resolved.activeExtensionGroupId).toBe("beta");
 		expect(resolved.extensions.map((item) => item.id)).toEqual(["beta"]);
-		expect(manifest.activeProfile).toBe("alpha");
+		expect(manifest.activeExtensionGroupId).toBe("alpha");
 	});
 });

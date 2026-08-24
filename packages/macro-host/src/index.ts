@@ -1,3 +1,9 @@
+export type {
+	MacroProjectExtensionSpec,
+	MacroProjectManifest,
+	ProjectExtensionActivationGroup,
+	ProjectExtensionGroupResolution,
+} from "@stateful-mcp/macro";
 export {
 	MacroProjectConflictError,
 	MacroProjectFormatError,

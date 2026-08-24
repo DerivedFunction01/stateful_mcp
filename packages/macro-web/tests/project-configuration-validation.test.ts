@@ -6,14 +6,21 @@ import type {
 import { validateProjectConfiguration } from "../src/server/project-configuration-validation";
 
 const baseConfig: ProjectConfigurationDto = {
-	formatVersion: 1,
+	formatVersion: 2,
 	projectId: "project-1",
 	displayName: "Project",
 	backend: { kind: "jsonl", path: ".macro/state.jsonl" },
-	activeExtensionProfileId: "default",
+	activeExtensionGroupId: "default",
 	uiLocale: "en",
 	extensions: [{ id: "ext.a", source: "builtin", version: "1.0.0" }],
-	extensionProfiles: { default: ["ext.a"] },
+	extensionGroups: {
+		default: {
+			id: "default",
+			displayName: "Default",
+			source: "project",
+			extensionIds: ["ext.a"],
+		},
+	},
 	resources: [],
 	historyResources: [],
 	scratchpadResources: [],
@@ -56,28 +63,35 @@ describe("validateProjectConfiguration", () => {
 		expect(errors).toEqual([]);
 	});
 
-	test("rejects an unknown active extension profile", () => {
+	test("rejects an unknown active extension group", () => {
 		const errors = validateProjectConfiguration(
-			{ ...baseConfig, activeExtensionProfileId: "ghost" },
+			{ ...baseConfig, activeExtensionGroupId: "ghost" },
 			availableLocales,
 			[],
 		);
 		expect(errors).toEqual([
-			"Active extension profile 'ghost' is not defined in extensionProfiles",
+			"Active extension activation group 'ghost' does not exist",
 		]);
 	});
 
-	test("rejects profile memberships that reference unknown extensions", () => {
+	test("rejects a group with an empty display name", () => {
 		const errors = validateProjectConfiguration(
 			{
 				...baseConfig,
-				extensionProfiles: { default: ["ext.a", "ext.missing"] },
+				extensionGroups: {
+					default: {
+						id: "default",
+						displayName: "",
+						source: "project",
+						extensionIds: ["ext.a"],
+					},
+				},
 			},
 			availableLocales,
 			[],
 		);
 		expect(errors).toEqual([
-			"Extension profile 'default' references unknown extension 'ext.missing'",
+			"Extension activation group 'default' requires a display name",
 		]);
 	});
 

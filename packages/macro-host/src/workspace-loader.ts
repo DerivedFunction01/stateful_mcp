@@ -9,6 +9,9 @@ import {
 import type {
 	I18nKernel,
 	LoadedExtension,
+	ProjectExtensionActivationGroupMap,
+	ProjectExtensionGroupDiagnostic,
+	ProjectExtensionGroupResolution,
 	SettingsSchemaEntry,
 	SettingsSemanticProvider,
 	UserMacroProfile,
@@ -26,6 +29,8 @@ import {
 	ExtensionLoader as MacroExtensionLoader,
 	type MacroWorkspace,
 	resolveProfile,
+	resolveProjectExtensionGroup,
+	validateProjectExtensionGroups,
 	WorkspaceSettingsService,
 } from "@stateful-mcp/macro";
 import {
@@ -45,8 +50,9 @@ export interface WorkspaceExtensionSpec {
 export interface MacroWorkspaceManifest {
 	readonly $schema?: string;
 	readonly extensions: readonly WorkspaceExtensionSpec[];
-	readonly profiles?: Readonly<Record<string, readonly string[]>>;
-	readonly activeProfile?: string;
+	/** Extension Activation Groups keyed by their stable identifier. */
+	readonly extensionGroups?: ProjectExtensionActivationGroupMap;
+	readonly activeExtensionGroupId?: string;
 	readonly templates?: readonly import("@stateful-mcp/macro").MacroDocumentTemplate[];
 }
 
@@ -56,8 +62,10 @@ export interface LoadedMacroWorkspace {
 	readonly manifestPath?: string;
 	readonly profile?: UserMacroProfile;
 	readonly loadedExtensions: readonly LoadedExtension[];
-	readonly activeProfile?: string;
+	readonly activeExtensionGroupId?: string;
 	readonly resolvedExtensionIds: readonly string[];
+	/** Canonical resolution used to select and order the activated extensions. */
+	readonly extensionGroupResolution: ProjectExtensionGroupResolution;
 	readonly project?: MacroProject;
 }
 
@@ -75,7 +83,7 @@ export interface LoadMacroWorkspaceOptions {
 	readonly workspacePath?: string;
 	readonly profilePath?: string;
 	readonly profileId?: string;
-	readonly extensionProfileId?: string;
+	readonly extensionGroupId?: string;
 	readonly locale?: string;
 	readonly initialText?: string;
 	readonly templates?: readonly MacroDocumentTemplate[];
@@ -188,9 +196,12 @@ export async function loadMacroWorkspace(
 	const resolved = manifestResult
 		? resolveWorkspaceExtensions(
 				manifestResult.manifest,
-				options.extensionProfileId,
+				options.extensionGroupId,
 			)
-		: { extensions: [], activeProfile: undefined };
+		: {
+				extensions: [],
+				resolution: resolveProjectExtensionGroup({ extensions: [] }),
+			};
 	const loadedExtensions = manifestResult
 		? await loadManifestExtensions(
 				manifestResult.manifest,
@@ -327,8 +338,11 @@ export async function loadMacroWorkspace(
 		manifestPath: manifestResult?.path,
 		profile,
 		loadedExtensions,
-		activeProfile: resolved.activeProfile,
+		...(resolved.activeExtensionGroupId === undefined
+			? {}
+			: { activeExtensionGroupId: resolved.activeExtensionGroupId }),
 		resolvedExtensionIds: resolved.extensions.map((extension) => extension.id),
+		extensionGroupResolution: resolved.resolution,
 		...(project ? { project } : {}),
 	};
 }
@@ -338,8 +352,12 @@ function toWorkspaceManifest(
 ): MacroWorkspaceManifest {
 	return {
 		extensions: manifest.extensions,
-		profiles: manifest.extensionProfiles,
-		activeProfile: manifest.activeExtensionProfileId,
+		...(manifest.extensionGroups
+			? { extensionGroups: manifest.extensionGroups }
+			: {}),
+		...(manifest.activeExtensionGroupId === undefined
+			? {}
+			: { activeExtensionGroupId: manifest.activeExtensionGroupId }),
 	};
 }
 
@@ -370,91 +388,65 @@ export function validateWorkspaceManifest(
 		}
 		ids.add(entry.id);
 	}
-	if (manifest.activeProfile !== undefined) {
-		if (
-			!manifest.profiles ||
-			!Object.hasOwn(manifest.profiles, manifest.activeProfile)
-		) {
-			throw new Error(
-				`Unknown active workspace profile '${manifest.activeProfile}'`,
-			);
-		}
-	}
-	for (const [profileId, extensionIds] of Object.entries(
-		manifest.profiles ?? {},
-	)) {
-		if (
-			!profileId ||
-			!Array.isArray(extensionIds) ||
-			extensionIds.some((id) => typeof id !== "string" || !id)
-		) {
-			throw new Error(`Invalid workspace extension profile '${profileId}'`);
-		}
-		const profileIds = new Set<string>();
-		for (const id of extensionIds) {
-			if (profileIds.has(id))
-				throw new Error(
-					`Duplicate extension '${id}' in workspace profile '${profileId}'`,
-				);
-			if (!ids.has(id))
-				throw new Error(
-					`Workspace profile '${profileId}' references unknown extension '${id}'`,
-				);
-			profileIds.add(id);
-		}
-	}
+	assertNoGroupErrors(
+		validateProjectExtensionGroups({
+			extensions: manifest.extensions,
+			...(manifest.extensionGroups ? { groups: manifest.extensionGroups } : {}),
+			...(manifest.activeExtensionGroupId === undefined
+				? {}
+				: { activeGroupId: manifest.activeExtensionGroupId }),
+		}),
+	);
 }
 
+function assertNoGroupErrors(
+	diagnostics: readonly ProjectExtensionGroupDiagnostic[],
+): void {
+	const errors = diagnostics.filter(
+		(diagnostic) => diagnostic.severity === "error",
+	);
+	if (errors.length === 0) return;
+	throw new Error(
+		`Invalid workspace extension activation group: ${errors
+			.map((diagnostic) => diagnostic.message)
+			.join("; ")}`,
+	);
+}
+
+export interface WorkspaceExtensionResolution {
+	/** Resolved extensions in manifest declaration order. */
+	readonly extensions: readonly WorkspaceExtensionSpec[];
+	readonly activeExtensionGroupId?: string;
+	readonly resolution: ProjectExtensionGroupResolution;
+}
+
+/**
+ * Selects the extensions an activation group requires. Dependency closure,
+ * ordering, and diagnostics come from the canonical resolver in
+ * `@stateful-mcp/macro`; this wrapper only maps the result back onto manifest
+ * declarations and turns blocking diagnostics into load failures.
+ */
 export function resolveWorkspaceExtensions(
 	manifest: MacroWorkspaceManifest,
-	profileId?: string,
-): {
-	readonly extensions: readonly WorkspaceExtensionSpec[];
-	readonly activeProfile?: string;
-} {
+	groupId?: string,
+): WorkspaceExtensionResolution {
 	validateWorkspaceManifest(manifest);
-	if (
-		profileId !== undefined &&
-		(!manifest.profiles || !Object.hasOwn(manifest.profiles, profileId))
-	) {
-		throw new Error(`Unknown active workspace profile '${profileId}'`);
-	}
-	const byId = new Map(
-		manifest.extensions.map((extension) => [extension.id, extension]),
-	);
-	const activeProfile = profileId ?? manifest.activeProfile;
-	const selected =
-		activeProfile === undefined
-			? manifest.extensions.map((extension) => extension.id)
-			: [...(manifest.profiles?.[activeProfile] ?? [])];
-	const resolved = new Set<string>();
-	const visiting = new Set<string>();
-	const visit = (id: string): void => {
-		if (resolved.has(id)) return;
-		if (visiting.has(id))
-			throw new Error(
-				`Cyclic workspace extension dependency involving '${id}'`,
-			);
-		const extension = byId.get(id);
-		if (!extension)
-			throw new Error(`Workspace extension '${id}' is not declared`);
-		visiting.add(id);
-		for (const dependency of extension.requires ?? []) {
-			if (!byId.has(dependency))
-				throw new Error(
-					`Workspace extension '${id}' requires unavailable extension '${dependency}'`,
-				);
-			visit(dependency);
-		}
-		visiting.delete(id);
-		resolved.add(id);
-	};
-	for (const id of selected) visit(id);
+	const activeExtensionGroupId = groupId ?? manifest.activeExtensionGroupId;
+	const resolution = resolveProjectExtensionGroup({
+		extensions: manifest.extensions,
+		...(manifest.extensionGroups ? { groups: manifest.extensionGroups } : {}),
+		...(activeExtensionGroupId === undefined
+			? {}
+			: { groupId: activeExtensionGroupId }),
+	});
+	assertNoGroupErrors(resolution.diagnostics);
+	const selected = new Set(resolution.resolvedExtensionIds);
 	return {
 		extensions: manifest.extensions.filter((extension) =>
-			resolved.has(extension.id),
+			selected.has(extension.id),
 		),
-		...(activeProfile === undefined ? {} : { activeProfile }),
+		...(activeExtensionGroupId === undefined ? {} : { activeExtensionGroupId }),
+		resolution,
 	};
 }
 

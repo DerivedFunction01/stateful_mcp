@@ -309,6 +309,7 @@ function applySearchHighlights(
 	activeMatchIndex: number,
 ) {
 	if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
+	installSearchHighlightStyles();
 	const matchRanges: Range[] = [];
 	let currentRange: Range | null = null;
 	const lineBlocks = root.querySelectorAll(".editor-line-row");
@@ -369,6 +370,31 @@ function applySearchHighlights(
 		}
 	} catch {
 		// Browser fallback
+	}
+}
+
+/**
+ * The Custom Highlight API is not understood by older browsers' CSS parsers.
+ * Add its rules only after feature detection so unsupported browsers do not
+ * log invalid-selector warnings while still retaining the mark-based fallback
+ * used by the rest of the search UI.
+ */
+function installSearchHighlightStyles(): void {
+	if (typeof document === "undefined") return;
+	if (document.querySelector("style[data-search-highlights]")) return;
+	const highlights = CSS as unknown as {
+		highlights?: unknown;
+	};
+	if (!highlights.highlights) return;
+	const style = document.createElement("style");
+	style.dataset.searchHighlights = "true";
+	style.textContent =
+		"::highlight(search-match) { background-color: rgba(245, 158, 11, 0.35); color: inherit; } " +
+		"::highlight(search-current) { background-color: #f59e0b; color: #000000; }";
+	try {
+		document.head.appendChild(style);
+	} catch {
+		// The class-based search highlight remains available as a fallback.
 	}
 }
 

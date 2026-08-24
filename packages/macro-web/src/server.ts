@@ -21,6 +21,14 @@ import {
 import { parseKeymapProfile } from "./server/keymap-guards";
 import { isValidMacroProjectDirectory } from "./server/project-detection";
 import {
+	parseCreateExtensionGroup,
+	parseDeleteExtensionGroup,
+	parseDuplicateExtensionGroup,
+	parsePreviewExtensionGroup,
+	parseSetActiveExtensionGroup,
+	parseUpdateExtensionGroup,
+} from "./server/project-extension-group-guards";
+import {
 	parseApplyBackendMigration,
 	parseDiscardBackendMigration,
 	parseGetMigrationJournal,
@@ -523,6 +531,11 @@ const server = Bun.serve<SocketData>({
 								"Project configuration update payload is malformed",
 								false,
 							);
+						if (parsed.unsupportedFields?.length)
+							return sessions.rejectUnsupportedProjectConfigurationFields(
+								sessionId,
+								parsed.unsupportedFields,
+							);
 						return sessions.updateProjectConfiguration(sessionId, parsed);
 					}
 					if (payload.operation === "project.previewBackendMigration") {
@@ -580,6 +593,66 @@ const server = Bun.serve<SocketData>({
 								false,
 							);
 						return sessions.resumeBackendMigration(sessionId);
+					}
+					if (payload.operation === "project.previewExtensionGroup") {
+						const parsed = parsePreviewExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group preview request is malformed",
+								false,
+							);
+						return sessions.previewExtensionGroup(sessionId, parsed);
+					}
+					if (payload.operation === "project.updateExtensionGroup") {
+						const parsed = parseUpdateExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group update request is malformed",
+								false,
+							);
+						return sessions.updateExtensionGroup(sessionId, parsed);
+					}
+					if (payload.operation === "project.createExtensionGroup") {
+						const parsed = parseCreateExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group create request is malformed",
+								false,
+							);
+						return sessions.createExtensionGroup(sessionId, parsed);
+					}
+					if (payload.operation === "project.duplicateExtensionGroup") {
+						const parsed = parseDuplicateExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group duplicate request is malformed",
+								false,
+							);
+						return sessions.duplicateExtensionGroup(sessionId, parsed);
+					}
+					if (payload.operation === "project.deleteExtensionGroup") {
+						const parsed = parseDeleteExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group delete request is malformed",
+								false,
+							);
+						return sessions.deleteExtensionGroup(sessionId, parsed);
+					}
+					if (payload.operation === "project.setActiveExtensionGroup") {
+						const parsed = parseSetActiveExtensionGroup(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Extension group activation request is malformed",
+								false,
+							);
+						return sessions.setActiveExtensionGroup(sessionId, parsed);
 					}
 					if (payload.action === "open") {
 						if (!payload.path)

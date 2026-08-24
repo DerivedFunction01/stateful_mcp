@@ -155,6 +155,112 @@ export interface ProjectSettingsContributionDto {
 	readonly schema: readonly SettingsSchemaEntryDto[];
 }
 
+export const PROJECT_EXTENSION_GROUP_SOURCES_DTO = [
+	"project",
+	"builtin",
+	"extension",
+] as const;
+
+export type ProjectExtensionGroupSourceDto =
+	(typeof PROJECT_EXTENSION_GROUP_SOURCES_DTO)[number];
+
+/**
+ * Wire projection of a project-local Extension Activation Group. Distinct from
+ * Macro/language profiles: it selects which declared project extensions are
+ * activated. `extensionIds` is direct membership only; dependency closure is
+ * reported by the resolution DTO instead.
+ */
+export interface ProjectExtensionActivationGroupDto {
+	readonly id: string;
+	readonly displayName: string;
+	readonly description?: string;
+	readonly extensionIds: readonly string[];
+	readonly source: ProjectExtensionGroupSourceDto;
+	readonly readOnly?: boolean;
+}
+
+export type ProjectExtensionGroupDiagnosticSeverityDto =
+	| "info"
+	| "warning"
+	| "error";
+
+export interface ProjectExtensionGroupDiagnosticDto {
+	readonly code: string;
+	readonly severity: ProjectExtensionGroupDiagnosticSeverityDto;
+	readonly message: string;
+	readonly groupId?: string;
+	readonly extensionId?: string;
+	readonly dependencyId?: string;
+	readonly path?: readonly string[];
+}
+
+export type ProjectExtensionAvailabilityDto =
+	| "available"
+	| "missing"
+	| "incompatible";
+
+export type ProjectExtensionMembershipKindDto = "direct" | "automatic";
+
+export interface ProjectExtensionGroupMembershipDto {
+	readonly extensionId: string;
+	readonly kind: ProjectExtensionMembershipKindDto;
+	readonly requiredBy: readonly string[];
+	readonly availability: ProjectExtensionAvailabilityDto;
+}
+
+/** Host-resolved activation set for one group, produced by the canonical resolver. */
+export interface ProjectExtensionGroupResolutionDto {
+	readonly groupId?: string;
+	readonly directExtensionIds: readonly string[];
+	readonly resolvedExtensionIds: readonly string[];
+	readonly automaticallyIncludedExtensionIds: readonly string[];
+	readonly excludedExtensionIds: readonly string[];
+	readonly unknownExtensionIds: readonly string[];
+	readonly unavailableExtensionIds: readonly string[];
+	readonly activationOrder: readonly string[];
+	readonly memberships: readonly ProjectExtensionGroupMembershipDto[];
+	readonly diagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+	readonly valid: boolean;
+}
+
+export interface ProjectExtensionGroupImpactDto {
+	readonly requiresReload: boolean;
+	readonly activatedExtensionIds: readonly string[];
+	readonly deactivatedExtensionIds: readonly string[];
+	readonly unchangedExtensionIds: readonly string[];
+}
+
+/**
+ * Capability identity of one declared project extension, projected by the host
+ * from active contributions and registered project metadata. The browser never
+ * derives capabilities from raw manifests, so counts and capability lists in
+ * the UI are always host-computed.
+ */
+export interface ProjectExtensionCapabilitiesDto {
+	readonly macros: readonly string[];
+	readonly commands: readonly string[];
+	readonly views: readonly string[];
+	readonly tabs: readonly string[];
+	readonly settings: readonly string[];
+	readonly projectSettings: readonly string[];
+	readonly resources: readonly string[];
+	readonly migrationParticipants: readonly string[];
+}
+
+/** Read-only host catalog entry for a declared project extension. */
+export interface ProjectExtensionDescriptorDto {
+	readonly id: string;
+	readonly source: string;
+	readonly version: string;
+	readonly displayName?: string;
+	readonly description?: string;
+	readonly requires: readonly string[];
+	readonly availability: ProjectExtensionAvailabilityDto;
+	readonly active: boolean;
+	readonly capabilities: ProjectExtensionCapabilitiesDto;
+	readonly diagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+}
+
 export interface ProjectConfigurationDto {
 	readonly formatVersion: number;
 	readonly projectId: string;
@@ -163,7 +269,7 @@ export interface ProjectConfigurationDto {
 		readonly kind: "jsonl" | "sqlite";
 		readonly path: string;
 	};
-	readonly activeExtensionProfileId?: string;
+	readonly activeExtensionGroupId?: string;
 	readonly uiLocale?: string;
 	readonly extensions: readonly {
 		readonly id: string;
@@ -171,7 +277,16 @@ export interface ProjectConfigurationDto {
 		readonly version: string;
 		readonly requires?: readonly string[];
 	}[];
-	readonly extensionProfiles?: Readonly<Record<string, readonly string[]>>;
+	readonly extensionGroups?: Readonly<
+		Record<string, ProjectExtensionActivationGroupDto>
+	>;
+	/**
+	 * Host-provided read-only extension catalog. Always projected by the host so
+	 * group editors can render capability summaries without inspecting manifests.
+	 */
+	readonly extensionCatalog?: readonly ProjectExtensionDescriptorDto[];
+	/** Resolution of the currently active group, or of "activate everything". */
+	readonly activeExtensionGroupResolution?: ProjectExtensionGroupResolutionDto;
 	readonly resources: readonly ProjectResourceReferenceDto[];
 	readonly historyResources: readonly ProjectResourceReferenceDto[];
 	readonly scratchpadResources?: readonly ProjectResourceReferenceDto[];
@@ -186,6 +301,12 @@ export interface ProjectConfigurationDto {
 		readonly source: "builtin" | "extension";
 	}[];
 }
+
+/** Editable project metadata. Extension Activation Groups have their own API. */
+export type ProjectConfigurationEditDto = Omit<
+	ProjectConfigurationDto,
+	"extensionGroups" | "activeExtensionGroupId"
+>;
 
 export type ProjectConfigurationImpact =
 	| "metadata"
@@ -287,7 +408,7 @@ export type ProjectOperation =
 	| {
 			readonly operation: "project.updateConfiguration";
 			readonly requestId: string;
-			readonly configuration: ProjectConfigurationDto;
+			readonly configuration: ProjectConfigurationEditDto;
 			readonly expectedRevision: string;
 	  }
 	| {
@@ -320,6 +441,138 @@ export type ProjectOperation =
 			readonly requestId: string;
 	  };
 
+/**
+ * Patch for one Extension Activation Group. Group editing never sends a whole
+ * `ProjectConfigurationDto`: only the fields being changed are transmitted, and
+ * the stable `groupId` is never rewritten by a display-name rename.
+ */
+export interface ProjectExtensionGroupPatch {
+	readonly groupId: string;
+	readonly displayName?: string;
+	readonly description?: string;
+	/** Direct membership only. Dependencies are resolved by the host. */
+	readonly extensionIds?: readonly string[];
+	readonly setActive?: boolean;
+}
+
+/** Fields accepted when creating or duplicating a project-owned group. */
+export interface ProjectExtensionGroupDraft {
+	/** Optional stable id. Sanitized and de-duplicated by the host when absent. */
+	readonly groupId?: string;
+	readonly displayName: string;
+	readonly description?: string;
+	readonly extensionIds?: readonly string[];
+	readonly setActive?: boolean;
+}
+
+/**
+ * Typed Extension Activation Group operations. Every mutating operation carries
+ * `expectedRevision` for optimistic concurrency, and `apply` requests the
+ * workspace reload ("Save and Apply") instead of only persisting the change.
+ */
+export type ProjectExtensionGroupOperation =
+	| {
+			readonly operation: "project.previewExtensionGroup";
+			readonly requestId: string;
+			readonly groupId?: string;
+			/** Staged direct membership to preview without persisting it. */
+			readonly extensionIds?: readonly string[];
+			/** Preview the impact of also making this group active. */
+			readonly setActive?: boolean;
+	  }
+	| {
+			readonly operation: "project.updateExtensionGroup";
+			readonly requestId: string;
+			readonly patch: ProjectExtensionGroupPatch;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+	  }
+	| {
+			readonly operation: "project.createExtensionGroup";
+			readonly requestId: string;
+			readonly group: ProjectExtensionGroupDraft;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+	  }
+	| {
+			readonly operation: "project.duplicateExtensionGroup";
+			readonly requestId: string;
+			readonly sourceGroupId: string;
+			readonly displayName?: string;
+			readonly groupId?: string;
+			readonly setActive?: boolean;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+	  }
+	| {
+			readonly operation: "project.deleteExtensionGroup";
+			readonly requestId: string;
+			readonly groupId: string;
+			/** Group that becomes active when the active group is deleted. */
+			readonly replacementGroupId?: string;
+			/** Explicitly clear the active group instead of replacing it. */
+			readonly clearActive?: boolean;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+	  }
+	| {
+			readonly operation: "project.setActiveExtensionGroup";
+			readonly requestId: string;
+			/** `null` clears the active group. */
+			readonly groupId: string | null;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+	  };
+
+export type ProjectExtensionGroupOperationName =
+	ProjectExtensionGroupOperation["operation"];
+
+export const PROJECT_EXTENSION_GROUP_OPERATIONS = [
+	"project.previewExtensionGroup",
+	"project.updateExtensionGroup",
+	"project.createExtensionGroup",
+	"project.duplicateExtensionGroup",
+	"project.deleteExtensionGroup",
+	"project.setActiveExtensionGroup",
+] as const satisfies readonly ProjectExtensionGroupOperationName[];
+
+/**
+ * Discriminated result of an Extension Activation Group operation.
+ *
+ * `preview` never persists. `accepted` always reports the resolution and reload
+ * impact of the persisted state, and carries a `snapshot` only when the
+ * workspace was actually reloaded (`applied: true`). `conflict` returns the
+ * latest configuration so the caller can reconcile instead of overwriting.
+ */
+export type ProjectExtensionGroupOperationResult =
+	| {
+			readonly status: "preview";
+			readonly configuration: ProjectConfigurationDto;
+			readonly groupId?: string;
+			readonly group?: ProjectExtensionActivationGroupDto;
+			readonly resolution: ProjectExtensionGroupResolutionDto;
+			readonly impact: ProjectExtensionGroupImpactDto;
+			readonly diagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+	  }
+	| {
+			readonly status: "accepted";
+			readonly configuration: ProjectConfigurationDto;
+			readonly groupId?: string;
+			readonly group?: ProjectExtensionActivationGroupDto;
+			readonly resolution: ProjectExtensionGroupResolutionDto;
+			readonly impact: ProjectExtensionGroupImpactDto;
+			readonly diagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+			/** True when the workspace was reloaded as part of this operation. */
+			readonly applied: boolean;
+			readonly snapshot?: WorkspaceSnapshot;
+	  }
+	| {
+			readonly status: "conflict" | "rejected" | "unsupported";
+			readonly message: string;
+			readonly configuration?: ProjectConfigurationDto;
+			readonly diagnostics?: readonly ProjectExtensionGroupDiagnosticDto[];
+	  };
+
 export type ProjectOperationResult =
 	| {
 			readonly status: "accepted";
@@ -347,6 +600,7 @@ export type ProjectOperationResult =
 			readonly status: "conflict" | "rejected" | "unsupported";
 			readonly message: string;
 			readonly configuration?: ProjectConfigurationDto;
+			readonly diagnostics?: readonly ProjectExtensionGroupDiagnosticDto[];
 	  };
 
 export interface ContributionSnapshotDto {

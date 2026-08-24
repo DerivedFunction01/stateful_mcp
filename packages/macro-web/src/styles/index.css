@@ -50,6 +50,7 @@
 @import "./dialogs/project-init.css";
 @import "./dialogs/settings.css";
 @import "./dialogs/project-settings.css";
+@import "./dialogs/activation-groups.css";
 
 /* ── 8. Gallery Showcase ────────────────────────────────────────────────── */
 @import "./gallery/gallery.css";

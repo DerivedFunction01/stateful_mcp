@@ -105,6 +105,20 @@
 	color: var(--theme-content-tertiary);
 	font-size: 12px;
 }
+.project-settings-group-summary {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+}
+.project-settings-group-summary strong {
+	color: var(--theme-content-primary);
+	font-size: 13px;
+}
+.project-settings-group-summary span {
+	color: var(--theme-content-tertiary);
+	font-size: 12px;
+}
 .project-settings-profile-create {
 	display: grid;
 	gap: 8px;

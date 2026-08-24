@@ -17,7 +17,7 @@ export interface FindOverlayProps {
 		direction: SearchDirection,
 		navigate?: boolean,
 		options?: SearchOptions,
-	) => boolean | EditorSearchResult;
+	) => boolean | EditorSearchResult | undefined;
 	readonly onReplace?: (
 		query: string,
 		replacement: string,
@@ -50,6 +50,7 @@ export function FindOverlay({
 }: FindOverlayProps) {
 	const { t } = useI18n();
 	const onFindRef = useRef(onFind);
+	const retryScheduledRef = useRef(false);
 	const [query, setQuery] = useState(initialQuery);
 	const [replacement, setReplacement] = useState(initialReplacement);
 	const [message, setMessage] = useState("");
@@ -73,6 +74,18 @@ export function FindOverlay({
 			navigate,
 			options,
 		);
+		if (result === undefined) {
+			// The editor surface registers after the overlay can mount. Retry once
+			// rather than incorrectly displaying "No results" while it is absent.
+			if (!retryScheduledRef.current) {
+				retryScheduledRef.current = true;
+				requestAnimationFrame(() => {
+					retryScheduledRef.current = false;
+					find(searchDirection, navigate);
+				});
+			}
+			return;
+		}
 		if (typeof result === "boolean") {
 			setMessage(result ? "" : t("editor.find.noResults"));
 			return;

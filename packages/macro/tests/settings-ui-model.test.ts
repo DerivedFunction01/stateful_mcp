@@ -57,7 +57,7 @@ describe("SettingsUiModel", () => {
 
 		const syntaxSection = snapshot.sections.find((s) => s.id === "syntax");
 		expect(syntaxSection).toBeDefined();
-		expect(syntaxSection?.title).toBe("Core Syntax");
+		expect(syntaxSection?.title).toBe("settings.category.syntax");
 		expect(syntaxSection?.items[0]?.value).toBe("@");
 		expect(syntaxSection?.items[0]?.origin.kind).toBe("inherited");
 	});

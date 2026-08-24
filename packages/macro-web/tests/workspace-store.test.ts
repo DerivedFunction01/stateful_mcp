@@ -47,7 +47,7 @@ describe("BrowserWorkspaceStore", () => {
 		const initial = store.getSnapshot().snapshot!;
 		const newer = { ...initial, revision: 2 };
 		const event: HostEvent = {
-			version: 2,
+			version: 3,
 			type: "workspace.changed",
 			sessionId: initial.sessionId,
 			eventId: "event-1",

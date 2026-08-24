@@ -1,0 +1,183 @@
+.activation-groups-dialog {
+	width: min(94vw, 920px);
+	max-height: 90vh;
+	display: flex;
+	flex-direction: column;
+}
+.activation-groups-body {
+	display: grid;
+	grid-template-columns: minmax(240px, 0.8fr) 1.6fr;
+	gap: 0;
+	min-height: 0;
+	flex: 1;
+	border-top: 1px solid var(--theme-border-subtle);
+	border-bottom: 1px solid var(--theme-border-subtle);
+	overflow: hidden;
+}
+.activation-groups-list {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 16px;
+	border-right: 1px solid var(--theme-border-subtle);
+	background: var(--theme-surface-sunken);
+	overflow-y: auto;
+}
+.activation-groups-list-heading {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 12px;
+}
+.activation-groups-list-heading h3 {
+	margin: 0;
+	font-size: 13px;
+	color: var(--theme-content-primary);
+}
+.activation-groups-list-items {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.activation-groups-list-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 6px 8px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-secondary);
+}
+.activation-groups-list-row.selected {
+	border-color: var(--theme-accent, var(--theme-border-strong));
+	box-shadow: inset 2px 0 0 var(--theme-accent, var(--theme-border-strong));
+}
+.activation-groups-list-select {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--theme-content-primary);
+	cursor: pointer;
+	text-align: left;
+}
+.activation-groups-list-select strong {
+	font-size: 13px;
+}
+.activation-groups-list-select small {
+	color: var(--theme-content-tertiary);
+	font-size: 11px;
+}
+.activation-groups-profile-actions {
+	display: flex;
+	gap: 6px;
+}
+.activation-groups-create {
+	display: grid;
+	gap: 8px;
+	padding: 8px;
+	border: 1px dashed var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+}
+.activation-groups-detail {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+	padding: 16px;
+	overflow-y: auto;
+}
+.activation-groups-empty,
+.activation-groups-loading {
+	display: grid;
+	place-items: center;
+	padding: 32px;
+	color: var(--theme-content-tertiary);
+}
+.activation-groups-detail-heading {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 12px;
+}
+.activation-groups-detail-heading h3 {
+	margin: 0 0 2px;
+	font-size: 15px;
+	color: var(--theme-content-primary);
+}
+.activation-groups-detail-heading small {
+	color: var(--theme-content-tertiary);
+	font-size: 12px;
+}
+.activation-groups-members {
+	display: grid;
+	gap: 8px;
+}
+.activation-groups-members h4 {
+	margin: 0;
+	font-size: 13px;
+	color: var(--theme-content-secondary);
+}
+.activation-groups-member-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-height: 30px;
+	padding: 4px 8px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-secondary);
+	color: var(--theme-content-secondary);
+}
+.activation-groups-member-row span {
+	display: grid;
+	flex: 1;
+	gap: 2px;
+}
+.activation-groups-member-row strong {
+	color: var(--theme-content-primary);
+	font-size: 13px;
+}
+.activation-groups-member-row small {
+	color: var(--theme-content-tertiary);
+	font-size: 11px;
+}
+.activation-groups-member-row.locked {
+	opacity: 0.7;
+}
+.activation-groups-hint {
+	display: block;
+	color: var(--theme-content-tertiary);
+	font-size: 12px;
+}
+.activation-groups-panel {
+	display: grid;
+	gap: 8px;
+	padding: 14px 16px;
+	border-bottom: 1px solid var(--theme-border-subtle);
+	background: var(--theme-surface-sunken);
+}
+.activation-groups-panel h3 {
+	margin: 0;
+	font-size: 13px;
+	color: var(--theme-content-primary);
+}
+.activation-groups-changes,
+.activation-groups-diagnostics {
+	display: grid;
+	gap: 6px;
+	margin: 0;
+	padding-left: 16px;
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+}
+.activation-groups-panel .diagnostic {
+	font-size: 12px;
+}

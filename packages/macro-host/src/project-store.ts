@@ -23,6 +23,7 @@ import {
 	SqlScratchpadResourceStore,
 } from "@stateful-mcp/core";
 import {
+	MACRO_PROJECT_FORMAT_VERSION,
 	type MacroProjectBackendKind,
 	MacroProjectConflictError,
 	type MacroProjectDescriptor,
@@ -32,9 +33,10 @@ import {
 	type MacroProjectResourceReference,
 	type ProjectMigrationContext,
 	type ProjectMigrationParticipant,
+	validateProjectExtensionGroups,
 } from "@stateful-mcp/macro";
 
-export const MACRO_PROJECT_FORMAT_VERSION = 1;
+export { MACRO_PROJECT_FORMAT_VERSION };
 export const MACRO_DIRECTORY = ".macro";
 export const MACRO_MANIFEST_FILE = "project.json";
 export const MACRO_DEFAULT_HISTORY_ID = "default-history";
@@ -316,6 +318,19 @@ export function validateMacroProjectManifest(
 	if (!Array.isArray(manifest.historyResources))
 		throw new MacroProjectFormatError(
 			"Project manifest requires history resources",
+		);
+	const groupDiagnostics = validateProjectExtensionGroups({
+		extensions: manifest.extensions,
+		...(manifest.extensionGroups ? { groups: manifest.extensionGroups } : {}),
+		...(manifest.activeExtensionGroupId === undefined
+			? {}
+			: { activeGroupId: manifest.activeExtensionGroupId }),
+	}).filter((diagnostic) => diagnostic.severity === "error");
+	if (groupDiagnostics.length > 0)
+		throw new MacroProjectFormatError(
+			`Project manifest has invalid extension activation groups: ${groupDiagnostics
+				.map((diagnostic) => diagnostic.message)
+				.join("; ")}`,
 		);
 }
 

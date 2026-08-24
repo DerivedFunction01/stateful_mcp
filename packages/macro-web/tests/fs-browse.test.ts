@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { createMacroProject } from "@stateful-mcp/macro-host";
+import {
+	createMacroProject,
+	MACRO_PROJECT_FORMAT_VERSION,
+} from "@stateful-mcp/macro-host";
 import { isValidMacroProjectDirectory } from "../src/server/project-detection";
 
 describe("filesystem browsing and project detection", () => {
@@ -54,7 +57,7 @@ describe("filesystem browsing and project detection", () => {
 		await writeFile(
 			join(directory, ".macro", "project.json"),
 			JSON.stringify({
-				formatVersion: 1,
+				formatVersion: MACRO_PROJECT_FORMAT_VERSION,
 				projectId: "project-id",
 				displayName: "Unsafe",
 				backend: { kind: "jsonl", path: "../../outside.jsonl" },

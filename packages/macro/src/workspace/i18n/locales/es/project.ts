@@ -6,7 +6,6 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.settings.locale": "Idioma del proyecto",
 	"project.settings.defaultProfile": "Perfil predeterminado",
 	"project.settings.activeProfile": "Perfil activo",
-	"project.settings.activeExtensionProfile": "Grupo de extensiones activo",
 	"project.settings.noProfile": "Sin perfil",
 	"project.settings.backend": "Almacenamiento",
 	"project.settings.backendJsonl": "JSONL",
@@ -22,7 +21,6 @@ export const ES_PROJECT: Record<string, string> = {
 		"La migración no está disponible para este proyecto.",
 	"project.settings.recoverMigration": "Recuperar migración interrumpida",
 	"project.settings.extensions": "Extensiones",
-	"project.settings.extensionProfiles": "Perfiles de extensiones",
 	"project.settings.templates": "Plantillas del proyecto",
 	"project.settings.projectSettings": "Configuración compartida de extensiones",
 	"project.settings.resources": "Recursos",
@@ -107,4 +105,64 @@ export const ES_PROJECT: Record<string, string> = {
 		"Una migración sigue en curso en otro lugar y no fue interrumpida.",
 	"project.settings.journalRecovery.removedTargetPath":
 		"Destino eliminado: {path}",
+	"project.settings.activeGroup": "Grupo de extensiones activo",
+	"project.settings.noActiveGroup": "Sin grupo de extensiones activo",
+	"project.settings.manageActivationGroups": "Gestionar grupos de activación",
+	"project.settings.activationGroupsSummary":
+		"{count} grupo(s), {members} miembro(s) activos",
+	"project.activationGroups.title": "Grupos de activación de extensiones",
+	"project.activationGroups.unavailable":
+		"Los grupos de activación no están disponibles.",
+	"project.activationGroups.loading": "Cargando grupos de activación...",
+	"project.activationGroups.groups": "Grupos",
+	"project.activationGroups.create": "Crear grupo",
+	"project.activationGroups.createGroup": "Crear grupo",
+	"project.activationGroups.groupName": "Nombre del grupo",
+	"project.activationGroups.groupNamePlaceholder": "mi-grupo",
+	"project.activationGroups.add": "Añadir",
+	"project.activationGroups.rename": "Renombrar",
+	"project.activationGroups.duplicate": "Duplicar",
+	"project.activationGroups.delete": "Eliminar",
+	"project.activationGroups.cancel": "Cerrar",
+	"project.activationGroups.duplicateName": "Ya existe un grupo llamado {name}.",
+	"project.activationGroups.confirmDelete":
+		"¿Eliminar el grupo {name} y su membresía?",
+	"project.activationGroups.noGroups":
+		"Aún no hay grupos de extensiones. Crea uno para gestionar las extensiones activas.",
+	"project.activationGroups.memberCount": "{count} miembros",
+	"project.activationGroups.membershipHint":
+		"Selecciona un grupo para editar su membresía.",
+	"project.activationGroups.activeBadge": "Activo",
+	"project.activationGroups.setActive": "Establecer como activo",
+	"project.activationGroups.details": "Detalles del grupo",
+	"project.activationGroups.noSelection": "Selecciona un grupo para ver sus detalles.",
+	"project.activationGroups.extensions": "Extensiones",
+	"project.activationGroups.requires": "requiere: {names}",
+	"project.activationGroups.lockedDependency": "Bloqueado",
+	"project.activationGroups.readOnly": "Solo lectura",
+	"project.activationGroups.noExtensions":
+		"No hay extensiones disponibles para este proyecto.",
+	"project.activationGroups.preview": "Previsualizar",
+	"project.activationGroups.previewTitle": "Cambios pendientes",
+	"project.activationGroups.previewNone": "No hay cambios que aplicar.",
+	"project.activationGroups.previewActiveChange": "Grupo activo: {from} → {to}",
+	"project.activationGroups.previewGroupRenamed": "Renombrado {from} → {to}",
+	"project.activationGroups.previewGroupAdded":
+		"Grupo añadido {name} ({count} miembros)",
+	"project.activationGroups.previewGroupRemoved": "Grupo eliminado {name}",
+	"project.activationGroups.previewGroupChanged": "Membresía cambiada de {name}",
+	"project.activationGroups.diagnostics": "Diagnóstico",
+	"project.activationGroups.diagnosticsTitle": "Diagnóstico",
+	"project.activationGroups.diagnosticsNone": "No se detectaron problemas.",
+	"project.activationGroups.diagUnknownExtension":
+		"El grupo {group} hace referencia a la extensión desconocida {id}.",
+	"project.activationGroups.diagMissingDependency":
+		"El grupo {group} habilita {id}, que requiere {dep}, pero {dep} no es miembro.",
+	"project.activationGroups.diagCycle":
+		"El grupo {group} tiene un ciclo de dependencias: {path}.",
+	"project.activationGroups.diagEmptyActive":
+		"El grupo activo {group} no tiene miembros habilitados.",
+	"project.activationGroups.apply": "Aplicar cambios",
+	"project.activationGroups.applyFailed":
+		"Los grupos de activación no se pudieron aplicar a este proyecto.",
 };

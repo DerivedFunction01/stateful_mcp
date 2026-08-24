@@ -62,16 +62,6 @@
 	color: var(--theme-content-danger);
 }
 
-::highlight(search-match) {
-	background-color: rgba(245, 158, 11, 0.35);
-	color: inherit;
-}
-
-::highlight(search-current) {
-	background-color: #f59e0b;
-	color: #000000;
-}
-
 .search-match-highlight {
 	background-color: #f59e0b;
 	color: #000000;

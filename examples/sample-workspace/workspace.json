@@ -1,9 +1,14 @@
 {
   "$schema": "https://example.invalid/macro/workspace.schema.json",
-  "profiles": {
-    "sample": ["sample.runtime"]
+  "extensionGroups": {
+    "sample": {
+      "id": "sample",
+      "displayName": "Sample",
+      "extensionIds": ["sample.runtime"],
+      "source": "project"
+    }
   },
-  "activeProfile": "sample",
+  "activeExtensionGroupId": "sample",
   "extensions": [
     {
       "id": "sample.runtime",

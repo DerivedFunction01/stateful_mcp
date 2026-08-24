@@ -12,17 +12,13 @@ import {
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { MacroProjectManifest } from "@stateful-mcp/macro";
 import {
-	auditKeymapAndLogDiagnostics,
 	BUILTIN_KEYMAP_PROFILES,
-	DEFAULT_EDITOR_KEYMAP_PROFILE,
 	DocumentManagerError,
 	DocumentRevisionError,
-	type EditorKeymapProfile,
 	keymapBindingConflicts,
 	type MacroDocument,
 	type MacroDocumentTemplate,
 	matchEffectiveBindings,
-	mergeEditorKeymap,
 	normalizeCommandAliases,
 	resolveKeymapBindings,
 	type ScratchpadExecutionBatchResult,
@@ -42,9 +38,6 @@ import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import {
 	createMacroProject,
 	getProjectFileTree,
-	isMigrationJournalStale,
-	isResumableMigrationStatus,
-	type LoadedMacroWorkspace,
 	type MacroHost,
 	type MacroProject,
 	type ProjectMigrationJournal,
@@ -55,26 +48,26 @@ import {
 	type CommandDescriptorDto,
 	type DiagnosticDto,
 	type DomainApplicationDescriptor,
-	type EditorDocumentDto,
 	type EditorJsonValue,
 	type EditorOperation,
 	type EditorOperationResult,
-	type EditorOutputSnapshotDto,
 	type EditorPayloadEnvelope,
 	type EditorWorkspaceSnapshotDto,
 	type EffectiveKeymapDto,
 	type FileTreeItemDto,
-	type HostError,
 	type HostEvent,
 	type HostEventType,
-	hostError,
 	type KeymapBindingContextDto,
 	type KeymapBindingDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
-	type ProjectBackendMigrationPlanDto,
 	type ProjectConfigurationDto,
 	type ProjectConfigurationImpact,
+	type ProjectExtensionAvailabilityDto,
+	type ProjectExtensionDescriptorDto,
+	type ProjectExtensionGroupDraft,
+	type ProjectExtensionGroupOperationResult,
+	type ProjectExtensionGroupPatch,
 	type ProjectMigrationJournalDto,
 	type ProjectMigrationJournalOwnerDto,
 	type ProjectMigrationJournalStatusDto,
@@ -84,7 +77,6 @@ import {
 	type ProjectSettingsContributionDto,
 	type ScratchpadExecutionReceiptDto,
 	type ScratchpadLineDto,
-	type ScratchpadLineStatus,
 	type ScratchpadTemplateDescriptor,
 	SETTINGS_REDACTION_MARKER,
 	type SettingsApplyResult,
@@ -102,59 +94,94 @@ import {
 	type UserPreferencesExportBundleDto,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
+import {
+	toEditorPayload as extractedToEditorPayload,
+	toEditorDocumentDto,
+	toEditorDocumentSnapshot,
+	toEditorOutput,
+	toScratchpadLineDto,
+} from "./editor/editor-projections";
+import { SessionEventBus } from "./host-session/session-events";
+import {
+	createDisposalController,
+	createSession,
+	initProject as lifecycleInitProject,
+	openProject as lifecycleOpenProject,
+	stopFileTreeWatcher,
+} from "./host-session/session-lifecycle";
+import { SessionRegistry } from "./host-session/session-registry";
+import type {
+	HostSessionOptions,
+	Session,
+	SessionLifecycleContext,
+} from "./host-session/session-types";
+import {
+	createProjectExtensionGroupServiceContext,
+	ProjectExtensionGroupService,
+} from "./project/project-extension-groups";
+import {
+	isWithinProjectRoot,
+	ProjectPathError,
+	resolveProjectAbsolutePath,
+	resolveProjectRelativePath,
+	validatePathSegment,
+} from "./project/project-files";
+import {
+	createProjectMigrationServiceContext,
+	ProjectMigrationService,
+} from "./project/project-migrations";
+import {
+	buildProjectSettingsContributions as extractedBuildProjectSettingsContributions,
+	toProjectConfigurationDto as extractedToProjectConfigurationDto,
+} from "./project/project-projections";
 import { validateProjectConfiguration } from "./project-configuration-validation";
+import {
+	buildProjectExtensionCatalog,
+	resolveActiveExtensionGroup,
+	toProjectExtensionGroupDto,
+	toProjectExtensionGroupResolutionDto,
+	toResolverExtensions,
+} from "./project-extension-groups";
+import { SessionError } from "./session-error";
+import {
+	applySettingsBundleOperation,
+	type SettingsBundleHost,
+} from "./settings/settings-bundles";
+import {
+	applySettingsOperation,
+	applySettingsUiOperation,
+	type SettingsOperationHost,
+	SettingsServiceError,
+} from "./settings/settings-operations";
+import { emptySettingsSnapshot as extractedEmptySettingsSnapshot } from "./settings/settings-projections";
 
-export interface HostSessionOptions {
-	readonly workspacePath?: string;
-	readonly profileId?: string;
-	readonly locale?: string;
-	readonly initialText?: string;
-	readonly templates?: readonly MacroDocumentTemplate[];
-	readonly keymap?: Partial<EditorKeymapProfile>;
-}
-
-interface Session {
-	readonly id: string;
-	readonly workspaceId: string;
-	loaded: LoadedMacroWorkspace;
-	keymap: EditorKeymapProfile;
-	readonly listeners: Set<(event: HostEvent) => void>;
-	readonly unsubs: (() => void)[];
-	sequence: number;
-	revision: number;
-	lastActivity: number;
-	disposed: boolean;
-	fileTreeWatcher?: FSWatcher;
-	fileTreeRefreshTimer?: ReturnType<typeof setTimeout>;
-	fileTreeWatchers?: readonly FSWatcher[];
-	stagedBundle?: {
-		readonly stageId: string;
-		readonly revision: string;
-		readonly bundle: SettingsBundlePayload;
-		readonly scope: SettingsScope;
-		readonly profileId: string;
-		readonly mode: "merge" | "replace";
-	};
-}
-
-function isWithin(root: string, target: string): boolean {
-	const child = relative(resolve(root), resolve(target));
-	return child === "" || (!child.startsWith(`..${sep}`) && child !== "..");
-}
+export {
+	prepareImportedBundle,
+	redactSensitiveBundle,
+} from "./settings/settings-projections";
+export { SessionError };
 
 export class HostSessionManager {
-	private readonly sessions = new Map<string, Session>();
+	private readonly registry: SessionRegistry;
+	private readonly eventBus: SessionEventBus;
 	private readonly userPreferencesStore: ServerUserPreferencesStore;
 
 	constructor(
 		private readonly host: MacroHost,
-		private readonly idleTimeoutMs = 30 * 60 * 1000,
+		readonly idleTimeoutMs = 30 * 60 * 1000,
 		private readonly projectRoot?: string,
 		preferencesOptions?: { readonly dataFilePath?: string },
 	) {
 		this.userPreferencesStore = new ServerUserPreferencesStore(
 			preferencesOptions,
 		);
+		this.registry = new SessionRegistry({
+			idleTimeoutMs,
+			disposal: createDisposalController(),
+		});
+		this.eventBus = new SessionEventBus({
+			snapshotProvider: (session) => this.snapshot(session),
+		});
 	}
 
 	async getUserPreferences(): Promise<UserPreferencesDto> {
@@ -177,60 +204,31 @@ export class HostSessionManager {
 		return this.userPreferencesStore.importBundle(bundle);
 	}
 
-	async create(options: HostSessionOptions = {}): Promise<WorkspaceSnapshot> {
-		const loaded = await this.host.createWorkspace({
-			...(this.projectRoot ? { projectRoot: this.projectRoot } : {}),
-			profileId: options.profileId,
-			locale: options.locale,
-			...(options.initialText === undefined
-				? {}
-				: { initialText: options.initialText }),
-			...(options.templates === undefined
-				? {}
-				: { templates: options.templates }),
-		});
-		const id = randomUUID();
-		const mergedKeymap = mergeEditorKeymap(
-			DEFAULT_EDITOR_KEYMAP_PROFILE,
-			options.keymap,
-		);
-		auditKeymapAndLogDiagnostics(mergedKeymap);
-		const session: Session = {
-			id,
-			workspaceId: randomUUID(),
-			loaded,
-			keymap: mergedKeymap,
-			listeners: new Set(),
-			unsubs: [],
-			sequence: 0,
-			revision: 0,
-			lastActivity: Date.now(),
-			disposed: false,
+	private lifecycleContext(): SessionLifecycleContext {
+		return {
+			host: this.host,
+			eventBus: this.eventBus,
+			registry: this.registry,
+			snapshotProvider: (session) => this.snapshot(session),
+			projectRootResolver: (session) => this.requireProjectRoot(session),
+			projectRoot: this.projectRoot,
 		};
-		this.sessions.set(id, session);
-		this.attachSignals(session);
-		this.startFileTreeWatcher(session);
-		return this.snapshot(session);
+	}
+
+	async create(options: HostSessionOptions = {}): Promise<WorkspaceSnapshot> {
+		const { snapshot } = await createSession(this.lifecycleContext(), options);
+		return snapshot;
 	}
 
 	async openProject(
 		sessionId: string,
 		projectRoot: string,
 	): Promise<WorkspaceSnapshot> {
-		const session = this.getOrError(sessionId);
-		for (const unsub of session.unsubs) unsub();
-		session.unsubs.length = 0;
-		this.stopFileTreeWatcher(session);
-		await session.loaded.workspace.dispose();
-
-		const loaded = await this.host.createWorkspace({
-			projectRoot: resolve(projectRoot),
-		});
-		session.loaded = loaded;
-		this.attachSignals(session);
-		this.startFileTreeWatcher(session);
-		this.emit(session, "workspace.changed");
-		return this.snapshot(session);
+		return lifecycleOpenProject(
+			this.lifecycleContext(),
+			sessionId,
+			projectRoot,
+		);
 	}
 
 	async initProject(
@@ -238,9 +236,12 @@ export class HostSessionManager {
 		projectRoot: string,
 		displayName?: string,
 	): Promise<WorkspaceSnapshot> {
-		const rootPath = resolve(projectRoot);
-		await createMacroProject({ rootPath, displayName });
-		return this.openProject(sessionId, rootPath);
+		return lifecycleInitProject(
+			this.lifecycleContext(),
+			sessionId,
+			projectRoot,
+			displayName,
+		);
 	}
 
 	async createDirectory(
@@ -262,7 +263,16 @@ export class HostSessionManager {
 				false,
 			);
 		}
-		const root = this.requireProjectRootForPath(parentPath);
+		let root: string;
+		try {
+			root = this.requireProjectRootForPath(parentPath);
+		} catch {
+			// No project is open covering this path; create directly on the filesystem.
+			// This is the normal path when the Open Folder dialog is used before a project exists.
+			const childPath = resolve(parentPath, trimmed);
+			await mkdir(childPath);
+			return { path: childPath };
+		}
 		const resolvedParent = isAbsolute(parentPath)
 			? this.resolveProjectPathAbsolute(root, parentPath)
 			: this.resolveProjectPath(root, parentPath);
@@ -390,15 +400,18 @@ export class HostSessionManager {
 	}
 
 	private requireProjectRootForPath(path: string): string {
-		const session = [...this.sessions.values()].find(
-			(candidate) =>
-				candidate.loaded.project?.rootPath &&
-				isWithin(candidate.loaded.project.rootPath, resolve(path)),
-		);
+		const resolved = resolve(path);
+		const session = [...this.registry.ids()]
+			.map((id) => this.registry.get(id))
+			.find(
+				(candidate) =>
+					candidate?.loaded.project?.rootPath &&
+					isWithinProjectRoot(candidate.loaded.project.rootPath, resolved),
+			);
 		if (
 			!session &&
 			this.projectRoot &&
-			isWithin(this.projectRoot, resolve(path))
+			isWithinProjectRoot(this.projectRoot, resolved)
 		)
 			return resolve(this.projectRoot);
 		if (!session)
@@ -411,64 +424,33 @@ export class HostSessionManager {
 		child: string,
 		allowRoot = true,
 	): string {
-		if (isAbsolute(child))
-			throw new SessionError(
-				"INVALID_REQUEST",
-				"Paths must be project-relative",
-				false,
-			);
-		const normalized = child.replaceAll("\\", "/");
-		const segments = normalized.split("/").filter(Boolean);
-		if (
-			segments.some(
-				(segment) =>
-					segment === ".." ||
-					segment === ".macro" ||
-					segment === ".macro-user" ||
-					segment === ".git" ||
-					segment === "node_modules",
-			)
-		)
-			throw new SessionError(
-				"INVALID_REQUEST",
-				"Path is outside the editable project area",
-				false,
-			);
-		const result = resolve(root, normalized);
-		if ((!allowRoot && result === root) || !isWithin(root, result))
-			throw new SessionError(
-				"INVALID_REQUEST",
-				"Path escapes the project root",
-				false,
-			);
-		return result;
+		try {
+			return resolveProjectRelativePath(root, child, allowRoot);
+		} catch (error) {
+			if (error instanceof ProjectPathError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
+		}
 	}
 
 	private resolveProjectPathAbsolute(root: string, child: string): string {
-		const result = resolve(child);
-		if (!isWithin(root, result) || (result === root && child !== root))
-			throw new SessionError(
-				"INVALID_REQUEST",
-				"Path escapes the project root",
-				false,
-			);
-		return result;
+		try {
+			return resolveProjectAbsolutePath(root, child);
+		} catch (error) {
+			if (error instanceof ProjectPathError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
+		}
 	}
 
 	private validateSegment(name: string): void {
-		if (
-			!name.trim() ||
-			name === "." ||
-			name === ".." ||
-			name.includes("/") ||
-			name.includes("\\") ||
-			name.includes("\0")
-		)
-			throw new SessionError(
-				"INVALID_REQUEST",
-				"Name must be a single path segment",
-				false,
-			);
+		try {
+			validatePathSegment(name);
+		} catch (error) {
+			if (error instanceof ProjectPathError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
+		}
 	}
 
 	private emitFileTreeChanged(session: Session): void {
@@ -570,7 +552,7 @@ export class HostSessionManager {
 		const session = this.getOrError(sessionId);
 		for (const unsub of session.unsubs) unsub();
 		session.unsubs.length = 0;
-		this.stopFileTreeWatcher(session);
+		stopFileTreeWatcher(session);
 		await session.loaded.workspace.dispose();
 
 		const loaded = await this.host.createWorkspace({});
@@ -589,157 +571,57 @@ export class HostSessionManager {
 				"A project workspace is required",
 				false,
 			);
-		return toProjectConfigurationDto(project, session);
+		return extractedToProjectConfigurationDto(project, session.loaded);
 	}
 
-	private async backendMigrationPlan(
-		sessionId: string,
-		target: ProjectConfigurationDto["backend"],
-	): Promise<ProjectBackendMigrationPlanDto> {
-		const configuration = this.getProjectConfiguration(sessionId);
-		const session = this.getOrError(sessionId);
-		const project = session.loaded.project;
-		if (!project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const participants =
-			[] as ProjectBackendMigrationPlanDto["participants"][number][];
-		for (const extension of session.loaded.workspace.runtime.extensions.list()) {
-			for (const participant of extension.projectMigrationParticipants ?? []) {
-				const result = await participant.plan?.({
-					projectRoot: project.rootPath,
-					sourceBackend: configuration.backend,
-					targetBackend: target,
-					sourceHistory: project.history,
-					sourceScratchpads: project.scratchpads,
-					// The target store does not exist during planning; the concrete
-					// project store opens it only when the migration is applied.
-					targetHistory: undefined,
-					targetScratchpads: undefined,
-				});
-				participants.push({
-					id: participant.id,
-					extensionId: extension.manifest.id,
-					dependsOn: participant.dependsOn,
-					status: result?.status ?? "ready",
-					resourceIds: result?.resourceIds ?? participant.resourceIds ?? [],
-					...(result?.message ? { message: result.message } : {}),
-				});
-			}
-		}
-		return {
-			source: configuration.backend,
-			target,
-			participants,
-			historyCount: project.manifest.historyResources.length,
-			scratchpadCount: project.manifest.scratchpadResources?.length ?? 0,
-			warnings: [],
-			sourceDigest: JSON.stringify({
-				history: await project.listHistory(),
-				scratchpads: await project.listScratchpads(),
+	private migrationService(sessionId: string): ProjectMigrationService {
+		return new ProjectMigrationService(
+			createProjectMigrationServiceContext({
+				loaded: () =>
+					this.get(sessionId)?.loaded ??
+					(() => {
+						throw new SessionError(
+							"SESSION_NOT_FOUND",
+							"Session not found",
+							false,
+						);
+					})(),
+				requireProject: () => this.requireProject(this.getOrError(sessionId)),
+				getConfiguration: () => this.getProjectConfiguration(sessionId),
+				reloadProject: (rootPath) => this.openProject(sessionId, rootPath),
 			}),
-		};
+		);
 	}
 
 	async previewBackendMigration(
 		sessionId: string,
 		target: ProjectConfigurationDto["backend"],
 	): Promise<ProjectOperationResult> {
-		return {
-			status: "plan",
-			configuration: this.getProjectConfiguration(sessionId),
-			plan: await this.backendMigrationPlan(sessionId, target),
-		};
+		return this.migrationService(sessionId).preview(target);
 	}
 
 	async recoverBackendMigration(
 		sessionId: string,
 	): Promise<ProjectMigrationRecoveryResultDto> {
-		const session = this.getOrError(sessionId);
-		if (!session.loaded.project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const recovery = await session.loaded.project.recoverMigration();
-		return toProjectMigrationRecoveryResultDto(recovery);
+		return this.migrationService(sessionId).recover();
 	}
 
 	async getMigrationJournal(
 		sessionId: string,
 	): Promise<ProjectMigrationJournalStatusDto> {
-		const session = this.getOrError(sessionId);
-		if (!session.loaded.project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const journal = await session.loaded.project.readMigrationJournal();
-		const stale = journal ? isMigrationJournalStale(journal) : false;
-		const resumable = journal
-			? isResumableMigrationStatus(journal.status) && stale
-			: false;
-		return {
-			journal: journal ? toProjectMigrationJournalDto(journal) : null,
-			stale,
-			resumable,
-		};
+		return this.migrationService(sessionId).journalStatus();
 	}
 
 	async discardBackendMigration(
 		sessionId: string,
 	): Promise<ProjectMigrationRecoveryResultDto> {
-		const session = this.getOrError(sessionId);
-		if (!session.loaded.project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const recovery = await session.loaded.project.recoverMigration({
-			force: true,
-		});
-		return toProjectMigrationRecoveryResultDto(recovery);
+		return this.migrationService(sessionId).discard();
 	}
 
 	async resumeBackendMigration(
 		sessionId: string,
 	): Promise<ProjectOperationResult> {
-		const session = this.getOrError(sessionId);
-		const project = session.loaded.project;
-		if (!project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const journal = await project.readMigrationJournal();
-		if (!journal)
-			return {
-				status: "rejected",
-				message: "No migration journal is available to resume",
-				configuration: this.getProjectConfiguration(sessionId),
-			};
-		if (!isResumableMigrationStatus(journal.status))
-			return {
-				status: "rejected",
-				message:
-					"A migration in the 'finalizing' state cannot be resumed safely",
-				configuration: this.getProjectConfiguration(sessionId),
-			};
-		// Resuming re-applies the migration to the journal's recorded target. The
-		// source backend is untouched, and applyBackendMigration reconciles any
-		// stale journal for the same path before copying.
-		return this.applyBackendMigration(
-			sessionId,
-			journal.target,
-			journal.expectedRevision,
-		);
+		return this.migrationService(sessionId).resume();
 	}
 
 	async applyBackendMigration(
@@ -747,61 +629,16 @@ export class HostSessionManager {
 		target: ProjectConfigurationDto["backend"],
 		expectedRevision: string,
 	): Promise<ProjectOperationResult> {
-		const session = this.getOrError(sessionId);
-		const project = session.loaded.project;
-		if (!project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"A project workspace is required",
-				false,
-			);
-		const plan = await this.backendMigrationPlan(sessionId, target);
-		if (
-			plan.source.kind === plan.target.kind &&
-			plan.source.path === plan.target.path
-		)
-			return {
-				status: "rejected",
-				message: "The target backend must differ from the current backend",
-				configuration: this.getProjectConfiguration(sessionId),
-			};
-		if (plan.participants.some((participant) => participant.status !== "ready"))
-			return {
-				status: "rejected",
-				message: "A project migration participant is unavailable",
-				configuration: this.getProjectConfiguration(sessionId),
-			};
-		if (expectedRevision !== project.descriptor.revision)
-			return {
-				status: "conflict",
-				message: "Project configuration is stale",
-				configuration: this.getProjectConfiguration(sessionId),
-			};
-		const participants = session.loaded.workspace.runtime.extensions
-			.list()
-			.flatMap((extension) => extension.projectMigrationParticipants ?? []);
-		const result = await project.migrateBackend(
-			target,
-			expectedRevision,
-			participants,
-		);
-		const snapshot = await this.openProject(sessionId, project.rootPath);
-		return {
-			status: "migrated",
-			configuration: this.getProjectConfiguration(sessionId),
-			plan: {
-				...plan,
-				historyCount: result.copiedHistory,
-				scratchpadCount: result.copiedScratchpads,
-			},
-			snapshot,
-		};
+		return this.migrationService(sessionId).apply(target, expectedRevision);
 	}
 
 	async updateProjectConfiguration(
 		sessionId: string,
 		operation: {
-			readonly configuration: ProjectConfigurationDto;
+			readonly configuration: Omit<
+				ProjectConfigurationDto,
+				"extensionGroups" | "activeExtensionGroupId"
+			>;
 			readonly expectedRevision: string;
 		},
 	): Promise<ProjectOperationResult> {
@@ -815,6 +652,23 @@ export class HostSessionManager {
 			);
 		const current = project.manifest;
 		const configuration = operation.configuration;
+		if (
+			Object.hasOwn(configuration, "extensionGroups") ||
+			Object.hasOwn(configuration, "activeExtensionGroupId")
+		)
+			return {
+				status: "rejected",
+				message:
+					"Extension Activation Groups must be changed through the group manager",
+				diagnostics: [
+					{
+						code: "unsupportedProjectConfigurationField",
+						severity: "error",
+						message:
+							"Project configuration field 'extensionGroups' or 'activeExtensionGroupId' is unsupported here",
+					},
+				],
+			};
 		if (
 			configuration.backend.kind !== current.backend.kind ||
 			configuration.backend.path !== current.backend.path
@@ -832,7 +686,7 @@ export class HostSessionManager {
 		const validationErrors = validateProjectConfiguration(
 			configuration,
 			session.loaded.workspace.i18n.getAvailableLocales(),
-			buildProjectSettingsContributions(session),
+			extractedBuildProjectSettingsContributions(session.loaded),
 		);
 		if (validationErrors.length > 0)
 			return {
@@ -849,10 +703,8 @@ export class HostSessionManager {
 		const candidate = {
 			...current,
 			displayName: configuration.displayName.trim(),
-			activeExtensionProfileId: configuration.activeExtensionProfileId,
 			uiLocale: configuration.uiLocale,
 			extensions: configuration.extensions,
-			extensionProfiles: configuration.extensionProfiles,
 			templates: configuration.templates,
 			projectSettings: configuration.projectSettings,
 		};
@@ -863,12 +715,8 @@ export class HostSessionManager {
 				JSON.stringify(candidate.projectSettings)
 				? "templates"
 				: current.uiLocale !== candidate.uiLocale ||
-						current.activeExtensionProfileId !==
-							candidate.activeExtensionProfileId ||
 						JSON.stringify(current.extensions) !==
-							JSON.stringify(candidate.extensions) ||
-						JSON.stringify(current.extensionProfiles) !==
-							JSON.stringify(candidate.extensionProfiles)
+							JSON.stringify(candidate.extensions)
 					? "workspaceReload"
 					: "metadata";
 		await project.saveManifest(candidate, operation.expectedRevision);
@@ -890,20 +738,125 @@ export class HostSessionManager {
 		};
 	}
 
+	rejectUnsupportedProjectConfigurationFields(
+		sessionId: string,
+		fields: readonly string[],
+	): ProjectOperationResult {
+		return {
+			status: "rejected",
+			message: "Extension Activation Groups have a dedicated manager",
+			configuration: this.getProjectConfiguration(sessionId),
+			diagnostics: fields.map((field) => ({
+				code: "unsupportedProjectConfigurationField",
+				severity: "error",
+				message: `Project configuration field '${field}' is unsupported here`,
+			})),
+		};
+	}
+
+	// ---- Extension Activation Groups ---------------------------------------
+
+	private groupService(sessionId: string): ProjectExtensionGroupService {
+		return new ProjectExtensionGroupService(
+			createProjectExtensionGroupServiceContext({
+				loaded: () => this.get(sessionId)?.loaded,
+				requireProject: () => this.requireProject(this.getOrError(sessionId)),
+				getConfiguration: () => this.getProjectConfiguration(sessionId),
+				reloadProject: (rootPath) => this.openProject(sessionId, rootPath),
+				emitWorkspaceChanged: () =>
+					this.emit(this.getOrError(sessionId), "workspace.changed"),
+			}),
+		);
+	}
+
+	previewExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly groupId?: string;
+			readonly extensionIds?: readonly string[];
+			readonly setActive?: boolean;
+		} = {},
+	): ProjectExtensionGroupOperationResult {
+		return this.groupService(sessionId).preview(request);
+	}
+
+	async createExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly group: ProjectExtensionGroupDraft;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+		},
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.groupService(sessionId).create(request);
+	}
+
+	async updateExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly patch: ProjectExtensionGroupPatch;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+		},
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.groupService(sessionId).update(request);
+	}
+
+	async duplicateExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly sourceGroupId: string;
+			readonly displayName?: string;
+			readonly groupId?: string;
+			readonly setActive?: boolean;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+		},
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.groupService(sessionId).duplicate(request);
+	}
+
+	async deleteExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly groupId: string;
+			readonly replacementGroupId?: string;
+			readonly clearActive?: boolean;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+		},
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.groupService(sessionId).delete(request);
+	}
+
+	async setActiveExtensionGroup(
+		sessionId: string,
+		request: {
+			readonly groupId: string | null;
+			readonly expectedRevision: string;
+			readonly apply?: boolean;
+		},
+	): Promise<ProjectExtensionGroupOperationResult> {
+		return this.groupService(sessionId).setActive(request);
+	}
+
+	private requireProject(session: Session): MacroProject {
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		return project;
+	}
+
 	get(sessionId: string): Session | undefined {
-		const session = this.sessions.get(sessionId);
-		if (session && !session.disposed) {
-			session.lastActivity = Date.now();
-			return session;
-		}
-		return undefined;
+		return this.registry.get(sessionId);
 	}
 
 	getOrError(sessionId: string): Session {
-		const session = this.get(sessionId);
-		if (!session)
-			throw new SessionError("SESSION_NOT_FOUND", "Session not found", false);
-		return session;
+		return this.registry.getOrError(sessionId);
 	}
 
 	subscribe(
@@ -911,8 +864,7 @@ export class HostSessionManager {
 		listener: (event: HostEvent) => void,
 	): () => void {
 		const session = this.getOrError(sessionId);
-		session.listeners.add(listener);
-		return () => session.listeners.delete(listener);
+		return this.eventBus.subscribe(session, listener);
 	}
 
 	snapshotFor(sessionId: string): WorkspaceSnapshot {
@@ -997,81 +949,46 @@ export class HostSessionManager {
 		};
 	}
 
+	private settingsHost(sessionId: string): SettingsOperationHost {
+		return {
+			message: (_workspace, key, params) =>
+				this.message(this.getOrError(sessionId), key, params),
+			supportedScopes: (_workspace) =>
+				this.supportedScopes(this.getOrError(sessionId)),
+			settingsSnapshot: (_workspace) =>
+				this.settingsSnapshot(this.getOrError(sessionId)),
+			emitSettingsChanged: (_workspace) =>
+				this.emit(this.getOrError(sessionId), "settings.changed"),
+		};
+	}
+
+	private bundleHost(sessionId: string): SettingsBundleHost {
+		return {
+			message: (_workspace, key, params) =>
+				this.message(this.getOrError(sessionId), key, params),
+			supportedScopes: (_workspace) =>
+				this.supportedScopes(this.getOrError(sessionId)),
+			settingsSnapshot: (_workspace) =>
+				this.settingsSnapshot(this.getOrError(sessionId)),
+		};
+	}
+
 	async settings(
 		sessionId: string,
 		operation: SettingsOperation,
 	): Promise<SettingsApplyResult> {
 		const session = this.getOrError(sessionId);
-		const uiModel = session.loaded.workspace.settingsUiModel;
-		const settings = session.loaded.workspace.settings;
-		if (!uiModel || !settings)
-			throw new SessionError(
-				"SETTINGS_UNAVAILABLE",
-				"Settings are unavailable",
-				false,
+		try {
+			return await applySettingsOperation(
+				this.settingsHost(sessionId),
+				session,
+				operation,
 			);
-		if (operation.operation === "preview") {
-			const preview = await settings.preview({
-				requestId: operation.requestId,
-				settingsRevision:
-					operation.expectedRevision ?? settings.getSettingsRevision(),
-				path: operation.path,
-				draftValue: operation.draftValue,
-				effectiveSettings: settings.getEffective(),
-				sampleInput: operation.sampleInput,
-			});
-			return {
-				status: "preview",
-				preview: toSettingsPreviewDto(preview),
-				snapshot: this.snapshotResult(session).snapshot,
-			};
+		} catch (error) {
+			if (error instanceof SettingsServiceError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
 		}
-
-		// Semantic mutations route through the canonical SettingsUiModel so the
-		// host remains the sole authority on values, diagnostics, and
-		// persistence. The settings-bundle revision is opaque and distinct from
-		// the per-session workspace revision; it is never a session number.
-		switch (operation.operation) {
-			case "set":
-				uiModel.setValue(operation.path, operation.value);
-				break;
-			case "replaceJson":
-				uiModel.replaceRawJson(operation.rawText);
-				break;
-			case "save": {
-				const result = await uiModel.save(operation.expectedRevision);
-				if (result.status === "conflict") {
-					return this.conflictResult(session, result);
-				}
-				if (result.status === "blocked") {
-					return this.blockedResult(session, result);
-				}
-				this.emit(session, "settings.changed");
-				return this.savedResult(session, result);
-			}
-			case "discard":
-			case "reload":
-				await settings.reload();
-				break;
-			case "profile.select":
-				await uiModel.switchProfile(operation.profileId);
-				break;
-			case "scope.select": {
-				const supported = this.supportedScopes(session);
-				if (!supported.includes(operation.scope)) {
-					return this.unsupportedScopeResult(session, operation.scope);
-				}
-				uiModel.setActiveScope(operation.scope);
-				break;
-			}
-			case "jsonMode.toggle":
-				if (operation.enabled !== uiModel.getIsSplitJsonMode())
-					uiModel.toggleSplitJsonMode();
-				break;
-		}
-
-		this.emit(session, "settings.changed");
-		return this.snapshotResult(session);
 	}
 
 	async settingsUi(
@@ -1079,42 +996,17 @@ export class HostSessionManager {
 		operation: SettingsUiOperation,
 	): Promise<SettingsApplyResult> {
 		const session = this.getOrError(sessionId);
-		const uiModel = session.loaded.workspace.settingsUiModel;
-		if (!uiModel)
-			throw new SessionError(
-				"SETTINGS_UNAVAILABLE",
-				"Settings are unavailable",
-				false,
+		try {
+			return await applySettingsUiOperation(
+				this.settingsHost(sessionId),
+				session,
+				operation,
 			);
-		switch (operation.operation) {
-			case "settings.ui.scope.set": {
-				const supported = this.supportedScopes(session);
-				if (!supported.includes(operation.scope)) {
-					return this.unsupportedScopeResult(session, operation.scope);
-				}
-				uiModel.setActiveScope(operation.scope);
-				return this.snapshotResult(session);
-			}
-			case "settings.ui.search.set":
-				uiModel.setSearchQuery(operation.query);
-				break;
-			case "settings.ui.modifiedOnly.set":
-				uiModel.setFilterModifiedOnly(operation.enabled);
-				break;
-			case "settings.ui.jsonMode.toggle":
-				uiModel.toggleSplitJsonMode();
-				break;
-			case "settings.ui.section.set":
-				uiModel.setActiveSection(operation.sectionId);
-				break;
-			default:
-				throw new SessionError(
-					"SETTINGS_OPERATION_UNKNOWN",
-					"Unknown settings UI operation",
-					false,
-				);
+		} catch (error) {
+			if (error instanceof SettingsServiceError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
 		}
-		return this.snapshotResult(session);
 	}
 
 	async settingsBundle(
@@ -1122,161 +1014,17 @@ export class HostSessionManager {
 		operation: SettingsBundleOperation,
 	): Promise<SettingsBundleResult> {
 		const session = this.getOrError(sessionId);
-		const settings = session.loaded.workspace.settings;
-		if (!settings)
-			throw new SessionError(
-				"SETTINGS_UNAVAILABLE",
-				"Settings are unavailable",
-				false,
+		try {
+			return await applySettingsBundleOperation(
+				this.bundleHost(sessionId),
+				session,
+				operation,
 			);
-
-		if (operation.operation === "export") {
-			if (!this.supportedScopes(session).includes(operation.scope))
-				return {
-					status: "unsupported",
-					code: "SETTINGS_SCOPE_UNSUPPORTED",
-					message: this.message(session, "settings.bundle.scopeUnsupported", {
-						scope: operation.scope,
-					}),
-				};
-			const profiles = await settings.listProfiles();
-			if (!profiles.includes(operation.profileId))
-				return {
-					status: "unsupported",
-					code: "SETTINGS_PROFILE_UNSUPPORTED",
-					message: this.message(session, "settings.bundle.profileUnsupported", {
-						profile: operation.profileId,
-					}),
-				};
-			const exported = await settings.exportBundle(operation.profileId);
-			return {
-				status: "exported",
-				revision: exported.revision,
-				bundle: redactSensitiveBundle(
-					toSettingsBundleDto(exported.bundle),
-					settings.getSchema(),
-				),
-			};
+		} catch (error) {
+			if (error instanceof SettingsServiceError)
+				throw new SessionError(error.code, error.message, error.retryable);
+			throw error;
 		}
-
-		if (operation.operation === "importStage") {
-			if (!this.supportedScopes(session).includes(operation.scope))
-				return {
-					status: "unsupported",
-					code: "SETTINGS_SCOPE_UNSUPPORTED",
-					message: this.message(session, "settings.bundle.scopeUnsupported", {
-						scope: operation.scope,
-					}),
-				};
-			if (!isSettingsBundleDto(operation.bundle))
-				return {
-					status: "invalid",
-					message: this.message(session, "settings.bundle.invalid"),
-					diagnostics: [
-						{
-							severity: "error",
-							message: this.message(session, "settings.bundle.versionInvalid"),
-						},
-					],
-				};
-			const profiles = await settings.listProfiles();
-			if (!profiles.includes(operation.profileId))
-				return {
-					status: "unsupported",
-					code: "SETTINGS_PROFILE_UNSUPPORTED",
-					message: this.message(session, "settings.bundle.profileUnsupported", {
-						profile: operation.profileId,
-					}),
-				};
-			const revision = settings.getSettingsRevision();
-			if (operation.expectedRevision && operation.expectedRevision !== revision)
-				return {
-					status: "stale",
-					code: "SETTINGS_REVISION_STALE",
-					message: this.message(session, "settings.bundle.stale"),
-					expectedRevision: operation.expectedRevision,
-					actualRevision: revision,
-				};
-			const prepared = prepareImportedBundle(
-				operation.bundle,
-				operation.profileId,
-				settings.getSchema(),
-				this.message.bind(this, session),
-			);
-			if (
-				prepared.diagnostics.some(
-					(diagnostic) => diagnostic.severity === "error",
-				)
-			)
-				return {
-					status: "invalid",
-					message: this.message(session, "settings.bundle.invalid"),
-					diagnostics: prepared.diagnostics,
-				};
-			const stageId = randomUUID();
-			session.stagedBundle = {
-				stageId,
-				revision,
-				bundle: fromSettingsBundleDto(prepared.bundle),
-				scope: operation.scope,
-				profileId: operation.profileId,
-				mode: operation.mode,
-			};
-			return {
-				status: "staged",
-				stageId,
-				revision,
-				diagnostics: prepared.diagnostics,
-			};
-		}
-
-		const staged = session.stagedBundle;
-		if (!staged || staged.stageId !== operation.stageId)
-			return {
-				status: "invalid",
-				message: this.message(session, "settings.bundle.stageUnavailable"),
-				diagnostics: [
-					{
-						severity: "error",
-						message: this.message(session, "settings.bundle.stageUnknown"),
-					},
-				],
-			};
-		const expectedRevision = operation.expectedRevision ?? staged.revision;
-		if (expectedRevision !== staged.revision)
-			return {
-				status: "stale",
-				code: "SETTINGS_REVISION_STALE",
-				message: this.message(session, "settings.bundle.stale"),
-				expectedRevision: staged.revision,
-				actualRevision: expectedRevision,
-			};
-		const result = await settings.applyBundle(
-			staged.bundle,
-			staged.profileId,
-			operation.mode ?? staged.mode,
-			expectedRevision,
-		);
-		session.stagedBundle = undefined;
-		if (result.status === "conflict")
-			return {
-				status: "stale",
-				code: "SETTINGS_REVISION_STALE",
-				message: this.message(session, "settings.bundle.stale"),
-				expectedRevision: result.expectedRevision,
-				actualRevision: result.actualRevision,
-			};
-		if (result.status === "blocked")
-			return {
-				status: "blocked",
-				diagnostics: result.diagnostics.map(toSettingsDiagnosticDto),
-				snapshot: this.settingsSnapshot(session),
-			};
-		return {
-			status: "applied",
-			settingsRevision: result.settingsRevision,
-			snapshot: this.settingsSnapshot(session),
-		};
 	}
 
 	async editor(
@@ -2304,15 +2052,7 @@ export class HostSessionManager {
 	}
 
 	async dispose(sessionId: string): Promise<boolean> {
-		const session = this.sessions.get(sessionId);
-		if (!session) return false;
-		session.disposed = true;
-		this.stopFileTreeWatcher(session);
-		for (const unsubscribe of session.unsubs) unsubscribe();
-		session.listeners.clear();
-		this.sessions.delete(sessionId);
-		await session.loaded.workspace.dispose();
-		return true;
+		return this.registry.dispose(sessionId);
 	}
 
 	private rejectedEditorResult(
@@ -2393,7 +2133,7 @@ export class HostSessionManager {
 		return {
 			documents: documents
 				.list()
-				.map((document) => this.editorDocumentDto(document)),
+				.map((document) => toEditorDocumentDto(document)),
 			groups: session.loaded.workspace.editorGroups.list().map((group) => ({
 				groupId: group.groupId,
 				documentIds: group.documentIds,
@@ -2412,17 +2152,17 @@ export class HostSessionManager {
 			},
 			activeGroupId: session.loaded.workspace.editorGroups.getActiveGroupId(),
 			activeDocumentId: documents.getActiveDocumentId(),
-			activeDocument: active ? this.editorDocumentSnapshot(active) : null,
+			activeDocument: active ? toEditorDocumentSnapshot(active) : null,
 			loadedDocuments: Object.fromEntries(
 				documents
 					.list()
 					.map((document) => [
 						document.documentId,
-						this.editorDocumentSnapshot(document),
+						toEditorDocumentSnapshot(document),
 					]),
 			),
 			templates,
-			output: this.editorOutput(session),
+			output: toEditorOutput(session.loaded.workspace.journal),
 			capabilities: {
 				canCreate: true,
 				canExecute: Boolean(active),
@@ -2456,106 +2196,6 @@ export class HostSessionManager {
 		};
 	}
 
-	private editorOutput(session: Session): EditorOutputSnapshotDto {
-		const entries = session.loaded.workspace.journal.getEntries();
-		const bounded = entries.slice(-100);
-		return {
-			entries: bounded.map((entry) => ({
-				outputId: entry.id,
-				availability: entry.availability ?? "legacy",
-				...(entry.identity ? { identity: entry.identity } : {}),
-				lineNumber: entry.lineNumber,
-				rawText: entry.rawText,
-				macroId: entry.macroId,
-				...(entry.invokedAs ? { invokedAs: entry.invokedAs } : {}),
-				status:
-					entry.status === "reversed"
-						? "reversed"
-						: entry.success === false
-							? "failed"
-							: "committed",
-				...(entry.result === undefined
-					? {}
-					: {
-							result: toEditorPayload(entry.result, {
-								kind: "journal-result",
-								ownerId: entry.macroId,
-							}),
-						}),
-				...(entry.errorCode ? { errorCode: entry.errorCode } : {}),
-				...(entry.reversalReason
-					? { reversalReason: entry.reversalReason }
-					: {}),
-				fingerprint: entry.fingerprint,
-				executedAt: entry.executedAt,
-			})),
-			hasMore: entries.length > bounded.length,
-		};
-	}
-
-	private editorDocumentDto(document: MacroDocument): EditorDocumentDto {
-		return {
-			documentId: document.documentId,
-			providerId: document.providerId,
-			...(document.filePath ? { filePath: document.filePath } : {}),
-			title: document.title,
-			...(document.templateId ? { templateId: document.templateId } : {}),
-			dirty: document.dirty,
-			textRevision: document.textRevision,
-			...(document.pinnedMacroIds?.length > 0
-				? { pinnedMacroIds: document.pinnedMacroIds }
-				: {}),
-		};
-	}
-
-	private editorDocumentSnapshot(document: MacroDocument) {
-		const projectedLines = document.session.getProjectedLines();
-		const lines = projectedLines.map((line, idx) =>
-			this.toScratchpadLineDto({
-				...line,
-				isExecuted: document.session.isLineExecuted(idx),
-			}),
-		);
-		const projections = projectedLines.flatMap((line) => [
-			...line.projections.map((projection) => ({
-				kind: "slot" as const,
-				ownerId: projection.macroId,
-				version: projection.macroVersion,
-				payload: toEditorPayload(projection, {
-					kind: "slot",
-					ownerId: projection.macroId,
-					schemaVersion: 1,
-				}),
-			})),
-			...(line.extensionProjections ?? []).map((projection) => ({
-				kind: "extension" as const,
-				ownerId: projection.ownerExtensionId,
-				payload: toEditorPayload(projection.data, {
-					kind: "extension",
-					ownerId: projection.ownerExtensionId,
-				}),
-			})),
-		]);
-		const executionPreviews = projectedLines.flatMap((line) =>
-			line.executionPreview
-				? [
-						{
-							payload: toEditorPayload(line.executionPreview, {
-								kind: "execution-preview",
-							}),
-						},
-					]
-				: [],
-		);
-		return {
-			documentId: document.documentId,
-			textRevision: document.textRevision,
-			lines,
-			...(projections.length > 0 ? { projections } : {}),
-			...(executionPreviews.length > 0 ? { executionPreviews } : {}),
-		};
-	}
-
 	private editorLinesForOperation(
 		document: MacroDocument,
 		operation: {
@@ -2566,7 +2206,7 @@ export class HostSessionManager {
 		},
 	): readonly ScratchpadLineDto[] {
 		const lines = document.session.getProjectedLines().map((line, idx) =>
-			this.toScratchpadLineDto({
+			toScratchpadLineDto({
 				...line,
 				isExecuted: document.session.isLineExecuted(idx),
 			}),
@@ -2579,74 +2219,6 @@ export class HostSessionManager {
 				line.lineNumber >= operation.startLine! &&
 				line.lineNumber <= operation.endLine!,
 		);
-	}
-
-	private toScratchpadLineDto(line: {
-		readonly lineNumber: number;
-		readonly rawText: string;
-		readonly isValid: boolean;
-		readonly isExecuted?: boolean;
-		readonly macroName?: string;
-		readonly projections: readonly {
-			readonly macroId: string;
-			readonly macroVersion: number;
-		}[];
-		readonly extensionProjections?: readonly {
-			readonly ownerExtensionId: string;
-			readonly data: unknown;
-		}[];
-		readonly preview?: { readonly text?: string };
-		readonly executionPreview?: unknown;
-		readonly diagnostics: readonly MacroDiagnostic[];
-	}): ScratchpadLineDto {
-		const lineStatus: ScratchpadLineStatus = !line.rawText.trim()
-			? "empty"
-			: !line.macroName
-				? "non-macro"
-				: line.isValid
-					? "valid"
-					: "invalid";
-		const lineProjections = [
-			...line.projections.map((projection) => ({
-				kind: "slot" as const,
-				ownerId: projection.macroId,
-				version: projection.macroVersion,
-				payload: toEditorPayload(projection, {
-					kind: "slot",
-					ownerId: projection.macroId,
-					schemaVersion: 1,
-				}),
-			})),
-			...(line.extensionProjections ?? []).map((projection) => ({
-				kind: "extension" as const,
-				ownerId: projection.ownerExtensionId,
-				payload: toEditorPayload(projection.data, {
-					kind: "extension",
-					ownerId: projection.ownerExtensionId,
-				}),
-			})),
-		];
-		return {
-			lineNumber: line.lineNumber,
-			rawText: line.rawText,
-			...(line.macroName ? { macroName: line.macroName } : {}),
-			lineStatus,
-			...(line.isExecuted !== undefined ? { isExecuted: line.isExecuted } : {}),
-			diagnostics: line.diagnostics.map((diagnostic) =>
-				toScratchpadDiagnosticDto(diagnostic, lineStatus === "valid"),
-			),
-			...(lineProjections.length > 0 ? { projections: lineProjections } : {}),
-			...(line.preview ? { preview: { text: line.preview.text } } : {}),
-			...(line.executionPreview
-				? {
-						executionPreview: {
-							payload: toEditorPayload(line.executionPreview, {
-								kind: "execution-preview",
-							}),
-						},
-					}
-				: {}),
-		};
 	}
 
 	private toExecutionReceiptDto(
@@ -2687,7 +2259,7 @@ export class HostSessionManager {
 			...(receipt.result === undefined
 				? {}
 				: {
-						result: toEditorPayload(receipt.result, {
+						result: extractedToEditorPayload(receipt.result, {
 							kind: "execution-result",
 							ownerId: receipt.macroId,
 						}),
@@ -2727,14 +2299,11 @@ export class HostSessionManager {
 	}
 
 	async disposeAbandoned(now = Date.now()): Promise<void> {
-		for (const [id, session] of this.sessions) {
-			if (now - session.lastActivity > this.idleTimeoutMs)
-				await this.dispose(id);
-		}
+		await this.registry.disposeAbandoned(now);
 	}
 
 	async disposeAll(): Promise<void> {
-		for (const id of [...this.sessions.keys()]) await this.dispose(id);
+		await this.registry.disposeAll();
 	}
 
 	private attachSignals(session: Session): void {
@@ -2799,7 +2368,6 @@ export class HostSessionManager {
 		const workspace = session.loaded.workspace;
 		const profileId =
 			workspace.settings?.getActiveProfileId() ??
-			session.loaded.activeProfile ??
 			workspace.profile?.id ??
 			"base";
 		const extensionIds = session.loaded.resolvedExtensionIds;
@@ -2888,7 +2456,7 @@ export class HostSessionManager {
 					i18n: workspace.i18n,
 				})
 			: undefined;
-		const fallback = emptySettingsSnapshot(
+		const fallback = extractedEmptySettingsSnapshot(
 			profileId,
 			this.supportedScopes(session),
 		);
@@ -2979,107 +2547,19 @@ export class HostSessionManager {
 		return translate(session.loaded.workspace.i18n, key, params) || key;
 	}
 
-	private snapshotResult(session: Session): SettingsApplyResult {
-		return {
-			status: "saved",
-			restartRequired: false,
-			settingsRevision:
-				session.loaded.workspace.settingsUiModel?.getSettingsRevision() ?? "",
-			snapshot: this.settingsSnapshot(session),
-		};
-	}
-
-	private savedResult(
-		session: Session,
-		result: {
-			status: "saved";
-			restartRequired: boolean;
-			settingsRevision: string;
-		},
-	): SettingsApplyResult {
-		return {
-			status: "saved",
-			restartRequired: result.restartRequired,
-			settingsRevision: result.settingsRevision,
-			snapshot: this.settingsSnapshot(session),
-		};
-	}
-
-	private blockedResult(
-		session: Session,
-		result: { status: "blocked"; diagnostics: readonly SettingsDiagnostic[] },
-	): SettingsApplyResult {
-		return {
-			status: "blocked",
-			diagnostics: result.diagnostics.map(toSettingsDiagnosticDto),
-			snapshot: this.settingsSnapshot(session),
-		};
-	}
-
-	private conflictResult(
-		session: Session,
-		result: {
-			status: "conflict";
-			expectedRevision: string;
-			actualRevision: string;
-		},
-	): SettingsApplyResult {
-		return {
-			status: "conflict",
-			code: "SETTINGS_REVISION_STALE",
-			message: this.message(session, "settings.bundle.stale"),
-			expectedRevision: result.expectedRevision,
-			actualRevision: result.actualRevision,
-			snapshot: this.settingsSnapshot(session),
-		};
-	}
-
-	private unsupportedScopeResult(
-		session: Session,
-		scope: SettingsScope,
-	): SettingsApplyResult {
-		return {
-			status: "unsupported",
-			code: "SETTINGS_SCOPE_UNSUPPORTED",
-			message: this.message(session, "settings.bundle.scopeUnsupported", {
-				scope,
-			}),
-			snapshot: this.settingsSnapshot(session),
-		};
-	}
-
 	private settingsSnapshot(session: Session): SettingsUiSnapshotDto {
 		const uiModel = session.loaded.workspace.settingsUiModel;
 		if (!uiModel)
-			return emptySettingsSnapshot("base", this.supportedScopes(session));
+			return extractedEmptySettingsSnapshot(
+				"base",
+				this.supportedScopes(session),
+			);
 		return serializeSettingsUiSnapshot(uiModel.getSnapshot(), {
 			supportedScopes: this.supportedScopes(session),
 			i18n: session.loaded.workspace.i18n,
 			settingsRevision: uiModel.getSettingsRevision(),
 		});
 	}
-}
-
-function emptySettingsSnapshot(
-	activeProfileId: string,
-	supportedScopes: readonly SettingsScope[],
-): SettingsUiSnapshotDto {
-	return {
-		activeProfileId,
-		availableProfiles: [],
-		activeScope: "workspace",
-		supportedScopes: [...supportedScopes],
-		searchQuery: "",
-		filterModifiedOnly: false,
-		isSplitJsonMode: false,
-		jsonModeAvailable: true,
-		modifiedCount: 0,
-		totalModifiedCount: 0,
-		sections: [],
-		rawJsonText: "{}",
-		hasErrors: false,
-		settingsRevision: "",
-	};
 }
 
 /**
@@ -3264,7 +2744,7 @@ function toSettingsPreviewDto(
 	};
 }
 
-export function redactSensitiveBundle(
+function redactSensitiveBundleLegacy(
 	bundle: SettingsBundleDto,
 	schema: readonly SettingsSchemaEntry[],
 ): SettingsBundleDto {
@@ -3287,7 +2767,7 @@ export function redactSensitiveBundle(
 	return result;
 }
 
-export function prepareImportedBundle(
+function prepareImportedBundleLegacy(
 	bundle: SettingsBundleDto,
 	profileId: string,
 	schema: readonly SettingsSchemaEntry[],
@@ -3435,20 +2915,6 @@ function matchesSettingsType(
 	return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-export class SessionError extends Error {
-	constructor(
-		readonly code: string,
-		message: string,
-		readonly retryable = false,
-		readonly details?: unknown,
-	) {
-		super(message);
-	}
-	toHostError(): HostError {
-		return hostError(this.code, this.message, this.details, this.retryable);
-	}
-}
-
 function clone<T>(value: T): T {
 	return JSON.parse(JSON.stringify(value)) as T;
 }
@@ -3519,15 +2985,40 @@ function toProjectConfigurationDto(
 	const manifest = project.manifest;
 	const projectSettingsContributions =
 		buildProjectSettingsContributions(session);
+	const extensionCatalog = buildExtensionCatalog(project, session);
+	const activeResolution = resolveActiveExtensionGroup(
+		{
+			groups: manifest.extensionGroups ?? {},
+			...(manifest.activeExtensionGroupId === undefined
+				? {}
+				: { activeGroupId: manifest.activeExtensionGroupId }),
+		},
+		toResolverExtensions(
+			manifest.extensions,
+			availabilityMap(extensionCatalog),
+		),
+	);
 	return {
 		formatVersion: manifest.formatVersion,
 		projectId: manifest.projectId,
 		displayName: manifest.displayName,
 		backend: manifest.backend,
-		activeExtensionProfileId: manifest.activeExtensionProfileId,
+		activeExtensionGroupId: manifest.activeExtensionGroupId,
 		uiLocale: manifest.uiLocale,
 		extensions: manifest.extensions,
-		extensionProfiles: manifest.extensionProfiles,
+		...(manifest.extensionGroups
+			? {
+					extensionGroups: Object.fromEntries(
+						Object.entries(manifest.extensionGroups).map(([id, group]) => [
+							id,
+							toProjectExtensionGroupDto(group),
+						]),
+					),
+				}
+			: {}),
+		extensionCatalog,
+		activeExtensionGroupResolution:
+			toProjectExtensionGroupResolutionDto(activeResolution),
 		resources: manifest.resources,
 		historyResources: manifest.historyResources,
 		scratchpadResources: manifest.scratchpadResources,
@@ -3537,6 +3028,104 @@ function toProjectConfigurationDto(
 		availableLocales: session.loaded.workspace.i18n.getAvailableLocales(),
 		revision: project.descriptor.revision,
 	};
+}
+
+function availabilityMap(
+	catalog: readonly ProjectExtensionDescriptorDto[],
+): Readonly<Record<string, ProjectExtensionAvailabilityDto>> {
+	return Object.fromEntries(
+		catalog.map((descriptor) => [descriptor.id, descriptor.availability]),
+	);
+}
+
+/**
+ * Projects the host-owned extension catalog for a project session.
+ *
+ * Capability lists come from the active extension contributions, the macro
+ * registry, and project resource/migration metadata, so the browser never has
+ * to infer capabilities from raw manifests.
+ */
+function buildExtensionCatalog(
+	project: MacroProject,
+	session: Session,
+): readonly ProjectExtensionDescriptorDto[] {
+	const runtime = session.loaded.workspace.runtime;
+	const macrosByOwner = new Map<string, string[]>();
+	for (const macro of runtime.macros.list()) {
+		const registered = runtime.macros.getRegistered(macro.name);
+		const owner = registered?.ownerExtensionId;
+		if (!owner) continue;
+		const bucket = macrosByOwner.get(owner) ?? [];
+		bucket.push(registered.canonicalId ?? registered.id ?? macro.name);
+		macrosByOwner.set(owner, bucket);
+	}
+	const resourcesByExtension = new Map<string, string[]>();
+	for (const reference of [
+		...project.manifest.resources,
+		...project.manifest.historyResources,
+		...(project.manifest.scratchpadResources ?? []),
+	]) {
+		const owner = reference.metadata?.extensionId;
+		if (typeof owner !== "string") continue;
+		const bucket = resourcesByExtension.get(owner) ?? [];
+		bucket.push(`${reference.kind}:${reference.resourceId}`);
+		resourcesByExtension.set(owner, bucket);
+	}
+	const active = runtime.extensions.list().map((extension) => {
+		const manifest = extension.manifest;
+		const contributed = manifest.contributes;
+		const participants = extension.projectMigrationParticipants ?? [];
+		return {
+			id: manifest.id,
+			...(manifest.displayName === undefined
+				? {}
+				: { displayName: manifest.displayName }),
+			...(manifest.description === undefined
+				? {}
+				: { description: manifest.description }),
+			capabilities: {
+				macros: macrosByOwner.get(manifest.id) ?? [],
+				commands: [
+					...(contributed?.commands ?? []).map((command) => command.command),
+					...Object.keys(extension.contributions?.commands ?? {}),
+				],
+				views: [
+					...Object.values(contributed?.views ?? {}).flatMap((views) =>
+						views.map((view) => view.id),
+					),
+					...Object.keys(extension.contributions?.views ?? {}),
+				],
+				tabs: [
+					...(contributed?.workspaceTabs ?? []).map((tab) => tab.id),
+					...Object.keys(extension.contributions?.tabs ?? {}),
+				],
+				settings: (contributed?.settings ?? []).map(
+					(contribution) => contribution.namespace,
+				),
+				projectSettings: [
+					...(contributed?.projectSettings ?? []).map(
+						(contribution) => contribution.namespace,
+					),
+					...(extension.contributions?.projectSettings ?? []).map(
+						(contribution) => contribution.namespace,
+					),
+				],
+				resources: [
+					...(resourcesByExtension.get(manifest.id) ?? []),
+					...participants.flatMap(
+						(participant) => participant.resourceIds ?? [],
+					),
+				],
+				migrationParticipants: participants.map(
+					(participant) => participant.id,
+				),
+			},
+		};
+	});
+	return buildProjectExtensionCatalog({
+		declared: project.manifest.extensions,
+		active,
+	});
 }
 
 function toProjectMigrationJournalDto(
@@ -3583,20 +3172,4 @@ function toProjectMigrationRecoveryResultDto(
 			? { sourceDigestMatches: result.sourceDigestMatches }
 			: {}),
 	};
-}
-
-function setAtPath(
-	target: Record<string, unknown>,
-	path: readonly string[],
-	value: unknown,
-): void {
-	let cursor = target;
-	for (const key of path.slice(0, -1)) {
-		const next = cursor[key];
-		if (!next || typeof next !== "object" || Array.isArray(next))
-			cursor[key] = {};
-		cursor = cursor[key] as Record<string, unknown>;
-	}
-	const leaf = path[path.length - 1];
-	if (leaf) cursor[leaf] = value;
 }

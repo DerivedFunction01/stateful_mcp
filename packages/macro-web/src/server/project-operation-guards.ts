@@ -1,8 +1,12 @@
-import type { ProjectConfigurationDto } from "@stateful-mcp/macro-protocol";
+import type {
+	ProjectConfigurationDto,
+	ProjectConfigurationEditDto,
+} from "@stateful-mcp/macro-protocol";
 
 export interface ProjectUpdateConfigurationRequest {
-	readonly configuration: ProjectConfigurationDto;
+	readonly configuration: ProjectConfigurationEditDto;
 	readonly expectedRevision: string;
+	readonly unsupportedFields?: readonly string[];
 }
 
 function isBackendDescriptor(
@@ -29,7 +33,20 @@ export function parseProjectUpdateConfiguration(
 	if (typeof candidate.expectedRevision !== "string") return undefined;
 	const configuration = candidate.configuration;
 	if (!isProjectConfigurationDto(configuration)) return undefined;
-	return { configuration, expectedRevision: candidate.expectedRevision };
+	const unsupportedFields = [
+		"extensionGroups",
+		"activeExtensionGroupId",
+	].filter((field) => Object.hasOwn(configuration, field));
+	const {
+		extensionGroups: _extensionGroups,
+		activeExtensionGroupId: _activeExtensionGroupId,
+		...editableConfiguration
+	} = configuration;
+	return {
+		configuration: editableConfiguration,
+		expectedRevision: candidate.expectedRevision,
+		...(unsupportedFields.length ? { unsupportedFields } : {}),
+	};
 }
 
 export function parsePreviewBackendMigration(
@@ -156,7 +173,13 @@ export interface ProjectActionRequest {
 		| "project.recoverBackendMigration"
 		| "project.getMigrationJournal"
 		| "project.discardBackendMigration"
-		| "project.resumeBackendMigration";
+		| "project.resumeBackendMigration"
+		| "project.previewExtensionGroup"
+		| "project.updateExtensionGroup"
+		| "project.createExtensionGroup"
+		| "project.duplicateExtensionGroup"
+		| "project.deleteExtensionGroup"
+		| "project.setActiveExtensionGroup";
 	readonly action?: "open" | "init" | "saveAs" | "close";
 	readonly path?: string;
 	readonly displayName?: string;
@@ -216,8 +239,8 @@ export function isProjectConfigurationDto(
 	if (!Array.isArray(candidate.historyResources)) return false;
 	if (typeof candidate.revision !== "string") return false;
 	if (
-		candidate.activeExtensionProfileId !== undefined &&
-		typeof candidate.activeExtensionProfileId !== "string"
+		candidate.activeExtensionGroupId !== undefined &&
+		typeof candidate.activeExtensionGroupId !== "string"
 	)
 		return false;
 	if (
@@ -225,12 +248,37 @@ export function isProjectConfigurationDto(
 		typeof candidate.uiLocale !== "string"
 	)
 		return false;
-	if (candidate.extensionProfiles !== undefined)
+	if (candidate.extensionGroups !== undefined) {
 		if (
-			typeof candidate.extensionProfiles !== "object" ||
-			candidate.extensionProfiles === null
+			typeof candidate.extensionGroups !== "object" ||
+			candidate.extensionGroups === null ||
+			Array.isArray(candidate.extensionGroups)
 		)
 			return false;
+		for (const [key, group] of Object.entries(
+			candidate.extensionGroups as Record<string, unknown>,
+		)) {
+			if (typeof group !== "object" || group === null) return false;
+			const entry = group as Record<string, unknown>;
+			if (entry.id !== key) return false;
+			if (typeof entry.displayName !== "string") return false;
+			if (!Array.isArray(entry.extensionIds)) return false;
+			if (entry.extensionIds.some((id) => typeof id !== "string")) return false;
+			if (
+				entry.source !== "project" &&
+				entry.source !== "builtin" &&
+				entry.source !== "extension"
+			)
+				return false;
+			if (entry.readOnly !== undefined && typeof entry.readOnly !== "boolean")
+				return false;
+			if (
+				entry.description !== undefined &&
+				typeof entry.description !== "string"
+			)
+				return false;
+		}
+	}
 	if (candidate.projectSettings !== undefined)
 		if (
 			typeof candidate.projectSettings !== "object" ||

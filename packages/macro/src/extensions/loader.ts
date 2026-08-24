@@ -1,6 +1,5 @@
 import { readdir } from "node:fs/promises";
 import { dirname, extname, isAbsolute, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import type { LoadedExtension, MacroExtension } from "./contracts";
 import {
 	type ExtensionDiagnostic,
@@ -34,7 +33,9 @@ export class ExtensionLoader {
 		const loaded: LoadedExtension[] = [];
 		for (const sourceFile of files ?? (await this.discover())) {
 			try {
-				const module = await import(pathToFileURL(resolve(sourceFile)).href);
+				const module = await import(
+					`file://${resolve(sourceFile).replaceAll("\\", "/")}`,
+				);
 				const extension = module.default as MacroExtension | undefined;
 				validateExtensionExport(extension, sourceFile);
 				loaded.push({ extension: extension!, sourceFile: resolve(sourceFile) });

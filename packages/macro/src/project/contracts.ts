@@ -1,3 +1,12 @@
+/**
+ * Persisted project manifest shape version. Version 2 replaced the flat
+	 * legacy extension-profile fields with the rich
+ * Extension Activation Group model (`extensionGroups`/`activeExtensionGroupId`).
+ * Older manifests are rejected; there are no compatibility readers.
+ */
+export const MACRO_PROJECT_FORMAT_VERSION = 2 as const;
+export type MacroProjectFormatVersion = typeof MACRO_PROJECT_FORMAT_VERSION;
+
 export type MacroProjectBackendKind = "jsonl" | "sqlite";
 
 export interface MacroProjectBackendDescriptor {
@@ -19,15 +28,54 @@ export interface MacroProjectResourceReference {
 	readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
+export const PROJECT_EXTENSION_GROUP_SOURCES = [
+	"project",
+	"builtin",
+	"extension",
+] as const;
+
+/**
+ * Where an activation group came from. Only `project` groups are persisted in
+ * the project manifest as editable groups; `builtin` and `extension` groups are
+ * surfaced as read-only catalog entries and must be duplicated before editing.
+ */
+export type ProjectExtensionGroupSource =
+	(typeof PROJECT_EXTENSION_GROUP_SOURCES)[number];
+
+/**
+ * A project-local Extension Activation Group: the set of declared extensions a
+ * project explicitly activates. Distinct from Macro/language profiles, which
+ * remain owned by workspace settings.
+ *
+ * Invariants:
+ * - The manifest record key equals `id`.
+ * - `id` is stable and is not rewritten by a display-name rename.
+ * - `extensionIds` holds direct membership only; dependency closure is resolved
+ *   at load time and never persisted as membership.
+ * - `extensionIds` is deduplicated and deterministically ordered.
+ */
+export interface ProjectExtensionActivationGroup {
+	readonly id: string;
+	readonly displayName: string;
+	readonly description?: string;
+	readonly extensionIds: readonly string[];
+	readonly source: ProjectExtensionGroupSource;
+	readonly readOnly?: boolean;
+}
+
+export type ProjectExtensionActivationGroupMap = Readonly<
+	Record<string, ProjectExtensionActivationGroup>
+>;
+
 export interface MacroProjectManifest {
 	readonly formatVersion: number;
 	readonly projectId: string;
 	readonly displayName: string;
 	readonly backend: MacroProjectBackendDescriptor;
-	readonly activeExtensionProfileId?: string;
+	readonly activeExtensionGroupId?: string;
 	readonly uiLocale?: string;
 	readonly extensions: readonly MacroProjectExtensionSpec[];
-	readonly extensionProfiles?: Readonly<Record<string, readonly string[]>>;
+	readonly extensionGroups?: ProjectExtensionActivationGroupMap;
 	readonly resources: readonly MacroProjectResourceReference[];
 	readonly historyResources: readonly MacroProjectResourceReference[];
 	readonly scratchpadResources?: readonly MacroProjectResourceReference[];

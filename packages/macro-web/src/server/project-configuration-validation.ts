@@ -1,7 +1,16 @@
+import {
+	type ProjectExtensionGroupDiagnostic,
+	validateProjectExtensionGroups,
+} from "@stateful-mcp/macro";
 import type {
 	ProjectConfigurationDto,
+	ProjectExtensionGroupDiagnosticDto,
 	ProjectSettingsContributionDto,
 } from "@stateful-mcp/macro-protocol";
+import {
+	toProjectExtensionGroupDiagnosticDto,
+	toResolverExtensions,
+} from "./project-extension-groups";
 
 type SettingSchemaEntry = ProjectSettingsContributionDto["schema"][number];
 
@@ -41,45 +50,44 @@ function validateSettingValue(
 	}
 }
 
+export interface ProjectConfigurationValidation {
+	/** Human-readable problems. Empty means the edit may be persisted. */
+	readonly errors: readonly string[];
+	/**
+	 * Structured Extension Activation Group diagnostics with stable codes, so
+	 * callers can render them per group or per extension instead of parsing a
+	 * concatenated message.
+	 */
+	readonly groupDiagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+}
+
 /**
  * Validate a project configuration edit against host-boundary invariants.
  *
- * Returns a list of human-readable problems. An empty list means the
- * configuration is acceptable for persistence. Only fields that are practical
- * to validate at the boundary are checked: the active extension profile, the
- * membership of each profile, the UI locale, and project settings that have a
- * matching contribution schema.
+ * Checks the fields that are practical to validate at the boundary: the
+ * Extension Activation Groups (record key/id agreement, display names,
+ * membership, dependency closure, active group), the UI locale, and project
+ * settings that have a matching contribution schema.
  */
-export function validateProjectConfiguration(
+export function validateProjectConfigurationDetailed(
 	config: ProjectConfigurationDto,
 	availableLocales: readonly { readonly id: string }[],
 	contributions: readonly ProjectSettingsContributionDto[],
-): readonly string[] {
+	reservedGroupIds: readonly string[] = [],
+): ProjectConfigurationValidation {
 	const errors: string[] = [];
-
-	if (config.activeExtensionProfileId !== undefined) {
-		const profiles = config.extensionProfiles ?? {};
-		if (!(config.activeExtensionProfileId in profiles)) {
-			errors.push(
-				`Active extension profile '${config.activeExtensionProfileId}' is not defined in extensionProfiles`,
-			);
-		}
-	}
-
-	const knownExtensions = new Set(
-		config.extensions.map((extension) => extension.id),
-	);
-	for (const [profileId, members] of Object.entries(
-		config.extensionProfiles ?? {},
-	)) {
-		for (const memberId of members) {
-			if (!knownExtensions.has(memberId)) {
-				errors.push(
-					`Extension profile '${profileId}' references unknown extension '${memberId}'`,
-				);
-			}
-		}
-	}
+	const groupDiagnostics: ProjectExtensionGroupDiagnostic[] = [
+		...validateProjectExtensionGroups({
+			extensions: toResolverExtensions(config.extensions),
+			reservedGroupIds,
+			...(config.extensionGroups ? { groups: config.extensionGroups } : {}),
+			...(config.activeExtensionGroupId === undefined
+				? {}
+				: { activeGroupId: config.activeExtensionGroupId }),
+		}),
+	];
+	for (const diagnostic of groupDiagnostics)
+		if (diagnostic.severity === "error") errors.push(diagnostic.message);
 
 	if (config.uiLocale !== undefined) {
 		const availableIds = new Set(availableLocales.map((locale) => locale.id));
@@ -105,5 +113,28 @@ export function validateProjectConfiguration(
 		}
 	}
 
-	return errors;
+	return {
+		errors,
+		groupDiagnostics: groupDiagnostics.map(
+			toProjectExtensionGroupDiagnosticDto,
+		),
+	};
+}
+
+/**
+ * Human-readable projection of {@link validateProjectConfigurationDetailed}.
+ * An empty list means the configuration is acceptable for persistence.
+ */
+export function validateProjectConfiguration(
+	config: ProjectConfigurationDto,
+	availableLocales: readonly { readonly id: string }[],
+	contributions: readonly ProjectSettingsContributionDto[],
+	reservedGroupIds: readonly string[] = [],
+): readonly string[] {
+	return validateProjectConfigurationDetailed(
+		config,
+		availableLocales,
+		contributions,
+		reservedGroupIds,
+	).errors;
 }
