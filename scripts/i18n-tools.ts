@@ -36,14 +36,15 @@ const GALLERY_FILE = join(WEB, "src", "lib", "gallery-locale.ts");
 // Parsing helpers
 // ---------------------------------------------------------------------------
 
-/** Collect `"key":` literals from a TS source string. */
+/** Collect object-literal keys from a TS source string. */
 function parseKeyLiterals(src: string): string[] {
-	const re = /"((?:\\.|[^"\\])*)"\s*:/g;
+	const re = /^\s*(?:"((?:\\.|[^"\\])*)"|([A-Za-z_$][\w$.]*))\s*:/gm;
 	const out: string[] = [];
 	let m: RegExpExecArray | null;
 	m = re.exec(src);
 	while (m) {
-		if (m[1]) out.push(m[1]);
+		const key = m[1] ?? m[2];
+		if (key) out.push(key);
 		m = re.exec(src);
 	}
 	return out;

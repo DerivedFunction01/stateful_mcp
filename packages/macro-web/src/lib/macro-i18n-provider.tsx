@@ -1,6 +1,7 @@
 import { createDefaultI18nKernel } from "@stateful-mcp/macro/workspace/i18n/discovery";
 import type {
 	I18nKernel,
+	LocaleDescriptor,
 	TranslationParams,
 } from "@stateful-mcp/macro/workspace/i18n/i18n-kernel";
 import type { I18nKey } from "@stateful-mcp/macro/workspace/i18n/locales/i18n-keys";
@@ -21,6 +22,7 @@ import { GALLERY_TRANSLATIONS } from "./gallery-locale";
 export interface MacroWebI18n {
 	readonly locale: string;
 	readonly setLocale: (locale: string) => void;
+	readonly availableLocales: readonly LocaleDescriptor[];
 	t(key: WebI18nKey, params?: TranslationParams): string;
 }
 
@@ -35,6 +37,7 @@ function valueForKernel(kernel: I18nKernel): MacroWebI18n {
 	return {
 		locale: kernel.getActiveLocale(),
 		setLocale: (locale) => kernel.setActiveLocale(locale),
+		availableLocales: kernel.getAvailableLocales(),
 		t: (key, params) => kernel.t(key, params),
 	};
 }

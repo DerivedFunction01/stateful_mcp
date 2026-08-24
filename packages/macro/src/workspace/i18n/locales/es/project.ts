@@ -47,4 +47,64 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.init.projectPlaceholder": "El nombre del proyecto",
 	"project.init.submit": "Inicializar proyecto",
 	"project.init.cancel": "Cancelar",
+	"project.settings.createGroup": "Crear grupo",
+	"project.settings.groupName": "Nombre del grupo",
+	"project.settings.groupNamePlaceholder": "mi-grupo",
+	"project.settings.add": "Añadir",
+	"project.settings.renameGroup": "Renombrar",
+	"project.settings.duplicateGroup": "Duplicar",
+	"project.settings.deleteGroup": "Eliminar",
+	"project.settings.duplicateGroupName": "Ya existe un grupo llamado {name}.",
+	"project.settings.confirmDeleteGroup":
+		"¿Eliminar el grupo {name} y su membresía?",
+	"project.settings.noGroups":
+		"Aún no hay grupos de extensiones. Crea uno para gestionar las extensiones activas.",
+	"project.settings.memberCount": "{count} miembros",
+	"project.settings.membershipHint":
+		"Selecciona o crea un grupo de extensiones para editar su membresía.",
+	"project.settings.requires": "requiere: {names}",
+	"project.settings.lockedDependency": "Bloqueado",
+	"project.settings.reset": "Restablecer",
+	"project.settings.sensitivePlaceholder": "••••••••",
+	"project.settings.tagPlaceholder": "Escribe y pulsa Enter...",
+	"project.settings.keymapCommand": "Comando",
+	"project.settings.keymapChord": "Combinación de teclas",
+	"project.settings.keymapCommandPlaceholder":
+		"ID de comando (p. ej. editor.save)",
+	"project.settings.keymapChordPlaceholder": "Combinación (p. ej. Ctrl+S)",
+	"project.settings.actions": "Acciones",
+	"project.settings.delete": "Eliminar",
+	"project.settings.migrationJournal": "Diario de migración",
+	"project.settings.migrationJournalNone": "No hay migración en curso.",
+	"project.settings.migrationJournalState.preparing": "Preparando",
+	"project.settings.migrationJournalState.copying": "Copiando",
+	"project.settings.migrationJournalState.verifying": "Verificando",
+	"project.settings.migrationJournalState.finalizing": "Finalizando",
+	"project.settings.migrationJournalState.failed": "Fallida",
+	"project.settings.migrationJournalResumable": "Reanudable",
+	"project.settings.migrationJournalAbandoned": "Abandonada",
+	"project.settings.migrationJournalStarted": "Iniciada",
+	"project.settings.migrationJournalUpdated": "Actualizada",
+	"project.settings.migrationJournalOwner": "Proceso {pid} en {hostname}",
+	"project.settings.migrationJournalTarget": "Destino",
+	"project.settings.migrationJournalCopied":
+		"Copiados {history} historiales y {scratchpads} blocs",
+	"project.settings.migrationJournalError": "Error",
+	"project.settings.refreshJournal": "Actualizar diario",
+	"project.settings.discardMigration": "Descartar migración",
+	"project.settings.resumeMigration": "Reanudar migración",
+	"project.settings.journalRecovery.noJournal":
+		"No se encontró un diario de migración.",
+	"project.settings.journalRecovery.invalidJournalCleared":
+		"Se eliminó un diario de migración ilegible.",
+	"project.settings.journalRecovery.migrationCompleted":
+		"La migración ya se completó; se eliminó el diario sobrante.",
+	"project.settings.journalRecovery.targetDiscarded":
+		"Se descartó el destino parcial y se limpió el diario.",
+	"project.settings.journalRecovery.targetRetained":
+		"El destino parcial se conservó: {reason}",
+	"project.settings.journalRecovery.activeMigrationRetained":
+		"Una migración sigue en curso en otro lugar y no fue interrumpida.",
+	"project.settings.journalRecovery.removedTargetPath":
+		"Destino eliminado: {path}",
 };

@@ -40,6 +40,7 @@ export * from "./parser/macro-parser";
 export * from "./parser/macro-scanner";
 export * from "./payload/payload-compiler";
 export * from "./project/contracts";
+export * from "./project/resource-registry";
 export * from "./rendering/contracts";
 export * from "./resources/contracts";
 export * from "./resources/core-dictionary-adapter";

@@ -94,8 +94,14 @@ export interface ProjectMigrationContext {
 	readonly signal?: AbortSignal;
 	readonly sourceHistory: import("@stateful-mcp/core").HistoryResourceStore;
 	readonly sourceScratchpads: import("@stateful-mcp/core").ScratchpadResourceStore;
-	readonly targetHistory: import("@stateful-mcp/core").HistoryResourceStore;
-	readonly targetScratchpads: import("@stateful-mcp/core").ScratchpadResourceStore;
+	/**
+	 * Target stores exist only once the migration has been applied. The host
+	 * boundary cannot open a real target store while merely planning, so it
+	 * passes `undefined` for the plan context and the concrete project store
+	 * supplies the real target stores when it applies the migration.
+	 */
+	readonly targetHistory?: import("@stateful-mcp/core").HistoryResourceStore;
+	readonly targetScratchpads?: import("@stateful-mcp/core").ScratchpadResourceStore;
 }
 
 export interface ProjectMigrationParticipantPlan {

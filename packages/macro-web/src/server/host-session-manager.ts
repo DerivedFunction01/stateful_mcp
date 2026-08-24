@@ -42,8 +42,13 @@ import { translate } from "@stateful-mcp/macro/workspace/i18n/translation";
 import {
 	createMacroProject,
 	getProjectFileTree,
+	isMigrationJournalStale,
+	isResumableMigrationStatus,
 	type LoadedMacroWorkspace,
 	type MacroHost,
+	type MacroProject,
+	type ProjectMigrationJournal,
+	type ProjectMigrationRecoveryResult,
 	ServerUserPreferencesStore,
 } from "@stateful-mcp/macro-host";
 import {
@@ -70,7 +75,13 @@ import {
 	type ProjectBackendMigrationPlanDto,
 	type ProjectConfigurationDto,
 	type ProjectConfigurationImpact,
+	type ProjectMigrationJournalDto,
+	type ProjectMigrationJournalOwnerDto,
+	type ProjectMigrationJournalStatusDto,
+	type ProjectMigrationRecoveryAction,
+	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
+	type ProjectSettingsContributionDto,
 	type ScratchpadExecutionReceiptDto,
 	type ScratchpadLineDto,
 	type ScratchpadLineStatus,
@@ -83,6 +94,7 @@ import {
 	type SettingsDiagnosticDto,
 	type SettingsOperation,
 	type SettingsPreviewDto,
+	type SettingsSchemaEntryDto,
 	type SettingsScope,
 	type SettingsUiOperation,
 	type SettingsUiSnapshotDto,
@@ -90,6 +102,7 @@ import {
 	type UserPreferencesExportBundleDto,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
+import { validateProjectConfiguration } from "./project-configuration-validation";
 
 export interface HostSessionOptions {
 	readonly workspacePath?: string;
@@ -576,35 +589,7 @@ export class HostSessionManager {
 				"A project workspace is required",
 				false,
 			);
-		const manifest = project.manifest;
-		const projectSettingsContributions =
-			session.loaded.workspace.runtime.extensions.list().flatMap((extension) =>
-				(extension.contributions?.projectSettings ?? []).map(
-					(contribution) => ({
-						extensionId: extension.manifest.id,
-						namespace: contribution.namespace,
-						title: contribution.title,
-						...(contribution.description
-							? { description: contribution.description }
-							: {}),
-						schema: contribution.schema.map((entry) => ({
-							path: entry.path,
-							type: entry.type,
-							title: entry.title,
-							...(entry.description ? { description: entry.description } : {}),
-							...(entry.widget ? { widget: entry.widget } : {}),
-							...(entry.enumValues ? { enumValues: entry.enumValues } : {}),
-							...(entry.sensitive ? { sensitive: true } : {}),
-						})),
-					}),
-				),
-			);
-		return {
-			...manifest,
-			projectSettingsContributions,
-			availableLocales: session.loaded.workspace.i18n.getAvailableLocales(),
-			revision: project.descriptor.revision,
-		} as ProjectConfigurationDto;
+		return toProjectConfigurationDto(project, session);
 	}
 
 	private async backendMigrationPlan(
@@ -630,8 +615,10 @@ export class HostSessionManager {
 					targetBackend: target,
 					sourceHistory: project.history,
 					sourceScratchpads: project.scratchpads,
-					targetHistory: project.history,
-					targetScratchpads: project.scratchpads,
+					// The target store does not exist during planning; the concrete
+					// project store opens it only when the migration is applied.
+					targetHistory: undefined,
+					targetScratchpads: undefined,
 				});
 				participants.push({
 					id: participant.id,
@@ -670,7 +657,7 @@ export class HostSessionManager {
 
 	async recoverBackendMigration(
 		sessionId: string,
-	): Promise<{ readonly status: "recovered" }> {
+	): Promise<ProjectMigrationRecoveryResultDto> {
 		const session = this.getOrError(sessionId);
 		if (!session.loaded.project)
 			throw new SessionError(
@@ -678,8 +665,81 @@ export class HostSessionManager {
 				"A project workspace is required",
 				false,
 			);
-		await session.loaded.project.recoverMigration();
-		return { status: "recovered" };
+		const recovery = await session.loaded.project.recoverMigration();
+		return toProjectMigrationRecoveryResultDto(recovery);
+	}
+
+	async getMigrationJournal(
+		sessionId: string,
+	): Promise<ProjectMigrationJournalStatusDto> {
+		const session = this.getOrError(sessionId);
+		if (!session.loaded.project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const journal = await session.loaded.project.readMigrationJournal();
+		const stale = journal ? isMigrationJournalStale(journal) : false;
+		const resumable = journal
+			? isResumableMigrationStatus(journal.status) && stale
+			: false;
+		return {
+			journal: journal ? toProjectMigrationJournalDto(journal) : null,
+			stale,
+			resumable,
+		};
+	}
+
+	async discardBackendMigration(
+		sessionId: string,
+	): Promise<ProjectMigrationRecoveryResultDto> {
+		const session = this.getOrError(sessionId);
+		if (!session.loaded.project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const recovery = await session.loaded.project.recoverMigration({
+			force: true,
+		});
+		return toProjectMigrationRecoveryResultDto(recovery);
+	}
+
+	async resumeBackendMigration(
+		sessionId: string,
+	): Promise<ProjectOperationResult> {
+		const session = this.getOrError(sessionId);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const journal = await project.readMigrationJournal();
+		if (!journal)
+			return {
+				status: "rejected",
+				message: "No migration journal is available to resume",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		if (!isResumableMigrationStatus(journal.status))
+			return {
+				status: "rejected",
+				message:
+					"A migration in the 'finalizing' state cannot be resumed safely",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		// Resuming re-applies the migration to the journal's recorded target. The
+		// source backend is untouched, and applyBackendMigration reconciles any
+		// stale journal for the same path before copying.
+		return this.applyBackendMigration(
+			sessionId,
+			journal.target,
+			journal.expectedRevision,
+		);
 	}
 
 	async applyBackendMigration(
@@ -768,6 +828,17 @@ export class HostSessionManager {
 			return {
 				status: "rejected",
 				message: "Project display name is required",
+			};
+		const validationErrors = validateProjectConfiguration(
+			configuration,
+			session.loaded.workspace.i18n.getAvailableLocales(),
+			buildProjectSettingsContributions(session),
+		);
+		if (validationErrors.length > 0)
+			return {
+				status: "rejected",
+				message: validationErrors.join("; "),
+				configuration: this.getProjectConfiguration(sessionId),
 			};
 		if (operation.expectedRevision !== project.descriptor.revision)
 			return {
@@ -3381,6 +3452,139 @@ export class SessionError extends Error {
 function clone<T>(value: T): T {
 	return JSON.parse(JSON.stringify(value)) as T;
 }
+
+/**
+ * Builds the project settings contribution list from the active workspace's
+ * extensions. Shared by the configuration projection and the boundary
+ * validation so both agree on the available schema.
+ */
+function buildProjectSettingsContributions(
+	session: Session,
+): ProjectSettingsContributionDto[] {
+	return session.loaded.workspace.runtime.extensions
+		.list()
+		.flatMap((extension) =>
+			(extension.contributions?.projectSettings ?? []).map(
+				(contribution): ProjectSettingsContributionDto => ({
+					extensionId: extension.manifest.id,
+					namespace: contribution.namespace,
+					title: contribution.title,
+					...(contribution.description
+						? { description: contribution.description }
+						: {}),
+					schema: contribution.schema.map((entry) => ({
+						path: entry.path,
+						type: entry.type,
+						title: entry.title,
+						...(entry.description ? { description: entry.description } : {}),
+						...(entry.widget ? { widget: entry.widget } : {}),
+						...(entry.placeholder ? { placeholder: entry.placeholder } : {}),
+						...(entry.enumOptions
+							? {
+									enumOptions: entry.enumOptions.map((option) => ({
+										id: option.id,
+										label: option.label,
+									})),
+								}
+							: {}),
+						...(entry.min !== undefined ? { min: entry.min } : {}),
+						...(entry.max !== undefined ? { max: entry.max } : {}),
+						...(entry.step !== undefined ? { step: entry.step } : {}),
+						...(entry.tagDelimiters
+							? { tagDelimiters: entry.tagDelimiters }
+							: {}),
+						...(contribution.defaults &&
+						entry.path.join(".") in contribution.defaults
+							? {
+									default: contribution.defaults[entry.path.join(".")],
+								}
+							: {}),
+						...(entry.sensitive ? { sensitive: true } : {}),
+					})) as SettingsSchemaEntryDto[],
+				}),
+			),
+		);
+}
+
+/**
+ * Explicit, fully-typed projection of a Macro project into the host-boundary
+ * ProjectConfigurationDto. Every protocol field is enumerated so the server
+ * never relies on an unchecked `as ProjectConfigurationDto` spread of the
+ * manifest.
+ */
+function toProjectConfigurationDto(
+	project: MacroProject,
+	session: Session,
+): ProjectConfigurationDto {
+	const manifest = project.manifest;
+	const projectSettingsContributions =
+		buildProjectSettingsContributions(session);
+	return {
+		formatVersion: manifest.formatVersion,
+		projectId: manifest.projectId,
+		displayName: manifest.displayName,
+		backend: manifest.backend,
+		activeExtensionProfileId: manifest.activeExtensionProfileId,
+		uiLocale: manifest.uiLocale,
+		extensions: manifest.extensions,
+		extensionProfiles: manifest.extensionProfiles,
+		resources: manifest.resources,
+		historyResources: manifest.historyResources,
+		scratchpadResources: manifest.scratchpadResources,
+		templates: manifest.templates,
+		projectSettings: manifest.projectSettings,
+		projectSettingsContributions,
+		availableLocales: session.loaded.workspace.i18n.getAvailableLocales(),
+		revision: project.descriptor.revision,
+	};
+}
+
+function toProjectMigrationJournalDto(
+	journal: ProjectMigrationJournal,
+): ProjectMigrationJournalDto {
+	const owner: ProjectMigrationJournalOwnerDto = {
+		pid: journal.owner.pid,
+		hostname: journal.owner.hostname,
+	};
+	return {
+		journalVersion: journal.journalVersion,
+		migrationId: journal.migrationId,
+		status: journal.status,
+		resumable: journal.resumable,
+		startedAt: journal.startedAt,
+		updatedAt: journal.updatedAt,
+		owner,
+		source: journal.source,
+		target: journal.target,
+		expectedRevision: journal.expectedRevision,
+		copiedHistory: journal.copiedHistory,
+		copiedScratchpads: journal.copiedScratchpads,
+		...(journal.error !== undefined ? { error: journal.error } : {}),
+	};
+}
+
+function toProjectMigrationRecoveryResultDto(
+	result: ProjectMigrationRecoveryResult,
+): ProjectMigrationRecoveryResultDto {
+	const action = result.action as ProjectMigrationRecoveryAction;
+	return {
+		action,
+		journal: result.journal
+			? toProjectMigrationJournalDto(result.journal)
+			: null,
+		...(result.stale !== undefined ? { stale: result.stale } : {}),
+		...(result.removedTargetPath !== undefined
+			? { removedTargetPath: result.removedTargetPath }
+			: {}),
+		...(result.retainedReason !== undefined
+			? { retainedReason: result.retainedReason }
+			: {}),
+		...(result.sourceDigestMatches !== undefined
+			? { sourceDigestMatches: result.sourceDigestMatches }
+			: {}),
+	};
+}
+
 function setAtPath(
 	target: Record<string, unknown>,
 	path: readonly string[],

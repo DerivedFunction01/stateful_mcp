@@ -1,6 +1,6 @@
 import type { CommandDescriptorDto } from "./commands";
 import type { EditorWorkspaceSnapshotDto } from "./editor";
-import type { SettingsUiSnapshotDto } from "./settings";
+import type { SettingsSchemaEntryDto, SettingsUiSnapshotDto } from "./settings";
 
 export type GitFileStatus = "modified" | "untracked" | "staged" | "deleted";
 
@@ -152,15 +152,7 @@ export interface ProjectSettingsContributionDto {
 	readonly namespace: string;
 	readonly title: string;
 	readonly description?: string;
-	readonly schema: readonly {
-		readonly path: readonly string[];
-		readonly type: string;
-		readonly title: string;
-		readonly description?: string;
-		readonly widget?: string;
-		readonly enumValues?: readonly string[];
-		readonly sensitive?: boolean;
-	}[];
+	readonly schema: readonly SettingsSchemaEntryDto[];
 }
 
 export interface ProjectConfigurationDto {
@@ -220,6 +212,73 @@ export interface ProjectBackendMigrationPlanDto {
 	readonly sourceDigest: string;
 }
 
+/**
+ * Explicit migration journal states written while a backend migration is
+ * applied. Every state except `finalizing` can be resumed by discarding the
+ * partially written target and retrying, because the source backend is never
+ * mutated by a migration.
+ */
+export type ProjectMigrationJournalStatus =
+	| "preparing"
+	| "copying"
+	| "verifying"
+	| "finalizing"
+	| "failed";
+
+export interface ProjectMigrationJournalOwnerDto {
+	readonly pid: number;
+	readonly hostname: string;
+}
+
+/**
+ * Wire projection of a host migration journal. The journal is written
+ * incrementally while a backend migration runs so an interrupted migration can
+ * be recovered, discarded, or resumed without touching the source backend.
+ */
+export interface ProjectMigrationJournalDto {
+	readonly journalVersion: number;
+	readonly migrationId: string;
+	readonly status: ProjectMigrationJournalStatus;
+	readonly resumable: boolean;
+	readonly startedAt: string;
+	readonly updatedAt: string;
+	readonly owner: ProjectMigrationJournalOwnerDto;
+	readonly source: ProjectConfigurationDto["backend"];
+	readonly target: ProjectConfigurationDto["backend"];
+	readonly expectedRevision: string;
+	readonly copiedHistory: number;
+	readonly copiedScratchpads: number;
+	readonly error?: string;
+}
+
+export type ProjectMigrationRecoveryAction =
+	| "noJournal"
+	| "invalidJournalCleared"
+	| "migrationCompleted"
+	| "targetDiscarded"
+	| "targetRetained"
+	| "activeMigrationRetained";
+
+export interface ProjectMigrationRecoveryResultDto {
+	readonly action: ProjectMigrationRecoveryAction;
+	readonly journal: ProjectMigrationJournalDto | null;
+	readonly stale?: boolean;
+	readonly removedTargetPath?: string;
+	readonly retainedReason?: string;
+	readonly sourceDigestMatches?: boolean;
+}
+
+/**
+ * A snapshot of the current migration journal state, derived from the host
+ * journal plus a staleness check. `resumable` is true whenever the journal can
+ * be either discarded (returning to the source backend) or resumed.
+ */
+export interface ProjectMigrationJournalStatusDto {
+	readonly journal: ProjectMigrationJournalDto | null;
+	readonly stale: boolean;
+	readonly resumable: boolean;
+}
+
 export type ProjectOperation =
 	| {
 			readonly operation: "project.getConfiguration";
@@ -243,6 +302,22 @@ export type ProjectOperation =
 			readonly source: ProjectConfigurationDto["backend"];
 			readonly target: ProjectConfigurationDto["backend"];
 			readonly expectedRevision: string;
+	  }
+	| {
+			readonly operation: "project.getMigrationJournal";
+			readonly requestId: string;
+	  }
+	| {
+			readonly operation: "project.recoverBackendMigration";
+			readonly requestId: string;
+	  }
+	| {
+			readonly operation: "project.discardBackendMigration";
+			readonly requestId: string;
+	  }
+	| {
+			readonly operation: "project.resumeBackendMigration";
+			readonly requestId: string;
 	  };
 
 export type ProjectOperationResult =

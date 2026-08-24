@@ -1,8 +1,4 @@
-import {
-	type I18nKernel,
-	interpolate,
-	type TranslationParams,
-} from "./i18n-kernel";
+import type { I18nKernel, TranslationParams } from "./i18n-kernel";
 import { EN_LOCALE, ES_LOCALE } from "./locales";
 
 export function translate(
@@ -10,9 +6,8 @@ export function translate(
 	key: string,
 	params?: TranslationParams,
 ): string {
-	if (i18n) return i18n.t(key, params);
-	const dictionary = EN_LOCALE as Record<string, string>;
-	return dictionary[key] ? interpolate(dictionary[key], params) : key;
+	if (!i18n) return key;
+	return i18n.t(key, params);
 }
 
 export function resolveLabel(

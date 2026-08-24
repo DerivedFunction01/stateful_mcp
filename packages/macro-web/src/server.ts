@@ -9,7 +9,6 @@ import {
 	hostError,
 	isProtocolVersion,
 	MACRO_PROTOCOL_VERSION,
-	type ProjectConfigurationDto,
 	response,
 	type SettingsBundleOperation,
 	type SettingsOperation,
@@ -19,7 +18,20 @@ import {
 	HostSessionManager,
 	SessionError,
 } from "./server/host-session-manager";
+import { parseKeymapProfile } from "./server/keymap-guards";
 import { isValidMacroProjectDirectory } from "./server/project-detection";
+import {
+	parseApplyBackendMigration,
+	parseDiscardBackendMigration,
+	parseGetMigrationJournal,
+	parsePreviewBackendMigration,
+	parseProjectAction,
+	parseProjectDeletePayload,
+	parseProjectPathPayload,
+	parseProjectRenamePayload,
+	parseProjectUpdateConfiguration,
+	parseResumeBackendMigration,
+} from "./server/project-operation-guards";
 
 interface SocketData {
 	readonly sessionId?: string;
@@ -287,14 +299,8 @@ const server = Bun.serve<SocketData>({
 			}));
 		if (url.pathname === "/api/project/file" && request.method === "POST")
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = envelope.payload as {
-					parentPath?: unknown;
-					name?: unknown;
-				};
-				if (
-					typeof payload.parentPath !== "string" ||
-					typeof payload.name !== "string"
-				)
+				const payload = parseProjectPathPayload(envelope.payload);
+				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
 						"File parent and name are required",
@@ -308,14 +314,8 @@ const server = Bun.serve<SocketData>({
 			});
 		if (url.pathname === "/api/project/directory" && request.method === "POST")
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = envelope.payload as {
-					parentPath?: unknown;
-					name?: unknown;
-				};
-				if (
-					typeof payload.parentPath !== "string" ||
-					typeof payload.name !== "string"
-				)
+				const payload = parseProjectPathPayload(envelope.payload);
+				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
 						"Directory parent and name are required",
@@ -329,14 +329,8 @@ const server = Bun.serve<SocketData>({
 			});
 		if (url.pathname === "/api/project/rename" && request.method === "POST")
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = envelope.payload as {
-					source?: unknown;
-					destination?: unknown;
-				};
-				if (
-					typeof payload.source !== "string" ||
-					typeof payload.destination !== "string"
-				)
+				const payload = parseProjectRenamePayload(envelope.payload);
+				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
 						"Rename paths are required",
@@ -351,8 +345,8 @@ const server = Bun.serve<SocketData>({
 			});
 		if (url.pathname === "/api/project/delete" && request.method === "POST")
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = envelope.payload as { path?: unknown };
-				if (typeof payload.path !== "string")
+				const payload = parseProjectDeletePayload(envelope.payload);
+				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
 						"Delete path is required",
@@ -366,17 +360,25 @@ const server = Bun.serve<SocketData>({
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
-				const payload = (envelope.payload ?? {}) as {
-					profileId?: string;
-					locale?: string;
-					initialText?: string;
-					keymap?: Record<string, unknown>;
-				};
+				const raw = (envelope.payload ?? {}) as Record<string, unknown>;
+				const profileId =
+					typeof raw.profileId === "string" ? raw.profileId : undefined;
+				const locale = typeof raw.locale === "string" ? raw.locale : undefined;
+				const initialText =
+					typeof raw.initialText === "string" ? raw.initialText : undefined;
+				const keymap =
+					raw.keymap === undefined ? undefined : parseKeymapProfile(raw.keymap);
+				if (raw.keymap !== undefined && !keymap)
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"Keymap profile is malformed",
+						false,
+					);
 				const snapshot = await sessions.create({
-					profileId: payload.profileId,
-					locale: payload.locale,
-					initialText: payload.initialText,
-					keymap: payload.keymap as never,
+					profileId,
+					locale,
+					initialText,
+					keymap,
 				});
 				return {
 					sessionId: snapshot.sessionId,
@@ -504,42 +506,81 @@ const server = Bun.serve<SocketData>({
 				});
 			if (operation === "project" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {
-					const payload = envelope.payload as {
-						operation?: string;
-						action: "open" | "init" | "saveAs" | "close";
-						path?: string;
-						displayName?: string;
-					};
+					const payload = parseProjectAction(envelope.payload);
+					if (!payload)
+						throw new SessionError(
+							"INVALID_REQUEST",
+							"Project request payload is malformed",
+							false,
+						);
 					if (payload.operation === "project.getConfiguration")
 						return sessions.getProjectConfiguration(sessionId);
-					if (payload.operation === "project.updateConfiguration")
-						return sessions.updateProjectConfiguration(
-							sessionId,
-							payload as never,
-						);
-					if (payload.operation === "project.previewBackendMigration")
-						return sessions.previewBackendMigration(
-							sessionId,
-							(
-								payload as unknown as {
-									target: ProjectConfigurationDto["backend"];
-								}
-							).target,
-						);
-					if (payload.operation === "project.applyBackendMigration")
+					if (payload.operation === "project.updateConfiguration") {
+						const parsed = parseProjectUpdateConfiguration(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Project configuration update payload is malformed",
+								false,
+							);
+						return sessions.updateProjectConfiguration(sessionId, parsed);
+					}
+					if (payload.operation === "project.previewBackendMigration") {
+						const parsed = parsePreviewBackendMigration(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Backend migration preview target is malformed",
+								false,
+							);
+						return sessions.previewBackendMigration(sessionId, parsed.target);
+					}
+					if (payload.operation === "project.applyBackendMigration") {
+						const parsed = parseApplyBackendMigration(envelope.payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Backend migration apply request is malformed",
+								false,
+							);
 						return sessions.applyBackendMigration(
 							sessionId,
-							(
-								payload as unknown as {
-									target: ProjectConfigurationDto["backend"];
-									expectedRevision: string;
-								}
-							).target,
-							(payload as unknown as { expectedRevision: string })
-								.expectedRevision,
+							parsed.target,
+							parsed.expectedRevision,
 						);
+					}
 					if (payload.operation === "project.recoverBackendMigration")
 						return sessions.recoverBackendMigration(sessionId);
+					if (payload.operation === "project.getMigrationJournal") {
+						const parsed = parseGetMigrationJournal(payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Migration journal request is malformed",
+								false,
+							);
+						return sessions.getMigrationJournal(sessionId);
+					}
+					if (payload.operation === "project.discardBackendMigration") {
+						const parsed = parseDiscardBackendMigration(payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Discard migration request is malformed",
+								false,
+							);
+						return sessions.discardBackendMigration(sessionId);
+					}
+					if (payload.operation === "project.resumeBackendMigration") {
+						const parsed = parseResumeBackendMigration(payload);
+						if (!parsed)
+							throw new SessionError(
+								"INVALID_REQUEST",
+								"Resume migration request is malformed",
+								false,
+							);
+						return sessions.resumeBackendMigration(sessionId);
+					}
 					if (payload.action === "open") {
 						if (!payload.path)
 							throw new SessionError(

@@ -1,5 +1,6 @@
 import {
 	SETTINGS_REDACTION_MARKER,
+	type SettingsSchemaEntryDto,
 	type SettingsUiSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import type { I18nKernel } from "../i18n/i18n-kernel";
@@ -33,7 +34,7 @@ export interface SettingsUiProjectionOptions {
 
 export interface SerializedSettingsUiItem {
 	readonly path: readonly string[];
-	readonly schema: SettingsSchemaEntry;
+	readonly schema: SettingsSchemaEntryDto;
 	readonly value: unknown;
 	readonly effectiveValue: unknown;
 	readonly isModified: boolean;
@@ -200,7 +201,6 @@ function serializeItem(
 			group: item.schema.group,
 			order: item.schema.order,
 			placeholder: item.schema.placeholder,
-			enumValues: item.schema.enumValues,
 			enumOptions: item.schema.enumOptions,
 			min: item.schema.min,
 			max: item.schema.max,

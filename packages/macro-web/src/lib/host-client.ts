@@ -9,6 +9,8 @@ import {
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
 	type ProjectConfigurationDto,
+	type ProjectMigrationJournalStatusDto,
+	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
 	type SettingsApplyResult,
 	type SettingsBundleOperation,
@@ -111,7 +113,10 @@ export interface HostClient {
 		target: ProjectConfigurationDto["backend"],
 		expectedRevision: string,
 	): Promise<ProjectOperationResult>;
-	recoverBackendMigration?(): Promise<{ readonly status: "recovered" }>;
+	getMigrationJournal?(): Promise<ProjectMigrationJournalStatusDto>;
+	recoverBackendMigration?(): Promise<ProjectMigrationRecoveryResultDto>;
+	discardBackendMigration?(): Promise<ProjectMigrationRecoveryResultDto>;
+	resumeBackendMigration?(): Promise<ProjectOperationResult>;
 	getUserPreferences?(): Promise<UserPreferencesDto>;
 	setUserPreferences?(
 		partial: Partial<UserPreferencesDto>,
@@ -455,6 +460,7 @@ export class BrowserHostClient implements HostClient {
 		target: ProjectConfigurationDto["backend"],
 	): Promise<ProjectOperationResult> {
 		const sessionId = this.requireSession();
+		const source = (await this.getProjectConfiguration()).backend;
 		return this.request<ProjectOperationResult>(
 			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
 			{
@@ -463,7 +469,7 @@ export class BrowserHostClient implements HostClient {
 				payload: {
 					operation: "project.previewBackendMigration",
 					requestId: crypto.randomUUID(),
-					source: this.snapshot?.project,
+					source,
 					target,
 				},
 			},
@@ -475,6 +481,7 @@ export class BrowserHostClient implements HostClient {
 		expectedRevision: string,
 	): Promise<ProjectOperationResult> {
 		const sessionId = this.requireSession();
+		const source = (await this.getProjectConfiguration()).backend;
 		const result = await this.request<ProjectOperationResult>(
 			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
 			{
@@ -483,7 +490,7 @@ export class BrowserHostClient implements HostClient {
 				payload: {
 					operation: "project.applyBackendMigration",
 					requestId: crypto.randomUUID(),
-					source: this.snapshot?.project,
+					source,
 					target,
 					expectedRevision,
 				},
@@ -491,6 +498,66 @@ export class BrowserHostClient implements HostClient {
 		);
 		if (result.status === "migrated") this.snapshot = result.snapshot;
 		return result;
+	}
+
+	async getMigrationJournal(): Promise<ProjectMigrationJournalStatusDto> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectMigrationJournalStatusDto>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.getMigrationJournal",
+				sessionId,
+				payload: {
+					operation: "project.getMigrationJournal",
+					requestId: crypto.randomUUID(),
+				},
+			},
+		);
+	}
+
+	async recoverBackendMigration(): Promise<ProjectMigrationRecoveryResultDto> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectMigrationRecoveryResultDto>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.recoverBackendMigration",
+				sessionId,
+				payload: {
+					operation: "project.recoverBackendMigration",
+					requestId: crypto.randomUUID(),
+				},
+			},
+		);
+	}
+
+	async discardBackendMigration(): Promise<ProjectMigrationRecoveryResultDto> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectMigrationRecoveryResultDto>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.discardBackendMigration",
+				sessionId,
+				payload: {
+					operation: "project.discardBackendMigration",
+					requestId: crypto.randomUUID(),
+				},
+			},
+		);
+	}
+
+	async resumeBackendMigration(): Promise<ProjectOperationResult> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.resumeBackendMigration",
+				sessionId,
+				payload: {
+					operation: "project.resumeBackendMigration",
+					requestId: crypto.randomUUID(),
+				},
+			},
+		);
 	}
 
 	subscribe(listener: (event: HostEvent) => void): () => void {

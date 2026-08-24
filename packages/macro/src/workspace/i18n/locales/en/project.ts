@@ -46,4 +46,63 @@ export const EN_PROJECT: Record<string, string> = {
 	"project.init.projectPlaceholder": "Project Name",
 	"project.init.submit": "Initialize Project",
 	"project.init.cancel": "Cancel",
+	"project.settings.createGroup": "Create Group",
+	"project.settings.groupName": "Group Name",
+	"project.settings.groupNamePlaceholder": "my-group",
+	"project.settings.add": "Add",
+	"project.settings.renameGroup": "Rename",
+	"project.settings.duplicateGroup": "Duplicate",
+	"project.settings.deleteGroup": "Delete",
+	"project.settings.duplicateGroupName": "A group named {name} already exists.",
+	"project.settings.confirmDeleteGroup":
+		"Delete the {name} group and its membership?",
+	"project.settings.noGroups":
+		"No extension groups yet. Create one to manage active extensions.",
+	"project.settings.memberCount": "{count} members",
+	"project.settings.membershipHint":
+		"Select or create an extension group to edit its membership.",
+	"project.settings.requires": "requires: {names}",
+	"project.settings.lockedDependency": "Locked",
+	"project.settings.reset": "Reset",
+	"project.settings.sensitivePlaceholder": "••••••••",
+	"project.settings.tagPlaceholder": "Type and press Enter...",
+	"project.settings.keymapCommand": "Command",
+	"project.settings.keymapChord": "Keybinding Chord",
+	"project.settings.keymapCommandPlaceholder": "Command ID (e.g. editor.save)",
+	"project.settings.keymapChordPlaceholder": "Chord (e.g. Ctrl+S)",
+	"project.settings.actions": "Actions",
+	"project.settings.delete": "Delete",
+	"project.settings.migrationJournal": "Migration Journal",
+	"project.settings.migrationJournalNone": "No migration in progress.",
+	"project.settings.migrationJournalState.preparing": "Preparing",
+	"project.settings.migrationJournalState.copying": "Copying",
+	"project.settings.migrationJournalState.verifying": "Verifying",
+	"project.settings.migrationJournalState.finalizing": "Finalizing",
+	"project.settings.migrationJournalState.failed": "Failed",
+	"project.settings.migrationJournalResumable": "Resumable",
+	"project.settings.migrationJournalAbandoned": "Abandoned",
+	"project.settings.migrationJournalStarted": "Started",
+	"project.settings.migrationJournalUpdated": "Updated",
+	"project.settings.migrationJournalOwner": "Process {pid} on {hostname}",
+	"project.settings.migrationJournalTarget": "Target",
+	"project.settings.migrationJournalCopied":
+		"Copied {history} history and {scratchpads} scratchpads",
+	"project.settings.migrationJournalError": "Error",
+	"project.settings.refreshJournal": "Refresh Journal",
+	"project.settings.discardMigration": "Discard Migration",
+	"project.settings.resumeMigration": "Resume Migration",
+	"project.settings.journalRecovery.noJournal":
+		"No migration journal was found.",
+	"project.settings.journalRecovery.invalidJournalCleared":
+		"Removed an unreadable migration journal.",
+	"project.settings.journalRecovery.migrationCompleted":
+		"The migration already completed; the leftover journal was removed.",
+	"project.settings.journalRecovery.targetDiscarded":
+		"Discarded the partial migration target and cleared the journal.",
+	"project.settings.journalRecovery.targetRetained":
+		"The partial target was retained: {reason}",
+	"project.settings.journalRecovery.activeMigrationRetained":
+		"A migration is still in progress elsewhere and was not interrupted.",
+	"project.settings.journalRecovery.removedTargetPath":
+		"Removed target: {path}",
 };

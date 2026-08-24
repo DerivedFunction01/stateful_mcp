@@ -686,11 +686,15 @@ function SchemaField({
 			);
 		}
 		if (item.schema.widget === "tag-input" || item.schema.type === "array") {
+			const delimiters =
+				item.schema.type === "array" || item.schema.type === "string"
+					? item.schema.tagDelimiters
+					: undefined;
 			return (
 				<TagInputField
 					label={label}
 					tags={Array.isArray(value) ? value.map(String) : []}
-					delimiters={item.schema.tagDelimiters}
+					delimiters={delimiters}
 					disabled={disabled}
 					hint={hint}
 					error={error}
@@ -720,15 +724,11 @@ function SchemaField({
 			);
 		}
 		if (item.schema.type === "enum") {
-			const options =
+			const options: readonly { id: string; label: string }[] =
 				item.schema.enumOptions?.map((option) => ({
 					id: option.id,
 					label: option.label,
-				})) ??
-				(item.schema.enumValues ?? []).map((option) => ({
-					id: option,
-					label: option,
-				}));
+				})) ?? [];
 			return (
 				<SelectField
 					label={label}
@@ -928,6 +928,7 @@ function KeymapTableField({
 	readonly disabled?: boolean;
 	readonly onChange: (bindings: readonly unknown[]) => void;
 }) {
+	const { t } = useI18n();
 	const [newChord, setNewChord] = useState("");
 	const [newCommand, setNewCommand] = useState("");
 
@@ -957,9 +958,9 @@ function KeymapTableField({
 				<table className="settings-keymap-table">
 					<thead>
 						<tr>
-							<th>Command</th>
-							<th>Keybinding Chord</th>
-							{!disabled && <th>Actions</th>}
+							<th>{t("project.settings.keymapCommand")}</th>
+							<th>{t("project.settings.keymapChord")}</th>
+							{!disabled && <th>{t("project.settings.actions")}</th>}
 						</tr>
 					</thead>
 					<tbody>
@@ -974,7 +975,7 @@ function KeymapTableField({
 								{!disabled && (
 									<td>
 										<Button variant="ghost" onClick={() => removeBinding(idx)}>
-											Delete
+											{t("project.settings.delete")}
 										</Button>
 									</td>
 								)}
@@ -987,19 +988,19 @@ function KeymapTableField({
 						<input
 							className="input"
 							type="text"
-							placeholder="Command ID (e.g. editor.save)"
+							placeholder={t("project.settings.keymapCommandPlaceholder")}
 							value={newCommand}
 							onChange={(e) => setNewCommand(e.target.value)}
 						/>
 						<input
 							className="input"
 							type="text"
-							placeholder="Chord (e.g. Ctrl+S)"
+							placeholder={t("project.settings.keymapChordPlaceholder")}
 							value={newChord}
 							onChange={(e) => setNewChord(e.target.value)}
 						/>
 						<Button variant="primary" onClick={addBinding}>
-							Add
+							{t("project.settings.add")}
 						</Button>
 					</div>
 				)}

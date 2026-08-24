@@ -10,17 +10,25 @@ export const SETTINGS_SCOPES: readonly SettingsScope[] = [
 
 export const SETTINGS_REDACTION_MARKER = "••••••••";
 
-export interface SettingsSchemaEntryDto {
+export type SettingsSchemaEntryType =
+	| "string"
+	| "number"
+	| "boolean"
+	| "enum"
+	| "array"
+	| "object"
+	| "json"
+	| "keymap";
+
+export interface SettingsEnumOptionDto {
+	readonly id: string;
+	readonly label: string;
+	readonly description?: string;
+	readonly meta?: string;
+}
+
+interface SettingsSchemaEntryCommon {
 	readonly path: readonly string[];
-	readonly type:
-		| "boolean"
-		| "number"
-		| "string"
-		| "enum"
-		| "array"
-		| "object"
-		| "json"
-		| "keymap";
 	readonly title: string;
 	readonly description?: string;
 	readonly widget?: string;
@@ -28,21 +36,67 @@ export interface SettingsSchemaEntryDto {
 	readonly group?: string;
 	readonly order?: number;
 	readonly placeholder?: string;
+	readonly customWidgetId?: string;
+	readonly sensitive?: boolean;
+	readonly restartRequired?: boolean;
+	readonly default?: unknown;
+	readonly defaultValue?: unknown;
+	/** String enum candidates projected from the canonical settings schema. */
 	readonly enumValues?: readonly string[];
-	readonly enumOptions?: readonly {
-		readonly id: string;
-		readonly label: string;
-		readonly description?: string;
-		readonly meta?: string;
-	}[];
+}
+
+export interface SettingsStringSchemaEntryDto
+	extends SettingsSchemaEntryCommon {
+	readonly type: "string";
+	readonly tagDelimiters?: readonly string[];
+}
+
+export interface SettingsNumberSchemaEntryDto
+	extends SettingsSchemaEntryCommon {
+	readonly type: "number";
 	readonly min?: number;
 	readonly max?: number;
 	readonly step?: number;
-	readonly tagDelimiters?: readonly string[];
-	readonly customWidgetId?: string;
-	readonly restartRequired?: boolean;
-	readonly sensitive?: boolean;
 }
+
+export interface SettingsBooleanSchemaEntryDto
+	extends SettingsSchemaEntryCommon {
+	readonly type: "boolean";
+}
+
+export interface SettingsEnumSchemaEntryDto extends SettingsSchemaEntryCommon {
+	readonly type: "enum";
+	readonly enumOptions?: readonly SettingsEnumOptionDto[];
+}
+
+export interface SettingsArraySchemaEntryDto extends SettingsSchemaEntryCommon {
+	readonly type: "array";
+	readonly tagDelimiters?: readonly string[];
+}
+
+export interface SettingsObjectSchemaEntryDto
+	extends SettingsSchemaEntryCommon {
+	readonly type: "object";
+}
+
+export interface SettingsJsonSchemaEntryDto extends SettingsSchemaEntryCommon {
+	readonly type: "json";
+}
+
+export interface SettingsKeymapSchemaEntryDto
+	extends SettingsSchemaEntryCommon {
+	readonly type: "keymap";
+}
+
+export type SettingsSchemaEntryDto =
+	| SettingsStringSchemaEntryDto
+	| SettingsNumberSchemaEntryDto
+	| SettingsBooleanSchemaEntryDto
+	| SettingsEnumSchemaEntryDto
+	| SettingsArraySchemaEntryDto
+	| SettingsObjectSchemaEntryDto
+	| SettingsJsonSchemaEntryDto
+	| SettingsKeymapSchemaEntryDto;
 
 export interface SettingsDiagnosticDto {
 	readonly severity: "error" | "warning";

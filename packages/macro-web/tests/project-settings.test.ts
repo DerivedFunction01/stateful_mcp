@@ -62,6 +62,43 @@ describe("project configuration", () => {
 		await context.host.dispose();
 	});
 
+	test("rejects an unknown active extension profile", async () => {
+		const context = await createProjectSession();
+		const current = context.sessions.getProjectConfiguration(context.sessionId);
+		const result = await context.sessions.updateProjectConfiguration(
+			context.sessionId,
+			{
+				configuration: { ...current, activeExtensionProfileId: "ghost" },
+				expectedRevision: current.revision,
+			},
+		);
+		expect(result.status).toBe("rejected");
+		expect(
+			context.sessions.getProjectConfiguration(context.sessionId)
+				.activeExtensionProfileId,
+		).toBeUndefined();
+		await context.sessions.disposeAll();
+		await context.host.dispose();
+	});
+
+	test("rejects a locale that is not available", async () => {
+		const context = await createProjectSession();
+		const current = context.sessions.getProjectConfiguration(context.sessionId);
+		const result = await context.sessions.updateProjectConfiguration(
+			context.sessionId,
+			{
+				configuration: { ...current, uiLocale: "fr" },
+				expectedRevision: current.revision,
+			},
+		);
+		expect(result.status).toBe("rejected");
+		expect(
+			context.sessions.getProjectConfiguration(context.sessionId).uiLocale,
+		).toBeUndefined();
+		await context.sessions.disposeAll();
+		await context.host.dispose();
+	});
+
 	test("requires migration before changing backend", async () => {
 		const context = await createProjectSession();
 		const current = context.sessions.getProjectConfiguration(context.sessionId);
@@ -185,7 +222,12 @@ describe("project configuration", () => {
 				const source =
 					await migrationContext.sourceScratchpads.open("migration-note");
 				if (source) {
-					await migrationContext.targetScratchpads.save(source);
+					const targetScratchpads = migrationContext.targetScratchpads;
+					if (!targetScratchpads)
+						throw new Error(
+							"Expected a target scratchpad store during migration",
+						);
+					await targetScratchpads.save(source);
 					targetScratchpadId = source.scratchpadId;
 				}
 			},

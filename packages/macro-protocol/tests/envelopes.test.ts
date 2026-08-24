@@ -25,7 +25,7 @@ describe("macro protocol envelopes", () => {
 				retryable: true,
 			}),
 		).toEqual({
-			version: 1,
+			version: MACRO_PROTOCOL_VERSION,
 			requestId: "request-2",
 			ok: false,
 			error: { code: "STALE_REVISION", message: "Stale", retryable: true },
@@ -33,7 +33,7 @@ describe("macro protocol envelopes", () => {
 	});
 
 	test("rejects protocol versions it does not understand", () => {
-		expect(isProtocolVersion(1)).toBe(true);
-		expect(isProtocolVersion(2)).toBe(false);
+		expect(isProtocolVersion(MACRO_PROTOCOL_VERSION)).toBe(true);
+		expect(isProtocolVersion(1)).toBe(false);
 	});
 });
