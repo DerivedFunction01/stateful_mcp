@@ -256,7 +256,7 @@ export function MenuBar({
 			},
 			{
 				id: "file.newScratchpadFromTemplate",
-				label: t("workbench.template.picker.newFromTemplate"),
+				label: t("templates.picker.newFromTemplate"),
 				icon: <BookTemplate size={14} />,
 				onSelect: () =>
 					onOpenTemplatePicker
@@ -313,6 +313,12 @@ export function MenuBar({
 		];
 
 		if (snapshot?.project && !snapshot.project.ephemeral) {
+			fileItems.push({
+				id: "file.projectSettings",
+				label: t("workbench.project.settings.title"),
+				icon: <Settings size={14} />,
+				onSelect: () => onCommand("workbench.openProjectSettings"),
+			});
 			fileItems.push({
 				id: "file.closeProject",
 				label: t("workbench.closeProjectAction"),

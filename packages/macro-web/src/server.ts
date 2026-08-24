@@ -9,6 +9,7 @@ import {
 	hostError,
 	isProtocolVersion,
 	MACRO_PROTOCOL_VERSION,
+	type ProjectConfigurationDto,
 	response,
 	type SettingsBundleOperation,
 	type SettingsOperation,
@@ -407,6 +408,7 @@ const server = Bun.serve<SocketData>({
 			if (operation === "commands" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {
 					const payload = envelope.payload as {
+						operation?: string;
 						command?: string;
 						args?: readonly unknown[];
 						expectedRevision?: number;
@@ -503,10 +505,41 @@ const server = Bun.serve<SocketData>({
 			if (operation === "project" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {
 					const payload = envelope.payload as {
+						operation?: string;
 						action: "open" | "init" | "saveAs" | "close";
 						path?: string;
 						displayName?: string;
 					};
+					if (payload.operation === "project.getConfiguration")
+						return sessions.getProjectConfiguration(sessionId);
+					if (payload.operation === "project.updateConfiguration")
+						return sessions.updateProjectConfiguration(
+							sessionId,
+							payload as never,
+						);
+					if (payload.operation === "project.previewBackendMigration")
+						return sessions.previewBackendMigration(
+							sessionId,
+							(
+								payload as unknown as {
+									target: ProjectConfigurationDto["backend"];
+								}
+							).target,
+						);
+					if (payload.operation === "project.applyBackendMigration")
+						return sessions.applyBackendMigration(
+							sessionId,
+							(
+								payload as unknown as {
+									target: ProjectConfigurationDto["backend"];
+									expectedRevision: string;
+								}
+							).target,
+							(payload as unknown as { expectedRevision: string })
+								.expectedRevision,
+						);
+					if (payload.operation === "project.recoverBackendMigration")
+						return sessions.recoverBackendMigration(sessionId);
 					if (payload.action === "open") {
 						if (!payload.path)
 							throw new SessionError(

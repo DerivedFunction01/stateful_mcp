@@ -127,7 +127,7 @@ export function TemplatePickerModal({
 					<div className="modal-title-row">
 						<BookTemplate size={18} className="modal-icon" />
 						<h2 id="template-picker-title" className="modal-title">
-							{t("workbench.template.picker.title")}
+							{t("templates.picker.title")}
 						</h2>
 					</div>
 					<button
@@ -146,7 +146,7 @@ export function TemplatePickerModal({
 						<input
 							type="text"
 							className="template-search-input"
-							placeholder={t("workbench.template.picker.searchPlaceholder")}
+							placeholder={t("templates.picker.searchPlaceholder")}
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 						/>
@@ -166,13 +166,13 @@ export function TemplatePickerModal({
 							icon={<BookTemplate size={13} />}
 							onClick={onNewTemplate}
 						>
-							{t("workbench.template.picker.newTemplate")}
+							{t("templates.picker.newTemplate")}
 						</Button>
 					)}
 				</div>
 				<div className="template-tag-ribbon">
 					<Button onClick={() => setSelectedTags([])}>
-						{t("workbench.template.picker.allTags")}
+						{t("templates.picker.allTags")}
 					</Button>
 					{tags.map((tag) => (
 						<Button
@@ -203,7 +203,7 @@ export function TemplatePickerModal({
 							onClick={() => setSelectedCategory("all")}
 						>
 							<Layers size={14} />
-							<span>{t("workbench.template.picker.allTemplates")}</span>
+							<span>{t("templates.picker.allTemplates")}</span>
 							<span className="template-count-badge">{templates.length}</span>
 						</button>
 
@@ -225,7 +225,7 @@ export function TemplatePickerModal({
 					<div className="template-list-pane">
 						{filteredTemplates.length === 0 ? (
 							<div className="template-empty-state">
-								<p>{t("workbench.template.picker.empty")}</p>
+								<p>{t("templates.picker.empty")}</p>
 							</div>
 						) : (
 							<div className="template-cards-list">
@@ -279,7 +279,7 @@ export function TemplatePickerModal({
 														<Pin size={11} />
 														<span>
 															{tmpl.pinnedMacroIds.length}{" "}
-															{t("workbench.template.picker.pinnedMacros")}
+															{t("templates.picker.pinnedMacros")}
 														</span>
 													</div>
 												)}
@@ -298,7 +298,7 @@ export function TemplatePickerModal({
 									<h3 className="preview-title">{activeTemplate.title}</h3>
 									{activeTemplate.sourceExtensionId && (
 										<span className="preview-source">
-											{t("workbench.template.picker.sourceExtension", {
+											{t("templates.picker.sourceExtension", {
 												ext: activeTemplate.sourceExtensionId,
 											})}
 										</span>
@@ -308,23 +308,21 @@ export function TemplatePickerModal({
 								<div className="preview-desc-block">
 									<p className="preview-description">
 										{activeTemplate.description ||
-											t("workbench.template.picker.noDescription")}
+											t("templates.picker.noDescription")}
 									</p>
 								</div>
 
 								{activeTemplate.requiresProfile && (
 									<div className="preview-profile-badge">
 										<Sparkles size={13} />
-										<span>
-											{t("workbench.template.picker.requiresProfile")}
-										</span>
+										<span>{t("templates.picker.requiresProfile")}</span>
 									</div>
 								)}
 
 								<div className="preview-pinned-section">
 									<div className="preview-section-title">
 										<Pin size={13} />
-										<span>{t("workbench.template.picker.pinnedMacros")}</span>
+										<span>{t("templates.picker.pinnedMacros")}</span>
 									</div>
 									<div className="preview-chips-row">
 										{activeTemplate.pinnedMacroIds &&
@@ -336,7 +334,7 @@ export function TemplatePickerModal({
 											))
 										) : (
 											<span className="no-pinned-text">
-												{t("workbench.template.picker.noPinnedMacros")}
+												{t("templates.picker.noPinnedMacros")}
 											</span>
 										)}
 									</div>
@@ -352,7 +350,7 @@ export function TemplatePickerModal({
 										}}
 										style={{ width: "100%", justifyContent: "center" }}
 									>
-										{t("workbench.template.picker.open")}
+										{t("templates.picker.open")}
 									</Button>
 
 									<div className="preview-secondary-actions">
@@ -366,7 +364,7 @@ export function TemplatePickerModal({
 															onOpenTemplateInEditor(activeTemplate.templateId)
 														}
 													>
-														{t("workbench.template.editor.openInEditor")}
+														{t("templates.editor.openInEditor")}
 													</Button>
 												)}
 												{onDeleteTemplate && (
@@ -374,7 +372,7 @@ export function TemplatePickerModal({
 														variant="danger"
 														onClick={() => onDeleteTemplate(activeTemplate)}
 													>
-														{t("workbench.template.picker.deleteTemplate")}
+														{t("templates.picker.deleteTemplate")}
 													</Button>
 												)}
 											</>
@@ -395,7 +393,7 @@ export function TemplatePickerModal({
 														justifyContent: "center",
 													}}
 												>
-													{t("workbench.template.picker.forkTemplate")}
+													{t("templates.picker.forkTemplate")}
 												</Button>
 											)
 										)}
@@ -404,7 +402,7 @@ export function TemplatePickerModal({
 							</div>
 						) : (
 							<div className="template-empty-preview">
-								<p>{t("workbench.template.picker.empty")}</p>
+								<p>{t("templates.picker.empty")}</p>
 							</div>
 						)}
 					</aside>

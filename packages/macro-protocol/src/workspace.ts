@@ -138,6 +138,139 @@ export interface MacroProjectManifestDto {
 	readonly pinnedMacros?: readonly string[];
 }
 
+export interface ProjectConfigurationTemplateDto {
+	readonly templateId: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly initialText?: string;
+	readonly pinnedMacroIds?: readonly string[];
+	readonly tags?: readonly string[];
+}
+
+export interface ProjectSettingsContributionDto {
+	readonly extensionId: string;
+	readonly namespace: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly schema: readonly {
+		readonly path: readonly string[];
+		readonly type: string;
+		readonly title: string;
+		readonly description?: string;
+		readonly widget?: string;
+		readonly enumValues?: readonly string[];
+		readonly sensitive?: boolean;
+	}[];
+}
+
+export interface ProjectConfigurationDto {
+	readonly formatVersion: number;
+	readonly projectId: string;
+	readonly displayName: string;
+	readonly backend: {
+		readonly kind: "jsonl" | "sqlite";
+		readonly path: string;
+	};
+	readonly defaultProfileId?: string;
+	readonly activeProfileId?: string;
+	readonly uiLocale?: string;
+	readonly extensions: readonly {
+		readonly id: string;
+		readonly source: string;
+		readonly version: string;
+		readonly requires?: readonly string[];
+	}[];
+	readonly extensionProfiles?: Readonly<Record<string, readonly string[]>>;
+	readonly resources: readonly ProjectResourceReferenceDto[];
+	readonly historyResources: readonly ProjectResourceReferenceDto[];
+	readonly scratchpadResources?: readonly ProjectResourceReferenceDto[];
+	readonly templates?: readonly ProjectConfigurationTemplateDto[];
+	readonly projectSettings?: Readonly<
+		Record<string, Readonly<Record<string, unknown>>>
+	>;
+	readonly projectSettingsContributions: readonly ProjectSettingsContributionDto[];
+	readonly revision: string;
+}
+
+export type ProjectConfigurationImpact =
+	| "metadata"
+	| "templates"
+	| "workspaceReload"
+	| "backendMigrationRequired";
+
+export interface ProjectMigrationParticipantDto {
+	readonly id: string;
+	readonly extensionId?: string;
+	readonly dependsOn?: readonly string[];
+	readonly status: "ready" | "missing" | "incompatible";
+	readonly resourceIds: readonly string[];
+	readonly message?: string;
+}
+
+export interface ProjectBackendMigrationPlanDto {
+	readonly source: ProjectConfigurationDto["backend"];
+	readonly target: ProjectConfigurationDto["backend"];
+	readonly participants: readonly ProjectMigrationParticipantDto[];
+	readonly historyCount: number;
+	readonly scratchpadCount: number;
+	readonly warnings: readonly string[];
+	readonly sourceDigest: string;
+}
+
+export type ProjectOperation =
+	| {
+			readonly operation: "project.getConfiguration";
+			readonly requestId: string;
+	  }
+	| {
+			readonly operation: "project.updateConfiguration";
+			readonly requestId: string;
+			readonly configuration: ProjectConfigurationDto;
+			readonly expectedRevision: string;
+	  }
+	| {
+			readonly operation: "project.previewBackendMigration";
+			readonly requestId: string;
+			readonly source: ProjectConfigurationDto["backend"];
+			readonly target: ProjectConfigurationDto["backend"];
+	  }
+	| {
+			readonly operation: "project.applyBackendMigration";
+			readonly requestId: string;
+			readonly source: ProjectConfigurationDto["backend"];
+			readonly target: ProjectConfigurationDto["backend"];
+			readonly expectedRevision: string;
+	  };
+
+export type ProjectOperationResult =
+	| {
+			readonly status: "accepted";
+			readonly configuration: ProjectConfigurationDto;
+			readonly impact: ProjectConfigurationImpact;
+			readonly snapshot: WorkspaceSnapshot;
+	  }
+	| {
+			readonly status: "migrationRequired";
+			readonly message: string;
+			readonly configuration: ProjectConfigurationDto;
+	  }
+	| {
+			readonly status: "plan";
+			readonly configuration: ProjectConfigurationDto;
+			readonly plan: ProjectBackendMigrationPlanDto;
+	  }
+	| {
+			readonly status: "migrated";
+			readonly configuration: ProjectConfigurationDto;
+			readonly plan: ProjectBackendMigrationPlanDto;
+			readonly snapshot: WorkspaceSnapshot;
+	  }
+	| {
+			readonly status: "conflict" | "rejected" | "unsupported";
+			readonly message: string;
+			readonly configuration?: ProjectConfigurationDto;
+	  };
+
 export interface ContributionSnapshotDto {
 	readonly tabs: readonly {
 		readonly id: string;

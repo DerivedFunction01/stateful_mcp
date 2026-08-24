@@ -64,7 +64,7 @@ export function InspectorTemplateTab({
 			{nonEmptyLines.length === 0 ? (
 				<div className="inspector-empty-state">
 					<FileCode2 size={20} />
-					<span>{t("workbench.template.inspector.empty")}</span>
+					<span>{t("templates.inspector.empty")}</span>
 				</div>
 			) : (
 				<div className="template-slot-lines-list">
@@ -79,10 +79,10 @@ export function InspectorTemplateTab({
 									<div className="slot-line-header">
 										<span className="slot-line-tag">L{line.lineNumber}</span>
 										<Badge tone="neutral">
-											{t("workbench.template.inspector.staticText")}
+											{t("templates.inspector.staticText")}
 										</Badge>
 										<span className="slot-static-notice">
-											{t("workbench.template.inspector.fixedNotice")}
+											{t("templates.inspector.fixedNotice")}
 										</span>
 									</div>
 									<div className="slot-static-preview">
@@ -125,13 +125,11 @@ export function InspectorTemplateTab({
 															onClick={() =>
 																onToggleTemplateLiteralArg?.(slotKey, false)
 															}
-															title={t(
-																"workbench.template.inspector.placeholder",
-															)}
+															title={t("templates.inspector.placeholder")}
 														>
 															<Sparkles size={10} />
 															<span>
-																{t("workbench.template.inspector.placeholder")}
+																{t("templates.inspector.placeholder")}
 															</span>
 														</button>
 														<button
@@ -140,12 +138,10 @@ export function InspectorTemplateTab({
 															onClick={() =>
 																onToggleTemplateLiteralArg?.(slotKey, true)
 															}
-															title={t("workbench.template.inspector.literal")}
+															title={t("templates.inspector.literal")}
 														>
 															<Lock size={10} />
-															<span>
-																{t("workbench.template.inspector.literal")}
-															</span>
+															<span>{t("templates.inspector.literal")}</span>
 														</button>
 													</div>
 												</div>

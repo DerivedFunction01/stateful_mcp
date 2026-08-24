@@ -8,6 +8,8 @@ import {
 	type KeymapBindingContextDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
+	type ProjectConfigurationDto,
+	type ProjectOperationResult,
 	type SettingsApplyResult,
 	type SettingsBundleOperation,
 	type SettingsBundleResult,
@@ -97,6 +99,19 @@ export interface HostClient {
 		displayName?: string,
 	): Promise<HostWorkspaceSnapshot>;
 	closeProject(): Promise<HostWorkspaceSnapshot>;
+	getProjectConfiguration?(): Promise<ProjectConfigurationDto>;
+	updateProjectConfiguration?(
+		configuration: ProjectConfigurationDto,
+		expectedRevision: string,
+	): Promise<ProjectOperationResult>;
+	previewBackendMigration?(
+		target: ProjectConfigurationDto["backend"],
+	): Promise<ProjectOperationResult>;
+	applyBackendMigration?(
+		target: ProjectConfigurationDto["backend"],
+		expectedRevision: string,
+	): Promise<ProjectOperationResult>;
+	recoverBackendMigration?(): Promise<{ readonly status: "recovered" }>;
 	getUserPreferences?(): Promise<UserPreferencesDto>;
 	setUserPreferences?(
 		partial: Partial<UserPreferencesDto>,
@@ -397,6 +412,85 @@ export class BrowserHostClient implements HostClient {
 		});
 		this.snapshot = payload.snapshot;
 		return payload.snapshot;
+	}
+
+	async getProjectConfiguration(): Promise<ProjectConfigurationDto> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectConfigurationDto>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.getConfiguration",
+				sessionId,
+				payload: {
+					operation: "project.getConfiguration",
+					requestId: crypto.randomUUID(),
+				},
+			},
+		);
+	}
+
+	async updateProjectConfiguration(
+		configuration: ProjectConfigurationDto,
+		expectedRevision: string,
+	): Promise<ProjectOperationResult> {
+		const sessionId = this.requireSession();
+		const result = await this.request<ProjectOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.updateConfiguration",
+				sessionId,
+				payload: {
+					operation: "project.updateConfiguration",
+					requestId: crypto.randomUUID(),
+					configuration,
+					expectedRevision,
+				},
+			},
+		);
+		if (result.status === "accepted") this.snapshot = result.snapshot;
+		return result;
+	}
+
+	async previewBackendMigration(
+		target: ProjectConfigurationDto["backend"],
+	): Promise<ProjectOperationResult> {
+		const sessionId = this.requireSession();
+		return this.request<ProjectOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.previewBackendMigration",
+				sessionId,
+				payload: {
+					operation: "project.previewBackendMigration",
+					requestId: crypto.randomUUID(),
+					source: this.snapshot?.project,
+					target,
+				},
+			},
+		);
+	}
+
+	async applyBackendMigration(
+		target: ProjectConfigurationDto["backend"],
+		expectedRevision: string,
+	): Promise<ProjectOperationResult> {
+		const sessionId = this.requireSession();
+		const result = await this.request<ProjectOperationResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/project`,
+			{
+				type: "project.applyBackendMigration",
+				sessionId,
+				payload: {
+					operation: "project.applyBackendMigration",
+					requestId: crypto.randomUUID(),
+					source: this.snapshot?.project,
+					target,
+					expectedRevision,
+				},
+			},
+		);
+		if (result.status === "migrated") this.snapshot = result.snapshot;
+		return result;
 	}
 
 	subscribe(listener: (event: HostEvent) => void): () => void {

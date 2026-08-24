@@ -80,7 +80,7 @@ export function InspectorQuickRunsTab({
 							onClick={onOpenTemplatePicker}
 							style={{ width: "100%", justifyContent: "center" }}
 						>
-							{t("workbench.template.picker.newFromTemplate")}
+							{t("templates.picker.newFromTemplate")}
 						</Button>
 					</div>
 				)}

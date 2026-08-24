@@ -230,6 +230,8 @@ export class ExtensionRuntime {
 				sourceFile,
 				exports: activation?.exports ?? {},
 				contributions: activation?.contributions,
+				projectMigrationParticipants:
+					activation?.contributions?.projectMigrationParticipants ?? [],
 				dispose: async () => {
 					try {
 						await activation?.dispose?.();

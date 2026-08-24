@@ -107,9 +107,9 @@ export function InspectorVerticalStrip({
 				<button
 					type="button"
 					className={`inspector-strip-btn ${isOpen && activeTab === "template" ? "active" : ""}`}
-					title={t("workbench.template.inspector.title")}
+					title={t("templates.inspector.title")}
 					onClick={() => onTabClick("template")}
-					aria-label={t("workbench.template.inspector.title")}
+					aria-label={t("templates.inspector.title")}
 				>
 					<FileCode2 size={18} />
 				</button>

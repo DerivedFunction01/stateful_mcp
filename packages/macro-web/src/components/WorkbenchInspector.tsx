@@ -95,7 +95,7 @@ export function WorkbenchInspector({
 			case "pinned":
 				return t("workbench.quickRuns");
 			case "template":
-				return t("workbench.template.inspector.title");
+				return t("templates.inspector.title");
 			default:
 				return activeContributedView?.name ?? t("workbench.inspector");
 		}
@@ -131,7 +131,7 @@ export function WorkbenchInspector({
 						</div>
 						{activeTab === "template" && onEditTemplateMetadata && (
 							<Button variant="ghost" onClick={onEditTemplateMetadata}>
-								{t("workbench.template.inspector.editMetadata")}
+								{t("templates.inspector.editMetadata")}
 							</Button>
 						)}
 					</header>

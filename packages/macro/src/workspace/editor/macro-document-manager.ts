@@ -199,8 +199,7 @@ export class MacroDocumentManager {
 				);
 		}
 		const document = this.createDocument({
-			initialText:
-				template.createText?.(this.runtime) ?? authoredText ?? "",
+			initialText: template.createText?.(this.runtime) ?? authoredText ?? "",
 			title: template.title,
 			templateId: template.templateId,
 			pinnedMacroIds: template.pinnedMacroIds,
@@ -320,7 +319,10 @@ export class MacroDocumentManager {
 		if (!sameLines(document.editor.getLines(), request.lines)) {
 			document.editor.setLines(request.lines);
 			document.textRevision += 1;
-			if (document.providerId === MACRO_TEMPLATE_PROVIDER && document.templateId) {
+			if (
+				document.providerId === MACRO_TEMPLATE_PROVIDER &&
+				document.templateId
+			) {
 				const template = this.templates.find(
 					(item) => item.templateId === document.templateId,
 				);

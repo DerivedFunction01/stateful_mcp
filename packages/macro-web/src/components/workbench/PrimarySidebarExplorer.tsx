@@ -135,7 +135,7 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 											)
 										}
 									>
-										{t("workbench.template.picker.newFromTemplate")}
+										{t("templates.picker.newFromTemplate")}
 									</button>
 								</div>
 							</div>

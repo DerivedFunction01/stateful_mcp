@@ -273,7 +273,7 @@ export function createMacroWorkspace(
 	commands.registerCommand(
 		{
 			command: "editor.newScratchpadFromTemplate",
-			titleI18nKey: "workbench.template.picker.newFromTemplate",
+			titleI18nKey: "templates.picker.newFromTemplate",
 			categoryI18nKey: "common.editor",
 		},
 		{

@@ -126,8 +126,8 @@ export function TemplateEditorModal({
 	// - Creating/forking → "Create & Open in Editor" (wizard then opens canvas)
 	// - Editing metadata → "Save Template" (just flushes metadata changes)
 	const saveLabel = isCreateMode
-		? t("workbench.template.editor.createAndOpen")
-		: t("workbench.template.editor.saveButton");
+		? t("templates.editor.createAndOpen")
+		: t("templates.editor.saveButton");
 
 	return (
 		<div className="modal-backdrop" onClick={onClose} role="presentation">
@@ -141,10 +141,10 @@ export function TemplateEditorModal({
 					<h2 className="modal-title">
 						{t(
 							isFork
-								? "workbench.template.editor.forkTitle"
+								? "templates.editor.forkTitle"
 								: template
-									? "workbench.template.editor.editTitle"
-									: "workbench.template.editor.createTitle",
+									? "templates.editor.editTitle"
+									: "templates.editor.createTitle",
 							template ? { name: template.title } : undefined,
 						)}
 					</h2>
@@ -160,24 +160,24 @@ export function TemplateEditorModal({
 
 				<div className="template-editor-form">
 					<TextInput
-						label={t("workbench.template.editor.titleLabel")}
-						placeholder={t("workbench.template.editor.titlePlaceholder")}
+						label={t("templates.editor.titleLabel")}
+						placeholder={t("templates.editor.titlePlaceholder")}
 						value={title}
 						onChange={(e) => setTitle(e.target.value)}
 						autoFocus
 					/>
 
 					<TextInput
-						label={t("workbench.template.editor.idLabel")}
-						hint={t("workbench.template.editor.idHint")}
-						placeholder={t("workbench.template.editor.idPlaceholder")}
+						label={t("templates.editor.idLabel")}
+						hint={t("templates.editor.idHint")}
+						placeholder={t("templates.editor.idPlaceholder")}
 						value={templateId}
 						onChange={(e) => setTemplateId(e.target.value)}
 					/>
 
 					<div className="field">
 						<span className="field-label">
-							{t("workbench.template.editor.tagsLabel")}
+							{t("templates.editor.tagsLabel")}
 						</span>
 						<div className="template-chips-field">
 							<div className="template-chips-container">
@@ -190,7 +190,7 @@ export function TemplateEditorModal({
 												type="button"
 												className="template-chip-remove"
 												onClick={() => handleRemoveTag(tag)}
-												aria-label={t("workbench.template.editor.removeTag", {
+												aria-label={t("templates.editor.removeTag", {
 													tag,
 												})}
 											>
@@ -204,7 +204,7 @@ export function TemplateEditorModal({
 								<input
 									type="text"
 									className="input template-chip-input"
-									placeholder={t("workbench.template.editor.tagsPlaceholder")}
+									placeholder={t("templates.editor.tagsPlaceholder")}
 									value={tagInput}
 									onChange={(e) => setTagInput(e.target.value)}
 									onKeyDown={handleTagKeyDown}
@@ -215,22 +215,22 @@ export function TemplateEditorModal({
 									onClick={handleAddTag}
 									disabled={!tagInput.trim()}
 								>
-									{t("workbench.template.editor.addTag")}
+									{t("templates.editor.addTag")}
 								</Button>
 							</div>
 						</div>
 					</div>
 
 					<TextInput
-						label={t("workbench.template.editor.descriptionLabel")}
-						placeholder={t("workbench.template.editor.descriptionPlaceholder")}
+						label={t("templates.editor.descriptionLabel")}
+						placeholder={t("templates.editor.descriptionPlaceholder")}
 						value={description}
 						onChange={(e) => setDescription(e.target.value)}
 					/>
 
 					<div className="field">
 						<span className="field-label">
-							{t("workbench.template.editor.pinnedLabel")}
+							{t("templates.editor.pinnedLabel")}
 						</span>
 						<div className="template-chips-field">
 							<div className="template-chips-container">
@@ -242,7 +242,7 @@ export function TemplateEditorModal({
 												type="button"
 												className="template-chip-remove"
 												onClick={() => handleRemovePinned(macroId)}
-												aria-label={t("workbench.template.editor.removeMacro", {
+												aria-label={t("templates.editor.removeMacro", {
 													macro: macroId,
 												})}
 											>
@@ -256,7 +256,7 @@ export function TemplateEditorModal({
 								<input
 									type="text"
 									className="input template-chip-input"
-									placeholder={t("workbench.template.editor.pinnedPlaceholder")}
+									placeholder={t("templates.editor.pinnedPlaceholder")}
 									value={pinnedInput}
 									onChange={(e) => setPinnedInput(e.target.value)}
 									onKeyDown={handlePinnedKeyDown}
@@ -267,7 +267,7 @@ export function TemplateEditorModal({
 									onClick={handleAddPinned}
 									disabled={!pinnedInput.trim()}
 								>
-									{t("workbench.template.editor.addMacro")}
+									{t("templates.editor.addMacro")}
 								</Button>
 							</div>
 						</div>
@@ -275,7 +275,7 @@ export function TemplateEditorModal({
 
 					<div className="field">
 						<span className="field-label">
-							{t("workbench.template.editor.scopeLabel")}
+							{t("templates.editor.scopeLabel")}
 						</span>
 						<div className="template-scope-toggle">
 							<Button
@@ -283,20 +283,20 @@ export function TemplateEditorModal({
 								onClick={() => setScope("project")}
 								disabled={!isProjectOpen}
 							>
-								{t("workbench.template.editor.scopeProject")}
+								{t("templates.editor.scopeProject")}
 							</Button>
 							<Button
 								variant={scope === "user" ? "primary" : "secondary"}
 								onClick={() => setScope("user")}
 							>
-								{t("workbench.template.editor.scopeUser")}
+								{t("templates.editor.scopeUser")}
 							</Button>
 						</div>
 					</div>
 
 					<footer className="modal-footer">
 						<Button onClick={onClose}>
-							{t("workbench.template.editor.cancelButton")}
+							{t("templates.editor.cancelButton")}
 						</Button>
 						<Button variant="primary" onClick={save} disabled={!title.trim()}>
 							{saveLabel}

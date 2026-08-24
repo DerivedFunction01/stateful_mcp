@@ -41,6 +41,10 @@ export interface MacroProjectManifest {
 		readonly pinnedMacroIds?: readonly string[];
 		readonly tags?: readonly string[];
 	}[];
+	/** Values explicitly opted into project sharing by an extension. */
+	readonly projectSettings?: Readonly<
+		Record<string, Readonly<Record<string, unknown>>>
+	>;
 }
 
 export type MacroProjectLifecycle = "open" | "dirty" | "closed";
@@ -81,4 +85,36 @@ export class MacroProjectFormatError extends Error {
 export interface ExtensionStorageScope {
 	readonly scope: "project" | "global" | "content" | "cache";
 	readonly extensionId: string;
+}
+
+/** Core-owned migration lifecycle. Extensions only transform their own data. */
+export interface ProjectMigrationContext {
+	readonly projectRoot: string;
+	readonly sourceBackend: MacroProjectBackendDescriptor;
+	readonly targetBackend: MacroProjectBackendDescriptor;
+	readonly signal?: AbortSignal;
+	readonly sourceHistory: import("@stateful-mcp/core").HistoryResourceStore;
+	readonly sourceScratchpads: import("@stateful-mcp/core").ScratchpadResourceStore;
+	readonly targetHistory: import("@stateful-mcp/core").HistoryResourceStore;
+	readonly targetScratchpads: import("@stateful-mcp/core").ScratchpadResourceStore;
+}
+
+export interface ProjectMigrationParticipantPlan {
+	readonly participantId: string;
+	readonly extensionId: string;
+	readonly resourceIds?: readonly string[];
+	readonly status: "ready" | "missing" | "incompatible";
+	readonly message?: string;
+}
+
+export interface ProjectMigrationParticipant {
+	readonly id: string;
+	readonly dependsOn?: readonly string[];
+	readonly resourceIds?: readonly string[];
+	plan?(
+		context: ProjectMigrationContext,
+	): Promise<ProjectMigrationParticipantPlan> | ProjectMigrationParticipantPlan;
+	migrate?(context: ProjectMigrationContext): Promise<void> | void;
+	verify?(context: ProjectMigrationContext): Promise<void> | void;
+	rollback?(context: ProjectMigrationContext): Promise<void> | void;
 }

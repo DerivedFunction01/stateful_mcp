@@ -1,6 +1,7 @@
 import type { ExtensionContext } from "../context/extension-context";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { ExtensionDomainConfig } from "../contracts/extension-config";
+import type { ProjectMigrationParticipant } from "../project/contracts";
 import type {
 	CommandHandler,
 	ExtensionTabProvider,
@@ -34,6 +35,8 @@ export interface ExtensionActivation {
 		readonly views?: Readonly<Record<string, ExtensionViewProvider>>;
 		readonly tabs?: Readonly<Record<string, ExtensionTabProvider>>;
 		readonly commands?: Readonly<Record<string, CommandHandler>>;
+		readonly projectMigrationParticipants?: readonly ProjectMigrationParticipant[];
+		readonly projectSettings?: readonly import("../workspace/contributions/types").ProjectSettingsContribution[];
 	};
 	dispose?(): Promise<void> | void;
 }
@@ -99,5 +102,6 @@ export interface ActiveExtension {
 	sourceFile: string;
 	exports: Record<string, unknown>;
 	readonly contributions?: ExtensionActivation["contributions"];
+	readonly projectMigrationParticipants?: readonly ProjectMigrationParticipant[];
 	dispose(): Promise<void>;
 }

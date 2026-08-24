@@ -67,6 +67,10 @@ import {
 	type KeymapBindingDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
+	type ProjectBackendMigrationPlanDto,
+	type ProjectConfigurationDto,
+	type ProjectConfigurationImpact,
+	type ProjectOperationResult,
 	type ScratchpadExecutionReceiptDto,
 	type ScratchpadLineDto,
 	type ScratchpadLineStatus,
@@ -561,6 +565,257 @@ export class HostSessionManager {
 		this.attachSignals(session);
 		this.emit(session, "workspace.changed");
 		return this.snapshot(session);
+	}
+
+	getProjectConfiguration(sessionId: string): ProjectConfigurationDto {
+		const session = this.getOrError(sessionId);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const manifest = project.manifest;
+		const projectSettingsContributions =
+			session.loaded.workspace.runtime.extensions.list().flatMap((extension) =>
+				(extension.contributions?.projectSettings ?? []).map(
+					(contribution) => ({
+						extensionId: extension.manifest.id,
+						namespace: contribution.namespace,
+						title: contribution.title,
+						...(contribution.description
+							? { description: contribution.description }
+							: {}),
+						schema: contribution.schema.map((entry) => ({
+							path: entry.path,
+							type: entry.type,
+							title: entry.title,
+							...(entry.description ? { description: entry.description } : {}),
+							...(entry.widget ? { widget: entry.widget } : {}),
+							...(entry.enumValues ? { enumValues: entry.enumValues } : {}),
+							...(entry.sensitive ? { sensitive: true } : {}),
+						})),
+					}),
+				),
+			);
+		return {
+			...manifest,
+			projectSettingsContributions,
+			revision: project.descriptor.revision,
+		} as ProjectConfigurationDto;
+	}
+
+	private async backendMigrationPlan(
+		sessionId: string,
+		target: ProjectConfigurationDto["backend"],
+	): Promise<ProjectBackendMigrationPlanDto> {
+		const configuration = this.getProjectConfiguration(sessionId);
+		const session = this.getOrError(sessionId);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const participants =
+			[] as ProjectBackendMigrationPlanDto["participants"][number][];
+		for (const extension of session.loaded.workspace.runtime.extensions.list()) {
+			for (const participant of extension.projectMigrationParticipants ?? []) {
+				const result = await participant.plan?.({
+					projectRoot: project.rootPath,
+					sourceBackend: configuration.backend,
+					targetBackend: target,
+					sourceHistory: project.history,
+					sourceScratchpads: project.scratchpads,
+					targetHistory: project.history,
+					targetScratchpads: project.scratchpads,
+				});
+				participants.push({
+					id: participant.id,
+					extensionId: extension.manifest.id,
+					dependsOn: participant.dependsOn,
+					status: result?.status ?? "ready",
+					resourceIds: result?.resourceIds ?? participant.resourceIds ?? [],
+					...(result?.message ? { message: result.message } : {}),
+				});
+			}
+		}
+		return {
+			source: configuration.backend,
+			target,
+			participants,
+			historyCount: project.manifest.historyResources.length,
+			scratchpadCount: project.manifest.scratchpadResources?.length ?? 0,
+			warnings: [],
+			sourceDigest: JSON.stringify({
+				history: await project.listHistory(),
+				scratchpads: await project.listScratchpads(),
+			}),
+		};
+	}
+
+	async previewBackendMigration(
+		sessionId: string,
+		target: ProjectConfigurationDto["backend"],
+	): Promise<ProjectOperationResult> {
+		return {
+			status: "plan",
+			configuration: this.getProjectConfiguration(sessionId),
+			plan: await this.backendMigrationPlan(sessionId, target),
+		};
+	}
+
+	async recoverBackendMigration(
+		sessionId: string,
+	): Promise<{ readonly status: "recovered" }> {
+		const session = this.getOrError(sessionId);
+		if (!session.loaded.project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		await session.loaded.project.recoverMigration();
+		return { status: "recovered" };
+	}
+
+	async applyBackendMigration(
+		sessionId: string,
+		target: ProjectConfigurationDto["backend"],
+		expectedRevision: string,
+	): Promise<ProjectOperationResult> {
+		const session = this.getOrError(sessionId);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const plan = await this.backendMigrationPlan(sessionId, target);
+		if (
+			plan.source.kind === plan.target.kind &&
+			plan.source.path === plan.target.path
+		)
+			return {
+				status: "rejected",
+				message: "The target backend must differ from the current backend",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		if (plan.participants.some((participant) => participant.status !== "ready"))
+			return {
+				status: "rejected",
+				message: "A project migration participant is unavailable",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		if (expectedRevision !== project.descriptor.revision)
+			return {
+				status: "conflict",
+				message: "Project configuration is stale",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		const participants = session.loaded.workspace.runtime.extensions
+			.list()
+			.flatMap((extension) => extension.projectMigrationParticipants ?? []);
+		const result = await project.migrateBackend(
+			target,
+			expectedRevision,
+			participants,
+		);
+		const snapshot = await this.openProject(sessionId, project.rootPath);
+		return {
+			status: "migrated",
+			configuration: this.getProjectConfiguration(sessionId),
+			plan: {
+				...plan,
+				historyCount: result.copiedHistory,
+				scratchpadCount: result.copiedScratchpads,
+			},
+			snapshot,
+		};
+	}
+
+	async updateProjectConfiguration(
+		sessionId: string,
+		operation: {
+			readonly configuration: ProjectConfigurationDto;
+			readonly expectedRevision: string;
+		},
+	): Promise<ProjectOperationResult> {
+		const session = this.getOrError(sessionId);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError(
+				"PROJECT_REQUIRED",
+				"A project workspace is required",
+				false,
+			);
+		const current = project.manifest;
+		const configuration = operation.configuration;
+		if (
+			configuration.backend.kind !== current.backend.kind ||
+			configuration.backend.path !== current.backend.path
+		)
+			return {
+				status: "migrationRequired",
+				message: "Changing the project backend requires migration",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		if (!configuration.displayName.trim())
+			return {
+				status: "rejected",
+				message: "Project display name is required",
+			};
+		if (operation.expectedRevision !== project.descriptor.revision)
+			return {
+				status: "conflict",
+				message: "Project configuration is stale",
+				configuration: this.getProjectConfiguration(sessionId),
+			};
+		const candidate = {
+			...current,
+			displayName: configuration.displayName.trim(),
+			defaultProfileId: configuration.defaultProfileId,
+			activeProfileId: configuration.activeProfileId,
+			uiLocale: configuration.uiLocale,
+			extensions: configuration.extensions,
+			extensionProfiles: configuration.extensionProfiles,
+			templates: configuration.templates,
+			projectSettings: configuration.projectSettings,
+		};
+		const impact: ProjectConfigurationImpact =
+			JSON.stringify(current.templates) !==
+				JSON.stringify(candidate.templates) ||
+			JSON.stringify(current.projectSettings) !==
+				JSON.stringify(candidate.projectSettings)
+				? "templates"
+				: current.uiLocale !== candidate.uiLocale ||
+						current.activeProfileId !== candidate.activeProfileId ||
+						JSON.stringify(current.extensions) !==
+							JSON.stringify(candidate.extensions) ||
+						JSON.stringify(current.extensionProfiles) !==
+							JSON.stringify(candidate.extensionProfiles)
+					? "workspaceReload"
+					: "metadata";
+		await project.saveManifest(candidate, operation.expectedRevision);
+		if (impact === "workspaceReload") {
+			const root = project.rootPath;
+			return {
+				status: "accepted",
+				configuration: this.getProjectConfiguration(sessionId),
+				impact,
+				snapshot: await this.openProject(sessionId, root),
+			};
+		}
+		this.emit(session, "workspace.changed");
+		return {
+			status: "accepted",
+			configuration: this.getProjectConfiguration(sessionId),
+			impact,
+			snapshot: this.snapshot(session),
+		};
 	}
 
 	get(sessionId: string): Session | undefined {

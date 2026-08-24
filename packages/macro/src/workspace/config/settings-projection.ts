@@ -3,7 +3,6 @@ import {
 	type SettingsUiSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import type { I18nKernel } from "../i18n/i18n-kernel";
-import { EN_LOCALE } from "../i18n/locales/en";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -271,9 +270,7 @@ export function tScopeUnsupported(
 ): string {
 	const key: string =
 		UNSUPPORTED_SCOPE_REASONS[scope] ?? "settings.scope.unsupported";
-	return i18n
-		? i18n.t(key)
-		: ((EN_LOCALE as Record<string, string>)[key] ?? key);
+	return i18n ? i18n.t(key) : key;
 }
 
 export function tCategory(
@@ -281,14 +278,7 @@ export function tCategory(
 	category: string,
 ): string {
 	const key = `settings.category.${category}`;
-	const translated = i18n
-		? i18n.t(key)
-		: (EN_LOCALE as Record<string, string>)[key];
-	return translated && translated !== key ? translated : toTitleCase(category);
-}
-
-function toTitleCase(value: string): string {
-	return value.charAt(0).toUpperCase() + value.slice(1);
+	return i18n ? i18n.t(key) : key;
 }
 
 export const MASKED_VALUE = SETTINGS_REDACTION_MARKER;

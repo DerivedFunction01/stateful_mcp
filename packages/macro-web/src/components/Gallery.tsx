@@ -1784,7 +1784,7 @@ function TemplatePickerStory() {
 						icon={<BookTemplate size={14} />}
 						onClick={() => setIsOpen(true)}
 					>
-						{t("workbench.template.picker.newFromTemplate")}
+						{t("templates.picker.newFromTemplate")}
 					</Button>
 				</div>
 				{selectedId && (

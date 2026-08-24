@@ -31,7 +31,7 @@ export function EmptyEditorGroup({
 				{onNewFromTemplate && (
 					<button type="button" onClick={onNewFromTemplate}>
 						<BookTemplate size={14} />
-						{t("workbench.template.picker.newFromTemplate")}
+						{t("templates.picker.newFromTemplate")}
 					</button>
 				)}
 				{onOpenFile && (

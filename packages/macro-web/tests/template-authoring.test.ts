@@ -123,7 +123,7 @@ describe("MacroDocumentManager: template authoring, tagging, and persistence", (
 		const templateDocument = manager.openTemplateForEditing("daily_note");
 		const authoredLines = [
 			"## Daily Clinical Note",
-			"^patient id=\"123\" dept=\"Cardiology\"",
+			'^patient id="123" dept="Cardiology"',
 			"# Attending: Dr. Smith",
 		];
 		manager.replaceText({
@@ -132,8 +132,12 @@ describe("MacroDocumentManager: template authoring, tagging, and persistence", (
 			expectedTextRevision: templateDocument.textRevision,
 		});
 
-		expect(manager.getTemplates().find((item) => item.templateId === "daily_note")?.initialText)
-			.toBe(authoredLines.join("\n"));
-		expect(manager.createFromTemplate("daily_note").editor.getLines()).toEqual(authoredLines);
+		expect(
+			manager.getTemplates().find((item) => item.templateId === "daily_note")
+				?.initialText,
+		).toBe(authoredLines.join("\n"));
+		expect(manager.createFromTemplate("daily_note").editor.getLines()).toEqual(
+			authoredLines,
+		);
 	});
 });

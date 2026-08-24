@@ -1,5 +1,4 @@
 import type { I18nKernel } from "../i18n/i18n-kernel";
-import { EN_LOCALE } from "../i18n/locales/en";
 import type {
 	SettingsDiagnostic,
 	SettingsSchemaEntry,
@@ -251,17 +250,15 @@ export class SettingsUiModel {
 				(d) => d.path?.join(".") === pathStr,
 			);
 
-			const originDesc = isModified
-				? this.i18n
-					? this.i18n.t("settings.origin.overridden", {
-							scope: this.activeProfileId,
-						})
-					: `Modified in ${this.activeProfileId}`
-				: this.i18n
-					? this.i18n.t("settings.origin.inherited", {
-							profile: "base",
-						})
-					: "Default";
+			const key = isModified
+				? "settings.origin.overridden"
+				: "settings.origin.inherited";
+
+			const options = isModified
+				? { scope: this.activeProfileId }
+				: { profile: "base" };
+
+			const originDesc = this.i18n ? this.i18n.t(key, options) : key;
 
 			const origin: SettingsOriginInfo = isModified
 				? {
@@ -364,11 +361,7 @@ export class SettingsUiModel {
 
 export function formatGroupTitle(groupId: string, i18n?: I18nKernel): string {
 	const key = `settings.group.${groupId}`;
-	const translated: string | undefined = i18n ? i18n.t(key) : EN_LOCALE[key];
-	if (translated && translated !== key) {
-		return translated;
-	}
-	return groupId.charAt(0).toUpperCase() + groupId.slice(1);
+	return i18n ? i18n.t(key) : key;
 }
 
 export function formatCategoryTitle(
@@ -376,13 +369,7 @@ export function formatCategoryTitle(
 	i18n?: I18nKernel,
 ): string {
 	const key = `settings.category.${category}`;
-	const translated: string | undefined = i18n ? i18n.t(key) : EN_LOCALE[key];
-	if (translated && translated !== key) {
-		return translated;
-	}
-	// Dynamic extension categories without dictionary entries fall back to
-	// algorithmic capitalization.
-	return category.charAt(0).toUpperCase() + category.slice(1);
+	return i18n ? i18n.t(key) : key;
 }
 
 function getAtPath(

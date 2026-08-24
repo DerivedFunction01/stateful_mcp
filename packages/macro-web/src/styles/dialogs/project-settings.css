@@ -1,0 +1,66 @@
+.project-settings-dialog {
+	width: min(92vw, 760px);
+	max-height: 90vh;
+}
+.project-settings-form {
+	display: grid;
+	gap: 16px;
+	padding: 22px 24px;
+	overflow-y: auto;
+}
+.project-settings-readonly {
+	display: grid;
+	gap: 6px;
+	padding: 12px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-sunken);
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+}
+.project-settings-readonly code {
+	overflow-wrap: anywhere;
+	color: var(--theme-content-primary);
+	font-family: var(--theme-font-mono, monospace);
+}
+.project-settings-readonly span {
+	color: var(--theme-content-tertiary);
+}
+.project-settings-loading {
+	min-height: 180px;
+	display: grid;
+	place-items: center;
+	color: var(--theme-content-tertiary);
+}
+.project-settings-json-field textarea {
+	min-height: 110px;
+	resize: vertical;
+	font-family: var(--theme-font-mono, monospace);
+	font-size: 12px;
+	line-height: 1.45;
+}
+.project-settings-migration-actions {
+	display: flex;
+	gap: 8px;
+	margin-top: 6px;
+}
+.project-settings-extension-section {
+	display: grid;
+	gap: 5px;
+	padding: 12px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm);
+	background: var(--theme-surface-secondary);
+	color: var(--theme-content-secondary);
+	font-size: 12px;
+}
+.project-settings-extension-section strong {
+	color: var(--theme-content-primary);
+	font-size: 13px;
+}
+.project-settings-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	color: var(--theme-content-primary);
+}

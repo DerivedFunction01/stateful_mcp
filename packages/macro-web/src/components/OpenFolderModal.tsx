@@ -19,7 +19,10 @@ export interface OpenFolderModalProps {
 	readonly mode: "open" | "init" | "saveAs";
 	readonly client: HostClient;
 	readonly initialPath?: string;
-	readonly onSelect: (path: string) => void | Promise<void>;
+	readonly onSelect: (
+		path: string,
+		displayName?: string,
+	) => void | Promise<void>;
 	readonly onClose: () => void;
 }
 
@@ -42,6 +45,7 @@ export function OpenFolderModal({
 	const [creatingDirectory, setCreatingDirectory] = useState(false);
 	const [directoryName, setDirectoryName] = useState("");
 	const [creating, setCreating] = useState(false);
+	const [projectName, setProjectName] = useState("");
 	const dialogRef = useRef<HTMLDivElement>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const nameInputRef = useRef<HTMLInputElement>(null);
@@ -146,7 +150,10 @@ export function OpenFolderModal({
 		setSubmitting(true);
 		setError(undefined);
 		try {
-			await onSelect(target);
+			await onSelect(
+				target,
+				mode === "init" ? projectName.trim() || undefined : undefined,
+			);
 			onClose();
 		} catch (err) {
 			setError(err instanceof Error ? err.message : String(err));
@@ -297,6 +304,21 @@ export function OpenFolderModal({
 						>
 							{t("workbench.newFolderAction")}
 						</Button>
+					</div>
+				)}
+				{mode === "init" && !creatingDirectory && (
+					<div className="project-init-name-row">
+						<label className="field">
+							<span className="field-label">
+								{t("workbench.project.init.projectName")}
+							</span>
+							<input
+								className="input"
+								value={projectName}
+								onChange={(event) => setProjectName(event.target.value)}
+								placeholder={t("workbench.project.init.projectPlaceholder")}
+							/>
+						</label>
 					</div>
 				)}
 

@@ -141,6 +141,18 @@ export interface MacroExtensionUIContributions {
 	readonly commands?: readonly CommandContribution[];
 	readonly localizations?: readonly LocalizationContribution[];
 	readonly settings?: readonly ExtensionSettingsContribution[];
+	/** Project-shared configuration is opt-in; ordinary extension settings remain user/workspace scoped. */
+	readonly projectSettings?: readonly ProjectSettingsContribution[];
+}
+
+export interface ProjectSettingsContribution {
+	readonly namespace: string;
+	readonly title: string;
+	readonly description?: string;
+	readonly schema: readonly import("../config/settings-service").SettingsSchemaEntry[];
+	readonly defaults?: Readonly<Record<string, unknown>>;
+	readonly impact?: "refresh" | "workspaceReload" | "migrationRequired";
+	readonly sensitivePaths?: readonly (readonly string[])[];
 }
 
 export interface ExtensionSettingsContribution {

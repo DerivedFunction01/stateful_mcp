@@ -14,6 +14,7 @@ import { Gallery } from "./components/Gallery";
 import { HostRoute } from "./components/HostRoute";
 import { MenuBar } from "./components/MenuBar";
 import { OpenFolderModal } from "./components/OpenFolderModal";
+import { ProjectSettingsModal } from "./components/ProjectSettingsModal";
 import { SettingsTab } from "./components/SettingsTab";
 import { RegisteredStatusBar } from "./components/StatusBar";
 import { TemplateEditorModal } from "./components/TemplateEditorModal";
@@ -106,6 +107,7 @@ export function App() {
 	const [paletteCommandToken, setPaletteCommandToken] = useState("");
 	const [isTemplatePickerOpen, setIsTemplatePickerOpen] = useState(false);
 	const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+	const [isProjectSettingsOpen, setIsProjectSettingsOpen] = useState(false);
 	const [editingTemplate, setEditingTemplate] =
 		useState<
 			import("@stateful-mcp/macro-protocol").ScratchpadTemplateDescriptor
@@ -673,15 +675,19 @@ export function App() {
 					onSetInspectorPosition={(position) =>
 						saveUserPreferences({ inspectorPosition: position })
 					}
-					onCommand={(cmd, args) => {
-						void runCommand(cmd, args);
-					}}
 					onToggleSidebar={() => void runCommand("workbench.toggleSidepanel")}
 					onToggleInspector={() => void runCommand("workbench.toggleInspector")}
 					onToggleDrawer={() => setIsDrawerOpen((open) => !open)}
 					onOpenPalette={openPalette}
 					onOpenFolderModal={setFolderModalMode}
 					onOpenTemplatePicker={() => setIsTemplatePickerOpen(true)}
+					onCommand={(cmd, args) => {
+						if (cmd === "workbench.openProjectSettings") {
+							setIsProjectSettingsOpen(true);
+							return;
+						}
+						void runCommand(cmd, args);
+					}}
 					onCloseProject={() => void store.closeProject()}
 					onNavigate={navigate}
 					currentRoute={route}
@@ -800,6 +806,10 @@ export function App() {
 						window.dispatchEvent(new CustomEvent("workbench:toggleVim"))
 					}
 					onAction={(command) => {
+						if (command === "workbench.openProjectSettings") {
+							setIsProjectSettingsOpen(true);
+							return;
+						}
 						if (command === "workbench.toggleVim") {
 							window.dispatchEvent(new CustomEvent("workbench:toggleVim"));
 							return;
@@ -848,7 +858,7 @@ export function App() {
 					<OpenFolderModal
 						mode={folderModalMode}
 						client={host}
-						onSelect={async (path) => {
+						onSelect={async (path, displayName) => {
 							try {
 								if (folderModalMode === "open") {
 									await store.openProject(path);
@@ -859,7 +869,7 @@ export function App() {
 										setCreateFileTarget(pending);
 									}
 								} else if (folderModalMode === "init")
-									await store.initProject(path);
+									await store.initProject(path, displayName);
 								else if (folderModalMode === "saveAs")
 									await store.saveAsProject(path);
 							} finally {
@@ -949,6 +959,15 @@ export function App() {
 								}
 							});
 						setIsTemplateEditorOpen(false);
+					}}
+				/>
+				<ProjectSettingsModal
+					isOpen={isProjectSettingsOpen}
+					client={host}
+					onClose={() => setIsProjectSettingsOpen(false)}
+					onUpdated={(result) => {
+						if (result.status === "accepted")
+							store.installSnapshot(result.snapshot);
 					}}
 				/>
 			</div>

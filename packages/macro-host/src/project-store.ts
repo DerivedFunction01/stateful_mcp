@@ -1,5 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
+import {
+	access,
+	mkdir,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import {
 	type HistoryResource,
@@ -22,6 +29,8 @@ import {
 	MacroProjectFormatError,
 	type MacroProjectManifest,
 	type MacroProjectResourceReference,
+	type ProjectMigrationContext,
+	type ProjectMigrationParticipant,
 } from "@stateful-mcp/macro";
 
 export const MACRO_PROJECT_FORMAT_VERSION = 1;
@@ -81,6 +90,16 @@ export interface MacroProject {
 		manifest: MacroProjectManifest,
 		expectedRevision: string,
 	): Promise<MacroProject>;
+	migrateBackend(
+		target: { readonly kind: MacroProjectBackendKind; readonly path: string },
+		expectedRevision: string,
+		participants?: readonly ProjectMigrationParticipant[],
+	): Promise<{
+		readonly project: MacroProject;
+		readonly copiedHistory: number;
+		readonly copiedScratchpads: number;
+	}>;
+	recoverMigration(): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -135,6 +154,7 @@ export async function openMacroProject(
 ): Promise<MacroProject> {
 	const rootPath = resolve(options.rootPath);
 	const manifestPath = join(rootPath, MACRO_DIRECTORY, MACRO_MANIFEST_FILE);
+	const lockPath = join(rootPath, MACRO_DIRECTORY, "migration.lock");
 	let manifest: MacroProjectManifest;
 	try {
 		manifest = JSON.parse(
@@ -471,6 +491,165 @@ class MacroProjectHandle implements MacroProject {
 		return this;
 	}
 
+	async migrateBackend(
+		target: { readonly kind: MacroProjectBackendKind; readonly path: string },
+		expectedRevision: string,
+		participants: readonly ProjectMigrationParticipant[] = [],
+	) {
+		this.assertOpen();
+		if (!isWithin(this.rootPath, resolve(this.rootPath, target.path)))
+			throw new MacroProjectFormatError(
+				"Project backend path escapes project root",
+			);
+		if (
+			target.kind === this.currentManifest.backend.kind &&
+			target.path === this.currentManifest.backend.path
+		)
+			return { project: this, copiedHistory: 0, copiedScratchpads: 0 };
+		if (target.path === this.currentManifest.backend.path)
+			throw new MacroProjectFormatError(
+				"Migration target must use a different backend path",
+			);
+		const targetPath = resolve(this.rootPath, target.path);
+		if (await exists(targetPath))
+			throw new MacroProjectConflictError("Migration target already exists", {
+				targetPath,
+			});
+		const lockPath = join(this.rootPath, MACRO_DIRECTORY, "migration.lock");
+		if (await exists(lockPath))
+			throw new MacroProjectConflictError(
+				"Another project migration is already in progress",
+				{ lockPath },
+			);
+		const sourceDigest = hashJson({
+			manifest: this.currentManifest,
+			history: await this.listHistory(),
+			scratchpads: await this.listScratchpads(),
+		});
+		await atomicWrite(
+			lockPath,
+			JSON.stringify({
+				status: "copying",
+				startedAt: new Date().toISOString(),
+				source: this.currentManifest.backend,
+				target,
+				sourceDigest,
+			}),
+		);
+		const storage = await openHistoryStorage(target.kind, targetPath);
+		let copiedHistory = 0;
+		let copiedScratchpads = 0;
+		try {
+			await atomicWrite(
+				lockPath,
+				JSON.stringify({
+					status: "copying",
+					startedAt: new Date().toISOString(),
+					source: this.currentManifest.backend,
+					target,
+				}),
+			);
+			for (const reference of this.currentManifest.historyResources) {
+				const resource = await this.history.open(reference.resourceId);
+				if (resource) {
+					await storage.history.save(resource);
+					copiedHistory += 1;
+				}
+			}
+			for (const reference of this.currentManifest.scratchpadResources ?? []) {
+				const resource = await this.scratchpads.open(reference.resourceId);
+				if (resource) {
+					await storage.scratchpads.save(resource);
+					copiedScratchpads += 1;
+				}
+			}
+			await storage.flush();
+			await atomicWrite(
+				lockPath,
+				JSON.stringify({
+					status: "verifying",
+					startedAt: new Date().toISOString(),
+					source: this.currentManifest.backend,
+					target,
+					copiedHistory,
+					copiedScratchpads,
+					sourceDigest,
+				}),
+			);
+			const context: ProjectMigrationContext = {
+				projectRoot: this.rootPath,
+				sourceBackend: this.currentManifest.backend,
+				targetBackend: target,
+				sourceHistory: this.history,
+				sourceScratchpads: this.scratchpads,
+				targetHistory: storage.history,
+				targetScratchpads: storage.scratchpads,
+			};
+			try {
+				const orderedParticipants = orderParticipants(participants);
+				for (const participant of orderedParticipants)
+					await participant.migrate?.(context);
+				for (const participant of orderedParticipants)
+					await participant.verify?.(context);
+			} catch (error) {
+				for (const participant of [
+					...orderParticipants(participants),
+				].reverse()) {
+					try {
+						await participant.rollback?.(context);
+					} catch {
+						/* best effort */
+					}
+				}
+				throw error;
+			}
+			const manifest = {
+				...this.currentManifest,
+				backend: { kind: target.kind, path: target.path },
+				migration: {
+					...(this.currentManifest.migration ?? {}),
+					lastBackendMigration: {
+						from: this.currentManifest.backend,
+						to: target,
+						copiedHistory,
+						copiedScratchpads,
+						completedAt: new Date().toISOString(),
+					},
+				},
+			};
+			await this.saveManifest(manifest, expectedRevision);
+			await rm(lockPath, { force: true });
+			return { project: this, copiedHistory, copiedScratchpads };
+		} catch (error) {
+			await rm(targetPath, { force: true }).catch(() => undefined);
+			await atomicWrite(
+				lockPath,
+				JSON.stringify({
+					status: "failed",
+					failedAt: new Date().toISOString(),
+					source: this.currentManifest.backend,
+					target,
+					error: error instanceof Error ? error.message : String(error),
+				}),
+			).catch(() => undefined);
+			throw error;
+		}
+	}
+
+	async recoverMigration(): Promise<void> {
+		this.assertOpen();
+		const lockPath = join(this.rootPath, MACRO_DIRECTORY, "migration.lock");
+		const journal = JSON.parse(await readFile(lockPath, "utf8")) as {
+			target?: { path?: string };
+		};
+		if (journal.target?.path)
+			await rm(resolve(this.rootPath, journal.target.path), {
+				force: true,
+				recursive: true,
+			});
+		await rm(lockPath, { force: true });
+	}
+
 	async close(): Promise<void> {
 		if (!this.closed) {
 			await this.flush();
@@ -515,6 +694,36 @@ function hashJson(value: unknown): string {
 		hash = Math.imul(hash, 16777619);
 	}
 	return `fnv1a:${(hash >>> 0).toString(16)}`;
+}
+
+function orderParticipants(
+	participants: readonly ProjectMigrationParticipant[],
+): readonly ProjectMigrationParticipant[] {
+	const byId = new Map(
+		participants.map((participant) => [participant.id, participant]),
+	);
+	const ordered: ProjectMigrationParticipant[] = [];
+	const visiting = new Set<string>();
+	const visited = new Set<string>();
+	const visit = (id: string): void => {
+		if (visited.has(id)) return;
+		if (visiting.has(id))
+			throw new MacroProjectFormatError(
+				`Migration participant dependency cycle at '${id}'`,
+			);
+		const participant = byId.get(id);
+		if (!participant)
+			throw new MacroProjectFormatError(
+				`Missing migration participant '${id}'`,
+			);
+		visiting.add(id);
+		for (const dependency of participant.dependsOn ?? []) visit(dependency);
+		visiting.delete(id);
+		visited.add(id);
+		ordered.push(participant);
+	};
+	for (const participant of participants) visit(participant.id);
+	return ordered;
 }
 
 async function canonicalRoot(rootPath: string): Promise<string> {

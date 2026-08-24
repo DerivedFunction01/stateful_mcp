@@ -353,7 +353,7 @@ export class BrowserWorkspaceStore {
 		this.client.dispose?.();
 	}
 
-	private installSnapshot(snapshot: WorkspaceSnapshot): void {
+	installSnapshot(snapshot: WorkspaceSnapshot): void {
 		this.update({
 			status: "connected",
 			snapshot,

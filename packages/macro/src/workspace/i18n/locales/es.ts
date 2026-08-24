@@ -10,12 +10,14 @@ import { ES_PALETTE } from "./es/palette";
 import { ES_SETTINGS } from "./es/settings";
 import { ES_SHELL } from "./es/shell";
 import { ES_STATUS } from "./es/status";
+import { ES_TEMPLATES } from "./es/templates";
 import { ES_WORKBENCH } from "./es/workbench";
 
 export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	...ES_SHELL,
 	...ES_NAVIGATION,
 	...ES_WORKBENCH,
+	...ES_TEMPLATES,
 	...ES_EDITOR,
 	...ES_JOURNAL,
 	...ES_PALETTE,

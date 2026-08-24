@@ -33,13 +33,20 @@ describe("Declarative Settings Form Widgets & Dynamic Categories", () => {
 
 		// Fallback when untranslated
 		expect(formatCategoryTitle("unknownCategory", i18n)).toBe(
-			"UnknownCategory",
+			"settings.category.unknownCategory",
 		);
 	});
 
 	it("dynamically resolves extension settings with form widgets, categories, and groups", () => {
 		const registry = new SettingsContributionRegistry();
 		const i18n = new I18nKernel("en");
+		i18n.registerTranslations("en", {
+			"settings.category.syntax": "Syntax",
+			"settings.category.clinical": "Clinical",
+			"settings.group.tokens": "Tokens",
+			"settings.group.safety": "Safety",
+			"settings.group.terminology": "Terminology",
+		});
 
 		const clinicalContribution: ExtensionSettingsContribution = {
 			namespace: "clinical",
@@ -52,7 +59,7 @@ describe("Declarative Settings Form Widgets & Dynamic Categories", () => {
 					widget: "toggle",
 					title: "Enforce Strict Dosage Bounds",
 					category: "clinical",
-					group: "Safety",
+					group: "safety",
 					order: 1,
 				},
 				{
@@ -64,7 +71,7 @@ describe("Declarative Settings Form Widgets & Dynamic Categories", () => {
 					max: 500,
 					step: 10,
 					category: "clinical",
-					group: "Safety",
+					group: "safety",
 					order: 2,
 				},
 				{
@@ -74,7 +81,7 @@ describe("Declarative Settings Form Widgets & Dynamic Categories", () => {
 					title: "Latin Frequency Shorthands",
 					tagDelimiters: [",", " "],
 					category: "clinical",
-					group: "Terminology",
+					group: "terminology",
 					order: 10,
 				},
 			],
@@ -97,7 +104,7 @@ describe("Declarative Settings Form Widgets & Dynamic Categories", () => {
 					type: "string",
 					widget: "input",
 					category: "syntax",
-					group: "Tokens",
+					group: "tokens",
 					title: "Trigger Symbol",
 				},
 				...registry.getSchema(),
