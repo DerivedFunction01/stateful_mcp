@@ -123,8 +123,6 @@ export function ExtensionActivationGroupsModal({
 		[draft?.extensions],
 	);
 
-	if (!isOpen) return null;
-
 	const groups = draft?.extensionGroups ?? {};
 	const groupIds = Object.keys(groups);
 	const selectedGroup = selectedGroupId ? groups[selectedGroupId] : undefined;
@@ -335,6 +333,8 @@ export function ExtensionActivationGroupsModal({
 		}
 		return results;
 	}, [groups, draft, extensionsById, activeExtensionGroupId, t]);
+
+	if (!isOpen) return null;
 
 	const apply = async () => {
 		if (!draft || !configuration) return;
