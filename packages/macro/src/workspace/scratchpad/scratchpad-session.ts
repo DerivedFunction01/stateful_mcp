@@ -52,24 +52,24 @@ export class ScratchpadExecutionPolicyError extends Error {
 	}
 }
 
-export interface PinnedMacroLineContext {
+export interface QuickRunContext {
 	readonly macroId: string;
 	readonly macroName: string;
 	readonly macroStartToken: string;
 }
 
-export interface PinnedMacroLineResult {
-	readonly insertedText: string;
-	readonly macroId: string;
-}
-
 export interface ScratchpadSessionOptions {
-	readonly createPinnedLineSeed?: (context: PinnedMacroLineContext) => string;
+	/**
+	 * Optional seed used when inserting a Quick Run snippet. Quick Runs insert
+	 * explicit macro text and never assign a cell default.
+	 */
+	readonly createQuickRunSeed?: (context: QuickRunContext) => string;
 }
 
 export class ScratchpadSession {
 	private projectedLines: ProjectedMacroLine[] = [];
-	private pinnedMacroId: string | null = null;
+	/** Per-cell hidden defaults keyed by 0-based line index. */
+	private readonly cellDefaults = new Map<number, string>();
 	private executedLineIndices = new Set<number>();
 	private readonly macroFrequencies = new Map<string, number>();
 	private parseDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -107,37 +107,30 @@ export class ScratchpadSession {
 			.slice(0, limit);
 	}
 
-	getPinnedMacros(
-		projectPinned: readonly string[] = [],
+	/**
+	 * Build the list of insertable Quick Run snippets. Quick Runs are an
+	 * independent convenience list and never assign a cell default.
+	 */
+	getQuickRuns(
+		projectQuickRuns: readonly string[] = [],
 	): readonly PinnedMacroDto[] {
 		const result: PinnedMacroDto[] = [];
 		const seen = new Set<string>();
 
-		// 1. Session pinned macro
-		if (this.pinnedMacroId) {
-			seen.add(this.pinnedMacroId);
-			result.push({
-				id: `pin:${this.pinnedMacroId}`,
-				macroName: this.pinnedMacroId,
-				source: "project",
-				snippet: `^${this.pinnedMacroId} `,
-			});
-		}
-
-		// 2. Project pins
-		for (const pin of projectPinned) {
-			if (!seen.has(pin)) {
-				seen.add(pin);
+		// 1. Project quick runs
+		for (const name of projectQuickRuns) {
+			if (!seen.has(name)) {
+				seen.add(name);
 				result.push({
-					id: `project:${pin}`,
-					macroName: pin,
+					id: `project:${name}`,
+					macroName: name,
 					source: "project",
-					snippet: `^${pin} `,
+					snippet: `^${name} `,
 				});
 			}
 		}
 
-		// 3. Frequent macros from active session
+		// 2. Frequent macros from active session
 		for (const { macroName, count } of this.getFrequentMacros()) {
 			if (!seen.has(macroName)) {
 				seen.add(macroName);
@@ -151,7 +144,7 @@ export class ScratchpadSession {
 			}
 		}
 
-		// 4. Extension defaults
+		// 3. Extension defaults
 		for (const adapter of this.runtime.adapters.list()) {
 			const name = adapter.adapter.definition.name;
 			if (!seen.has(name)) {
@@ -166,6 +159,115 @@ export class ScratchpadSession {
 		}
 
 		return result;
+	}
+
+	// ─── Cell default macros ──────────────────────────────────────────────
+
+	getCellDefault(lineIndex: number): string | null {
+		return this.cellDefaults.get(lineIndex) ?? null;
+	}
+
+	getCellDefaults(): ReadonlyMap<number, string> {
+		return new Map(this.cellDefaults);
+	}
+
+	setCellDefault(lineIndex: number, macroId: string | null): void {
+		if (macroId === null || macroId === "") {
+			if (this.cellDefaults.delete(lineIndex)) this.parseAllLinesSync();
+		} else if (this.cellDefaults.get(lineIndex) !== macroId) {
+			this.cellDefaults.set(lineIndex, macroId);
+			this.parseAllLinesSync();
+		}
+	}
+
+	setCellDefaults(defaults: ReadonlyMap<number, string>): void {
+		this.cellDefaults.clear();
+		for (const [idx, id] of defaults) {
+			if (id) this.cellDefaults.set(idx, id);
+		}
+		this.parseAllLinesSync();
+	}
+
+	clearCellDefaults(): void {
+		if (this.cellDefaults.size === 0) return;
+		this.cellDefaults.clear();
+		this.parseAllLinesSync();
+	}
+
+	/**
+	 * Keep cell default metadata aligned with structural line operations.
+	 * A newly inserted line carries no default unless explicitly duplicated.
+	 */
+	shiftCellDefaultsAfterInsert(atIndex: number): void {
+		if (atIndex < 0) return;
+		const next = new Map<number, string>();
+		for (const [idx, id] of this.cellDefaults) {
+			next.set(idx >= atIndex ? idx + 1 : idx, id);
+		}
+		this.cellDefaults.clear();
+		for (const [idx, id] of next) this.cellDefaults.set(idx, id);
+	}
+
+	shiftCellDefaultsAfterDelete(atIndex: number): void {
+		if (atIndex < 0) return;
+		const next = new Map<number, string>();
+		for (const [idx, id] of this.cellDefaults) {
+			if (idx === atIndex) continue;
+			next.set(idx > atIndex ? idx - 1 : idx, id);
+		}
+		this.cellDefaults.clear();
+		for (const [idx, id] of next) this.cellDefaults.set(idx, id);
+		this.parseAllLinesSync();
+	}
+
+	duplicateCellDefault(atIndex: number): void {
+		const id = this.cellDefaults.get(atIndex);
+		if (id === undefined) return;
+		this.cellDefaults.set(atIndex + 1, id);
+		this.parseAllLinesSync();
+	}
+
+	moveCellDefault(fromIndex: number, toIndex: number): void {
+		if (fromIndex === toIndex) return;
+		const id = this.cellDefaults.get(fromIndex);
+		const next = new Map<number, string>();
+		for (const [idx, value] of this.cellDefaults) {
+			if (idx === fromIndex) continue;
+			next.set(idx > fromIndex ? idx - 1 : idx, value);
+		}
+		if (id !== undefined) {
+			next.set(toIndex > fromIndex ? toIndex - 1 : toIndex, id);
+		}
+		this.cellDefaults.clear();
+		for (const [idx, value] of next) this.cellDefaults.set(idx, value);
+		this.parseAllLinesSync();
+	}
+
+	/**
+	 * Insert explicit macro text for a Quick Run. A Quick Run never assigns a
+	 * cell default: it only inserts visible snippet text into the editor buffer.
+	 */
+	insertQuickRun(macroId: string, args = ""): string | null {
+		const matching = this.runtime.adapters
+			.list()
+			.find(
+				(adapter) =>
+					adapter.adapter.definition.id === macroId ||
+					adapter.adapter.definition.name === macroId,
+			);
+		if (!matching) return null;
+		const macroName = matching.adapter.definition.name;
+		const context: QuickRunContext = {
+			macroId: matching.adapter.definition.id,
+			macroName,
+			macroStartToken: this.runtime.context.syntax.macroStartToken,
+		};
+		const insertedText =
+			this.options.createQuickRunSeed?.(context) ??
+			`${context.macroStartToken}${context.macroName}${args ? ` ${args}` : ""} `;
+		this.editor.splitLine();
+		this.editor.insertText(insertedText);
+		return insertedText;
 	}
 
 	isLineExecuted(lineIndex: number): boolean {
@@ -197,42 +299,6 @@ export class ScratchpadSession {
 		this.notify();
 	}
 
-	getPinnedMacro(): string | null {
-		return this.pinnedMacroId;
-	}
-
-	setPinnedMacro(macroId: string | null): void {
-		if (this.pinnedMacroId !== macroId) {
-			this.pinnedMacroId = macroId;
-			this.parseAllLinesSync();
-		}
-	}
-
-	createPinnedMacroLine(): PinnedMacroLineResult | null {
-		if (!this.pinnedMacroId) return null;
-		const matching = this.runtime.adapters
-			.list()
-			.find(
-				(adapter) =>
-					adapter.adapter.definition.id === this.pinnedMacroId ||
-					adapter.adapter.definition.name === this.pinnedMacroId,
-			);
-		if (!matching) return null;
-		const macroId = matching.adapter.definition.id;
-		const macroName = matching.adapter.definition.name;
-		const context: PinnedMacroLineContext = {
-			macroId,
-			macroName,
-			macroStartToken: this.runtime.context.syntax.macroStartToken,
-		};
-		const insertedText =
-			this.options.createPinnedLineSeed?.(context) ??
-			`${context.macroStartToken}${context.macroName} `;
-		this.editor.splitLine();
-		this.editor.insertText(insertedText);
-		return { insertedText, macroId };
-	}
-
 	getProjectedLines(): readonly ProjectedMacroLine[] {
 		return this.projectedLines;
 	}
@@ -245,7 +311,7 @@ export class ScratchpadSession {
 		const line = this.projectedLines[lineIndex];
 		if (!line) return "non-macro";
 		if (!line.rawText.trim()) return "empty";
-		if (!line.macroName) return "non-macro";
+		if (!line.macroName && !line.effectiveMacroName) return "non-macro";
 		return line.isValid ? "valid" : "invalid";
 	}
 
@@ -266,82 +332,194 @@ export class ScratchpadSession {
 		const registeredAdapters = this.runtime.adapters.list();
 		const prefix = this.runtime.context.syntax.macroStartToken;
 
+		const findAdapter = (macroId: string | null | undefined) =>
+			macroId
+				? registeredAdapters.find(
+						(a) =>
+							a.adapter.definition.id === macroId ||
+							a.adapter.definition.name === macroId,
+					)
+				: undefined;
+
 		const results = await Promise.all(
 			lines.map(async (lineText, index) => {
 				const trimmed = lineText.trim();
-				if (!trimmed || registeredAdapters.length === 0) {
+				if (registeredAdapters.length === 0) {
 					return createEmptyProjectedLine(index + 1, lineText);
 				}
 
-				// 1. Explicit macro name match with strict word boundaries
-				const matching = registeredAdapters.find((a) =>
+				// 1. Explicit macro syntax always wins over the hidden default.
+				const explicit = registeredAdapters.find((a) =>
 					matchesMacroVerb(trimmed, a.adapter.definition.name, prefix),
 				);
 
-				if (!matching) {
-					return createEmptyProjectedLine(index + 1, lineText);
-				}
-
-				const adapterId = matching.adapter.definition.id;
-				const macroName = matching.adapter.definition.name;
-
-				try {
-					const parseText = matchesMacroVerb(trimmed, macroName, prefix)
-						? lineText
-						: prefix
-							? `${prefix}${macroName} ${lineText}`
-							: `${macroName} ${lineText}`;
-
-					const draft = await this.runtime.parseAdapter(adapterId, parseText);
-					if (!draft || !draft.input) {
+				if (explicit) {
+					const macroName = explicit.adapter.definition.name;
+					const adapterId = explicit.adapter.definition.id;
+					const defaultId = this.cellDefaults.get(index) ?? null;
+					try {
+						const parseText = matchesMacroVerb(trimmed, macroName, prefix)
+							? lineText
+							: prefix
+								? `${prefix}${macroName} ${lineText}`
+								: `${macroName} ${lineText}`;
+						const draft = await this.runtime.parseAdapter(adapterId, parseText);
+						if (!draft || !draft.input) {
+							return {
+								lineNumber: index + 1,
+								rawText: lineText,
+								macroName,
+								adapterId,
+								defaultMacroId: defaultId ?? undefined,
+								effectiveMacroName: macroName,
+								macroResolution: "explicit" as const,
+								isValid: false,
+								projections: draft?.projections ?? [],
+								chips: extractTokenChipsFromProjections(
+									draft?.projections ?? [],
+								),
+								diagnostics:
+									draft?.diagnostics ??
+									([
+										{
+											code: "NO_MATCH",
+											message: `Failed to parse arguments for macro '${macroName}'`,
+										},
+									] as const),
+							};
+						}
+						return synthesizeProjectedLine(
+							index + 1,
+							lineText,
+							draft.input.macroName,
+							adapterId,
+							draft.projections,
+							draft.preview,
+							draft.executionPreview,
+							draft.diagnostics,
+							[],
+							defaultId ?? undefined,
+							macroName,
+							"explicit",
+						);
+					} catch (error) {
 						return {
 							lineNumber: index + 1,
 							rawText: lineText,
 							macroName,
 							adapterId,
+							defaultMacroId: defaultId ?? undefined,
+							effectiveMacroName: macroName,
+							macroResolution: "explicit" as const,
 							isValid: false,
-							projections: draft?.projections ?? [],
-							chips: extractTokenChipsFromProjections(draft?.projections ?? []),
-							diagnostics: draft?.diagnostics ?? [
+							projections: [],
+							chips: [],
+							diagnostics: [
 								{
-									code: "NO_MATCH",
-									message: `Failed to parse arguments for macro '${macroName}'`,
-									severity: "error",
+									code: "NO_MATCH" as const,
+									message:
+										error instanceof Error ? error.message : String(error),
+									severity: "error" as const,
 									span: { start: 0, end: lineText.length },
 								},
 							],
 						};
 					}
-
-					return synthesizeProjectedLine(
-						index + 1,
-						lineText,
-						draft.input.macroName,
-						adapterId,
-						draft.projections,
-						draft.preview,
-						draft.executionPreview,
-						draft.diagnostics,
-					);
-				} catch (error) {
-					return {
-						lineNumber: index + 1,
-						rawText: lineText,
-						macroName,
-						adapterId,
-						isValid: false,
-						projections: [],
-						chips: [],
-						diagnostics: [
-							{
-								code: "NO_MATCH" as const,
-								message: error instanceof Error ? error.message : String(error),
-								severity: "error" as const,
-								span: { start: 0, end: lineText.length },
-							},
-						],
-					};
 				}
+
+				// 2. No explicit macro: fall back to the hidden cell default.
+				const defaultId = this.cellDefaults.get(index) ?? null;
+				const defaultAdapter = findAdapter(defaultId);
+				if (defaultAdapter) {
+					const macroName = defaultAdapter.adapter.definition.name;
+					const adapterId = defaultAdapter.adapter.definition.id;
+					const isEmpty = !trimmed;
+					const placeholder = isEmpty ? `${prefix}${macroName} ` : undefined;
+					// Empty defaulted cells render a display-only placeholder and are
+					// not executable until arguments are supplied.
+					if (isEmpty) {
+						return synthesizeProjectedLine(
+							index + 1,
+							lineText,
+							macroName,
+							adapterId,
+							[],
+							undefined,
+							undefined,
+							[],
+							[],
+							defaultId ?? undefined,
+							macroName,
+							"default",
+							placeholder,
+						);
+					}
+					try {
+						const parseText = `${prefix ? `${prefix}${macroName} ` : `${macroName} `}${lineText}`;
+						const draft = await this.runtime.parseAdapter(adapterId, parseText);
+						if (!draft || !draft.input) {
+							return synthesizeProjectedLine(
+								index + 1,
+								lineText,
+								macroName,
+								adapterId,
+								[],
+								undefined,
+								undefined,
+								[
+									{
+										code: "NO_MATCH",
+										message: `Failed to parse arguments for macro '${macroName}'`,
+										start: 0,
+										end: lineText.length,
+									},
+								] as const,
+								[],
+								defaultId ?? undefined,
+								macroName,
+								"default",
+							);
+						}
+						return synthesizeProjectedLine(
+							index + 1,
+							lineText,
+							macroName,
+							adapterId,
+							draft.projections,
+							draft.preview,
+							draft.executionPreview,
+							draft.diagnostics,
+							[],
+							defaultId ?? undefined,
+							draft.input.macroName,
+							"default",
+						);
+					} catch (error) {
+						return {
+							lineNumber: index + 1,
+							rawText: lineText,
+							defaultMacroId: defaultId ?? undefined,
+							effectiveMacroName: macroName,
+							macroResolution: "default" as const,
+							placeholder,
+							isValid: false,
+							projections: [],
+							chips: [],
+							diagnostics: [
+								{
+									code: "NO_MATCH" as const,
+									message:
+										error instanceof Error ? error.message : String(error),
+									severity: "error" as const,
+									span: { start: 0, end: lineText.length },
+								},
+							],
+						};
+					}
+				}
+
+				// 3. Neither explicit macro nor default.
+				return createEmptyProjectedLine(index + 1, lineText);
 			}),
 		);
 
@@ -367,29 +545,31 @@ export class ScratchpadSession {
 		lineIndex: number,
 	): Promise<ScratchpadExecutionReceipt | null> {
 		const line = this.projectedLines[lineIndex];
-		if (!line || !line.isValid || !line.adapterId || !line.macroName) {
+		if (!line || !line.isValid || !line.adapterId || !line.effectiveMacroName) {
 			return null;
 		}
 
+		const effectiveName = line.effectiveMacroName;
 		const prefix = this.runtime.context.syntax.macroStartToken;
 		const trimmed = line.rawText.trim();
 		const withoutPrefix =
 			prefix && trimmed.startsWith(prefix)
 				? trimmed.slice(prefix.length).trim()
 				: trimmed;
-		const invokedAs = withoutPrefix.split(/\s+/u)[0] || line.macroName;
+		const invokedAs =
+			withoutPrefix.split(/\s+/u)[0] || line.macroName || effectiveName;
 
 		try {
-			const parseText = matchesMacroVerb(trimmed, line.macroName, prefix)
+			const parseText = matchesMacroVerb(trimmed, effectiveName, prefix)
 				? line.rawText
 				: prefix
-					? `${prefix}${line.macroName} ${line.rawText}`
-					: `${line.macroName} ${line.rawText}`;
+					? `${prefix}${effectiveName} ${line.rawText}`
+					: `${effectiveName} ${line.rawText}`;
 
 			const draft = await this.runtime.parseAdapter(line.adapterId, parseText);
 			const result = await this.runtime.executeAdapter(line.adapterId, draft);
 			this.executedLineIndices.add(lineIndex);
-			this.recordExecution(line.macroName);
+			this.recordExecution(effectiveName);
 			this.notify();
 			return {
 				lineNumber: line.lineNumber,

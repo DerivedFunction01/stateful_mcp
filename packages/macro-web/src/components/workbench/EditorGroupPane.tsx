@@ -344,16 +344,6 @@ export function EditorGroupPane({
 						expectedTextRevision: groupActiveDoc.textRevision,
 					})
 				}
-				onPinMacro={(macroId) =>
-					groupActiveDoc &&
-					macroId !== null &&
-					emitEditorOperation({
-						operation: "editor.pinMacro",
-						requestId: crypto.randomUUID(),
-						documentId: groupActiveDoc.documentId,
-						macroId,
-					})
-				}
 				onReloadEditorConflict={onReloadEditorConflict}
 				onOverwriteEditorConflict={onOverwriteEditorConflict}
 			/>

@@ -1,11 +1,9 @@
 import { describe, expect, test } from "bun:test";
+import { MemoryKvBackend, SqlBackend, SqlExecutor } from "@stateful-mcp/core";
 import {
 	KvScratchpadResourceStore,
-	MemoryKvBackend,
-	SqlBackend,
-	SqlExecutor,
 	SqlScratchpadResourceStore,
-} from "../src/index";
+} from "src/scratchpad/resource-store";
 
 describe("ScratchpadResourceStore", () => {
 	test("KV scratchpad store creates, saves, lists, opens, and deletes resources", async () => {
@@ -22,9 +20,10 @@ describe("ScratchpadResourceStore", () => {
 		expect(created.lines).toHaveLength(2);
 		expect(created.metadata).toEqual({ author: "clinical" });
 
-		// Update state with execution marks and pinned macros
+		// Update state with execution marks and cell defaults
 		created.executedLineIndices = [0];
-		created.pinnedMacroIds = ["vitals", "dx"];
+		created.lines[0]!.defaultMacroId = "vitals";
+		created.lines[1]!.defaultMacroId = "dx";
 		created.textRevision = 2;
 		await store.save(created);
 
@@ -32,7 +31,10 @@ describe("ScratchpadResourceStore", () => {
 		expect(opened).not.toBeNull();
 		expect(opened?.title).toBe("Triage Notes");
 		expect(opened?.executedLineIndices).toEqual([0]);
-		expect(opened?.pinnedMacroIds).toEqual(["vitals", "dx"]);
+		expect(opened?.lines.map((line) => line.defaultMacroId)).toEqual([
+			"vitals",
+			"dx",
+		]);
 		expect(opened?.textRevision).toBe(2);
 
 		const list = await store.list();
@@ -66,14 +68,14 @@ describe("ScratchpadResourceStore", () => {
 			},
 		];
 		created.executedLineIndices = [0];
-		created.pinnedMacroIds = ["triage"];
+		created.lines[0]!.defaultMacroId = "triage";
 		await store.save(created);
 
 		const opened = await store.open("scratchpad-sql");
 		expect(opened?.scratchpadId).toBe("scratchpad-sql");
 		expect(opened?.lines[0]?.slots).toEqual({ severity: "severe" });
 		expect(opened?.executedLineIndices).toEqual([0]);
-		expect(opened?.pinnedMacroIds).toEqual(["triage"]);
+		expect(opened?.lines[0]?.defaultMacroId).toBe("triage");
 
 		const list = await store.list();
 		expect(list).toHaveLength(1);

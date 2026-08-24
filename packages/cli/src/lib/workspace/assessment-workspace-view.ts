@@ -8,10 +8,7 @@ import {
 	resolveConceptValue,
 } from "@stateful-mcp/clinical";
 import type { WorkspaceSnapshot } from "@stateful-mcp/clinical/workspaces/workspace-snapshot";
-import type {
-	ExtensionProjection,
-	PinnedMacroLineContext,
-} from "@stateful-mcp/macro";
+import type { ExtensionProjection } from "@stateful-mcp/macro";
 
 export interface AssessmentGlobalFactView {
 	id: string;
@@ -338,7 +335,7 @@ export function toClinicalDifferentialProjection(
 }
 
 export function createClinicalPinnedLineSeed(
-	context: PinnedMacroLineContext,
+	context: { macroId: string; macroName: string },
 	syntaxProfile?: CommandSyntaxProfile,
 ): string {
 	const action = Object.entries(syntaxProfile?.actionMacroMappings ?? {}).find(

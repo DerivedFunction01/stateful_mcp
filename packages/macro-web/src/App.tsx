@@ -308,7 +308,6 @@ export function App() {
 				providerId: "macro.text",
 				title: activeSummary?.title ?? "",
 				initialText,
-				pinnedMacroIds: activeSummary?.pinnedMacroIds ?? [],
 				source:
 					snapshot?.project && !snapshot.project.ephemeral ? "project" : "user",
 			});

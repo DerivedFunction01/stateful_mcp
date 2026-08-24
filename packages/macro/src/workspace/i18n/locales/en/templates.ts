@@ -14,6 +14,7 @@ export const EN_TEMPLATES: Record<string, string> = {
 	"templates.picker.editTemplate": "Edit",
 	"templates.picker.deleteTemplate": "Delete",
 	"templates.picker.forkTemplate": "Fork as Project Template",
+	"templates.picker.copyTitle": "{name} (Copy)",
 	"templates.picker.allTags": "All Tags",
 	"templates.editor.createTitle": "Create New Template",
 	"templates.editor.editTitle": "Edit Template: {name}",

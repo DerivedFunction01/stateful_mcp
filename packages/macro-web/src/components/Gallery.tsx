@@ -939,7 +939,6 @@ function ScratchpadModePreview({
 			<EditorSurfaceView
 				documentId={`gallery-scratchpad-${label}`}
 				lines={GALLERY_SCRATCHPAD_LINES}
-				pinnedMacroIds={["borrow"]}
 				vimEnabled={vimEnabled}
 				vimMode={mode}
 				activeCellIndex={activeCellIndex}
@@ -951,7 +950,6 @@ function ScratchpadModePreview({
 				onKeyDown={() => false}
 				onExecuteLine={() => undefined}
 				onExecuteRange={() => undefined}
-				onPinMacro={() => undefined}
 			/>
 		</div>
 	);
@@ -1144,7 +1142,6 @@ function HostStory() {
 function WorkbenchInspectorStory() {
 	const { t } = useI18n();
 	const [activeLine, setActiveLine] = useState(0);
-	const [pinned, setPinned] = useState<string[]>(["vitals"]);
 	const [dockPosition, setDockPosition] = useState<SidepanelPosition>("right");
 	const [isOpen, setIsOpen] = useState(true);
 
@@ -1317,7 +1314,6 @@ function WorkbenchInspectorStory() {
 						title: "scratchpad.macro",
 						dirty: false,
 						textRevision: 1,
-						pinnedMacroIds: pinned,
 					}}
 					activeLineIndex={activeLine}
 					pinnedMacros={mockPinned}
@@ -1329,15 +1325,6 @@ function WorkbenchInspectorStory() {
 					}
 					contributedViews={sampleContributedViews}
 					onJumpToLine={(line) => setActiveLine(line - 1)}
-					onPin={(macroId) => {
-						if (!macroId) setPinned([]);
-						else
-							setPinned((prev) =>
-								prev.includes(macroId)
-									? prev.filter((p) => p !== macroId)
-									: [...prev, macroId],
-							);
-					}}
 				/>
 			</div>
 		</Card>
@@ -1704,7 +1691,8 @@ const FIXTURE_TEMPLATES = [
 		description:
 			"Comprehensive inpatient cardiology consultation with pre-seeded vitals, EKG findings, and care plan.",
 		sourceExtensionId: "@stateful-mcp/clinical-fhir",
-		pinnedMacroIds: [
+		cellDefaults: [
+			{ lineNumber: 1, defaultMacroId: "@clinical/patient" },
 			"@clinical/patient",
 			"@clinical/vitals",
 			"@clinical/ekg",
@@ -1719,10 +1707,10 @@ const FIXTURE_TEMPLATES = [
 		description:
 			"Standard pediatric well-child visit with percentiles, growth chart tags, and immunization checklist.",
 		sourceExtensionId: "@stateful-mcp/clinical-fhir",
-		pinnedMacroIds: [
-			"@clinical/patient",
-			"@clinical/growth",
-			"@clinical/vaccines",
+		cellDefaults: [
+			{ lineNumber: 1, defaultMacroId: "@clinical/patient" },
+			{ lineNumber: 2, defaultMacroId: "@clinical/growth" },
+			{ lineNumber: 3, defaultMacroId: "@clinical/vaccines" },
 		],
 	},
 	{
@@ -1732,10 +1720,10 @@ const FIXTURE_TEMPLATES = [
 		description:
 			"Syncs step counts, resting heart rate, and sleep staging directly into active clinical note.",
 		sourceExtensionId: "@stateful-mcp/apple-health",
-		pinnedMacroIds: [
-			"@apple-health/vitals",
-			"@apple-health/hr_trend",
-			"@apple-health/sleep",
+		cellDefaults: [
+			{ lineNumber: 1, defaultMacroId: "@apple-health/vitals" },
+			{ lineNumber: 2, defaultMacroId: "@apple-health/hr_trend" },
+			{ lineNumber: 3, defaultMacroId: "@apple-health/sleep" },
 		],
 	},
 	{
@@ -1745,7 +1733,11 @@ const FIXTURE_TEMPLATES = [
 		description:
 			"Pre-computed delta-neutral straddle order with underlying price anchors and Greeks monitoring.",
 		sourceExtensionId: "@stateful-mcp/financial-suite",
-		pinnedMacroIds: ["@fin/options", "@fin/underlying", "@fin/greeks"],
+		cellDefaults: [
+			{ lineNumber: 1, defaultMacroId: "@fin/options" },
+			{ lineNumber: 2, defaultMacroId: "@fin/underlying" },
+			{ lineNumber: 3, defaultMacroId: "@fin/greeks" },
+		],
 	},
 	{
 		templateId: "user:quick_triage",
@@ -1753,7 +1745,7 @@ const FIXTURE_TEMPLATES = [
 		title: "Quick Triage Note",
 		description: "One-click rapid intake note with acute vitals only.",
 		sourceExtensionId: "@stateful-mcp/clinical-fhir",
-		pinnedMacroIds: ["@clinical/vitals"],
+		cellDefaults: [{ lineNumber: 1, defaultMacroId: "@clinical/vitals" }],
 	},
 ] as const;
 

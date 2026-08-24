@@ -1101,14 +1101,32 @@ export class HostSessionManager {
 						...(operation.template.initialText !== undefined
 							? { initialText: operation.template.initialText }
 							: {}),
-						...(operation.template.pinnedMacroIds
-							? { pinnedMacroIds: operation.template.pinnedMacroIds }
+						...(operation.template.cellDefaults
+							? { cellDefaults: operation.template.cellDefaults }
 							: {}),
 						...(operation.template.tags
 							? { tags: operation.template.tags }
 							: {}),
 						source: operation.scope,
 					};
+					const liveTemplateDocument = documents
+						.list()
+						.find(
+							(document) =>
+								document.providerId === "macro.template" &&
+								document.templateId === template.templateId,
+						);
+					const savedTemplate: MacroDocumentTemplate = liveTemplateDocument
+						? {
+								...template,
+								cellDefaults: [
+									...liveTemplateDocument.cellDefaults.entries(),
+								].map(([index, defaultMacroId]) => ({
+									lineNumber: index + 1,
+									defaultMacroId,
+								})),
+							}
+						: template;
 					if (operation.scope === "project") {
 						const project = session.loaded.project;
 						if (!project)
@@ -1122,7 +1140,7 @@ export class HostSessionManager {
 						await project.saveManifest(
 							{
 								...project.manifest,
-								templates: [...templates, template],
+								templates: [...templates, savedTemplate],
 							} as MacroProjectManifest,
 							project.descriptor.revision,
 						);
@@ -1143,7 +1161,7 @@ export class HostSessionManager {
 									...existing.filter(
 										(item) => item.templateId !== template.templateId,
 									),
-									template,
+									savedTemplate,
 								],
 								null,
 								2,
@@ -1151,7 +1169,7 @@ export class HostSessionManager {
 							"utf8",
 						);
 					}
-					documents.saveTemplate(template);
+					documents.saveTemplate(savedTemplate);
 					this.emit(session, "workspace.changed");
 					return { ...base(), status: "accepted" };
 				}
@@ -1533,14 +1551,17 @@ export class HostSessionManager {
 							? document.documentId
 							: `scratchpad-${document.documentId}`);
 					const title = operation.title ?? document.title;
-					const lines = document.editor.getLines().map((rawText, idx) => ({
-						lineNumber: idx + 1,
-						rawText,
-					}));
+					const lines = document.editor.getLines().map((rawText, idx) => {
+						const defaultMacroId = document.cellDefaults.get(idx);
+						return {
+							lineNumber: idx + 1,
+							rawText,
+							...(defaultMacroId ? { defaultMacroId } : {}),
+						};
+					});
 					const executedLineIndices: number[] = [
 						...document.session.getExecutedLineIndices(),
 					];
-					const pinnedMacroIds: string[] = [...(document.pinnedMacroIds ?? [])];
 					if (project) {
 						await project.saveScratchpad({
 							scratchpadId,
@@ -1552,7 +1573,6 @@ export class HostSessionManager {
 							rawText: document.editor.getLines().join("\n"),
 							lines,
 							executedLineIndices,
-							pinnedMacroIds,
 							metadata: {},
 						});
 					}
@@ -1582,7 +1602,19 @@ export class HostSessionManager {
 							"SCRATCHPAD_NOT_FOUND",
 							"Saved scratchpad not found",
 						);
-					const doc = documents.openScratchpadResource(resource);
+					const cellDefaults = new Map<number, string>();
+					for (const cell of resource.lines ?? []) {
+						if (cell.defaultMacroId) {
+							cellDefaults.set(cell.lineNumber - 1, cell.defaultMacroId);
+						}
+					}
+					const doc = documents.openScratchpadResource({
+						scratchpadId: resource.scratchpadId,
+						title: resource.title,
+						rawText: resource.rawText,
+						executedLineIndices: resource.executedLineIndices,
+						cellDefaults,
+					});
 					this.emit(session, "workspace.changed");
 					return {
 						...base(),
@@ -1746,8 +1778,22 @@ export class HostSessionManager {
 						documentId: operation.documentId,
 					};
 				}
-				case "editor.pinMacro": {
-					documents.setPinnedMacro(operation.documentId, operation.macroId);
+				case "editor.setCellDefault": {
+					if (
+						operation.expectedTextRevision !== undefined &&
+						operation.expectedTextRevision !==
+							documents.get(operation.documentId)?.textRevision
+					)
+						return conflict(
+							operation.documentId,
+							operation.expectedTextRevision,
+							documents.get(operation.documentId)?.textRevision ?? 0,
+						);
+					documents.setCellDefault(
+						operation.documentId,
+						operation.lineNumber - 1,
+						operation.defaultMacroId,
+					);
 					this.emit(session, "workspace.changed");
 					return {
 						...base(),
@@ -2116,8 +2162,8 @@ export class HostSessionManager {
 				providerId: "macro.text",
 				title: template.title,
 				...(template.description ? { description: template.description } : {}),
-				...(template.pinnedMacroIds
-					? { pinnedMacroIds: template.pinnedMacroIds }
+				...(template.cellDefaults
+					? { cellDefaults: template.cellDefaults }
 					: {}),
 				...(template.sourceExtensionId
 					? { sourceExtensionId: template.sourceExtensionId }

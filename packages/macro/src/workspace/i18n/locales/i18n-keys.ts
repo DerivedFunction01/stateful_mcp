@@ -650,6 +650,7 @@ export const I18N_KEYS = [
 	"templates.picker.editTemplate",
 	"templates.picker.empty",
 	"templates.picker.forkTemplate",
+	"templates.picker.copyTitle",
 	"templates.picker.newFromTemplate",
 	"templates.picker.newTemplate",
 	"templates.picker.noDescription",

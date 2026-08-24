@@ -16,7 +16,10 @@ export interface WorkbenchDockedInspectorProps {
 	readonly onToggleOpen: () => void;
 	readonly dockPosition: SidepanelPosition;
 	readonly onToggleDockPosition: () => void;
-	readonly onPin: (macroId: string | null) => void;
+	readonly onSetCellDefault: (
+		lineNumber: number,
+		macroId: string | null,
+	) => void;
 	readonly onJumpToLine: (lineNumber: number) => void;
 	readonly onInsertSnippet: (snippet: string) => void;
 	readonly onOpenTemplatePicker?: () => void;
@@ -39,7 +42,7 @@ export function WorkbenchDockedInspector({
 	onToggleOpen,
 	dockPosition,
 	onToggleDockPosition,
-	onPin,
+	onSetCellDefault,
 	onJumpToLine,
 	onInsertSnippet,
 	onOpenTemplatePicker,
@@ -64,7 +67,7 @@ export function WorkbenchDockedInspector({
 				onToggleOpen={onToggleOpen}
 				dockPosition={dockPosition}
 				onToggleDockPosition={onToggleDockPosition}
-				onPin={onPin}
+				onSetCellDefault={onSetCellDefault}
 				onJumpToLine={onJumpToLine}
 				onInsertSnippet={onInsertSnippet}
 				onOpenTemplatePicker={onOpenTemplatePicker}

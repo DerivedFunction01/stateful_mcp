@@ -50,6 +50,8 @@ export * from "./resources/dictionary-seed";
 export * from "./resources/expression-index";
 export * from "./resources/resource-scope";
 export * from "./runtime/macro-runtime";
+export * from "./scratchpad/contracts";
+export * from "./scratchpad/resource-store";
 export * from "./slots/macro-slots";
 export * from "./values/compound";
 export * from "./values/conversion";

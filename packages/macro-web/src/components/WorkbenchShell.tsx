@@ -391,14 +391,15 @@ export function WorkbenchShell({
 			onToggleDockPosition={() =>
 				setInspectorPosition(inspectorPosition === "right" ? "left" : "right")
 			}
-			onPin={(macroId) =>
+			onSetCellDefault={(lineNumber, macroId) =>
 				activeDocument &&
-				macroId !== null &&
 				emitEditorOperation({
-					operation: "editor.pinMacro",
+					operation: "editor.setCellDefault",
 					requestId: requestId(),
 					documentId: activeDocument.documentId,
-					macroId,
+					lineNumber,
+					defaultMacroId: macroId,
+					expectedTextRevision: activeDocument.textRevision,
 				})
 			}
 			onJumpToLine={(lineNumber) => {

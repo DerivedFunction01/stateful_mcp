@@ -254,8 +254,15 @@ export function planProjectExtensionGroupChange(
 						),
 					],
 				};
-			const displayName =
-				change.displayName?.trim() || `${source.displayName} (copy)`;
+			const existingNames = new Set(
+				Object.values(groups).map((g) => g.displayName),
+			);
+			let displayName = change.displayName?.trim() || source.displayName;
+			if (!change.displayName?.trim() && existingNames.has(displayName)) {
+				let n = 2;
+				while (existingNames.has(`${displayName} ${n}`)) n += 1;
+				displayName = `${displayName} ${n}`;
+			}
 			const requestedId = change.groupId
 				? sanitizeProjectExtensionGroupId(change.groupId)
 				: undefined;

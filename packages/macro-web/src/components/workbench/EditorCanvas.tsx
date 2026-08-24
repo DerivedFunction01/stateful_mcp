@@ -38,7 +38,6 @@ export interface EditorCanvasProps {
 	) => void;
 	readonly onExecuteLine: (lineNumber: number) => void;
 	readonly onExecuteRange: (startLine: number, endLine: number) => void;
-	readonly onPinMacro: (macroId: string | null) => void;
 	readonly onReloadEditorConflict: () => void | Promise<void>;
 	readonly onOverwriteEditorConflict: () => void;
 	readonly onNewScratchpad?: () => void;
@@ -66,7 +65,6 @@ export function EditorCanvas({
 	onPointerTarget,
 	onExecuteLine,
 	onExecuteRange,
-	onPinMacro,
 	onReloadEditorConflict,
 	onOverwriteEditorConflict,
 	onNewScratchpad,
@@ -104,7 +102,6 @@ export function EditorCanvas({
 					documentId={activeDocumentMeta.documentId}
 					lines={activeDocument.lines}
 					draft={localDraft}
-					pinnedMacroIds={activeDocumentMeta.pinnedMacroIds}
 					disabled={Boolean(editorConflict)}
 					activeCellIndex={activeCellIndex}
 					selectedCellRange={selectedCellRange}
@@ -121,7 +118,6 @@ export function EditorCanvas({
 					surfaceRef={surfaceRef}
 					onExecuteLine={onExecuteLine}
 					onExecuteRange={onExecuteRange}
-					onPinMacro={onPinMacro}
 				/>
 			) : (
 				<EmptyEditorGroup

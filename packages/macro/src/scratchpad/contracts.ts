@@ -1,6 +1,12 @@
 export interface ScratchpadCell {
 	lineNumber: number;
 	rawText: string;
+	/**
+	 * Hidden default macro for this logical cell. Explicit macro syntax in
+	 * `rawText` always wins over this default. The default is retained across
+	 * content edits and is never persisted as visible text.
+	 */
+	defaultMacroId?: string;
 	executed?: boolean;
 	status?: "empty" | "valid" | "invalid" | "nonMacro" | "executed";
 	executionReceipt?: Record<string, unknown>;
@@ -17,7 +23,6 @@ export interface ScratchpadResource {
 	rawText: string;
 	lines: ScratchpadCell[];
 	executedLineIndices: number[];
-	pinnedMacroIds: string[];
 	metadata: Record<string, unknown>;
 }
 

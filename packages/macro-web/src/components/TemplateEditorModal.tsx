@@ -28,8 +28,6 @@ export function TemplateEditorModal({
 	const [tags, setTags] = useState<readonly string[]>([]);
 	const [tagInput, setTagInput] = useState("");
 	const [description, setDescription] = useState("");
-	const [pinned, setPinned] = useState<readonly string[]>([]);
-	const [pinnedInput, setPinnedInput] = useState("");
 	const [initialText, setInitialText] = useState("");
 	const [scope, setScope] = useState<"project" | "user">("project");
 
@@ -40,8 +38,6 @@ export function TemplateEditorModal({
 		setTags(template?.tags ?? []);
 		setTagInput("");
 		setDescription(template?.description ?? "");
-		setPinned(template?.pinnedMacroIds ?? []);
-		setPinnedInput("");
 		setInitialText(template?.initialText ?? "");
 		setScope(
 			template?.source === "user" || !isProjectOpen ? "user" : "project",
@@ -79,25 +75,6 @@ export function TemplateEditorModal({
 		setTags(tags.filter((t) => t !== tagToRemove));
 	};
 
-	const handleAddPinned = () => {
-		const trimmed = pinnedInput.trim();
-		if (trimmed && !pinned.includes(trimmed)) {
-			setPinned([...pinned, trimmed]);
-			setPinnedInput("");
-		}
-	};
-
-	const handlePinnedKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			handleAddPinned();
-		}
-	};
-
-	const handleRemovePinned = (macroToRemove: string) => {
-		setPinned(pinned.filter((m) => m !== macroToRemove));
-	};
-
 	const save = () => {
 		const finalId =
 			templateId.trim() ||
@@ -111,7 +88,6 @@ export function TemplateEditorModal({
 				title: finalTitle,
 				description: description.trim() || undefined,
 				tags: tags.length > 0 ? tags : undefined,
-				pinnedMacroIds: pinned.length > 0 ? pinned : undefined,
 				initialText,
 				source: scope,
 			},
@@ -227,51 +203,6 @@ export function TemplateEditorModal({
 						value={description}
 						onChange={(e) => setDescription(e.target.value)}
 					/>
-
-					<div className="field">
-						<span className="field-label">
-							{t("templates.editor.pinnedLabel")}
-						</span>
-						<div className="template-chips-field">
-							<div className="template-chips-container">
-								{pinned.map((macroId) => (
-									<span key={macroId} className="template-chip">
-										<Badge tone="accent">
-											<span>{macroId}</span>
-											<button
-												type="button"
-												className="template-chip-remove"
-												onClick={() => handleRemovePinned(macroId)}
-												aria-label={t("templates.editor.removeMacro", {
-													macro: macroId,
-												})}
-											>
-												<X size={11} />
-											</button>
-										</Badge>
-									</span>
-								))}
-							</div>
-							<div className="template-chip-input-wrap">
-								<input
-									type="text"
-									className="input template-chip-input"
-									placeholder={t("templates.editor.pinnedPlaceholder")}
-									value={pinnedInput}
-									onChange={(e) => setPinnedInput(e.target.value)}
-									onKeyDown={handlePinnedKeyDown}
-								/>
-								<Button
-									variant="ghost"
-									icon={<Plus size={13} />}
-									onClick={handleAddPinned}
-									disabled={!pinnedInput.trim()}
-								>
-									{t("templates.editor.addMacro")}
-								</Button>
-							</div>
-						</div>
-					</div>
 
 					<div className="field">
 						<span className="field-label">

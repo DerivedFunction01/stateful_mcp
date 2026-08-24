@@ -135,7 +135,7 @@ export interface MacroProjectManifestDto {
 	readonly macroCustomizations?: Readonly<
 		Record<string, MacroCustomizationDto>
 	>;
-	readonly pinnedMacros?: readonly string[];
+	readonly quickRuns?: readonly string[];
 }
 
 export interface ProjectConfigurationTemplateDto {
@@ -143,7 +143,11 @@ export interface ProjectConfigurationTemplateDto {
 	readonly title: string;
 	readonly description?: string;
 	readonly initialText?: string;
-	readonly pinnedMacroIds?: readonly string[];
+	/** Per-cell hidden defaults, keyed by 1-based line number. */
+	readonly cellDefaults?: readonly {
+		readonly lineNumber: number;
+		readonly defaultMacroId: string;
+	}[];
 	readonly tags?: readonly string[];
 }
 

@@ -4,7 +4,6 @@ import {
 	FileCode2,
 	Folder,
 	Layers,
-	Pin,
 	Search,
 	Sparkles,
 	X,
@@ -96,9 +95,7 @@ export function TemplatePickerModal({
 			return (
 				matchesTag(query, tmpl.title) ||
 				(tmpl.description && matchesTag(query, tmpl.description)) ||
-				(tmpl.sourceExtensionId && matchesTag(query, tmpl.sourceExtensionId)) ||
-				(tmpl.pinnedMacroIds &&
-					tmpl.pinnedMacroIds.some((m) => matchesTag(query, m)))
+				(tmpl.sourceExtensionId && matchesTag(query, tmpl.sourceExtensionId))
 			);
 		});
 	}, [templates, searchQuery, selectedCategory, selectedTags]);
@@ -273,16 +270,6 @@ export function TemplatePickerModal({
 											{tmpl.description && (
 												<p className="template-card-desc">{tmpl.description}</p>
 											)}
-											{tmpl.pinnedMacroIds &&
-												tmpl.pinnedMacroIds.length > 0 && (
-													<div className="template-card-macros">
-														<Pin size={11} />
-														<span>
-															{tmpl.pinnedMacroIds.length}{" "}
-															{t("templates.picker.pinnedMacros")}
-														</span>
-													</div>
-												)}
 										</div>
 									);
 								})}
@@ -318,27 +305,6 @@ export function TemplatePickerModal({
 										<span>{t("templates.picker.requiresProfile")}</span>
 									</div>
 								)}
-
-								<div className="preview-pinned-section">
-									<div className="preview-section-title">
-										<Pin size={13} />
-										<span>{t("templates.picker.pinnedMacros")}</span>
-									</div>
-									<div className="preview-chips-row">
-										{activeTemplate.pinnedMacroIds &&
-										activeTemplate.pinnedMacroIds.length > 0 ? (
-											activeTemplate.pinnedMacroIds.map((macroId) => (
-												<span key={macroId} className="pinned-macro-chip">
-													^{macroId.split(":").pop() ?? macroId}
-												</span>
-											))
-										) : (
-											<span className="no-pinned-text">
-												{t("templates.picker.noPinnedMacros")}
-											</span>
-										)}
-									</div>
-								</div>
 
 								<div className="preview-action-row">
 									<Button
@@ -384,7 +350,9 @@ export function TemplatePickerModal({
 														onEditTemplate({
 															...activeTemplate,
 															templateId: `${activeTemplate.templateId.replace(/^@[^:]+:/, "")}_copy`,
-															title: `${activeTemplate.title} (Copy)`,
+															title: t("templates.picker.copyTitle", {
+																name: activeTemplate.title,
+															}),
 															source: "project",
 														})
 													}

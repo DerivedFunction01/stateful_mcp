@@ -33,7 +33,10 @@ export interface WorkbenchInspectorProps {
 	readonly onToggleOpen?: () => void;
 	readonly dockPosition?: SidepanelPosition;
 	readonly onToggleDockPosition?: () => void;
-	readonly onPin?: (macroId: string | null) => void;
+	readonly onSetCellDefault?: (
+		lineNumber: number,
+		macroId: string | null,
+	) => void;
 	readonly onJumpToLine?: (lineNumber: number) => void;
 	readonly onInsertSnippet?: (snippet: string) => void;
 	readonly onOpenTemplatePicker?: () => void;

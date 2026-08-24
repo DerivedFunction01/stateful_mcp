@@ -5,7 +5,7 @@ import type {
 	SearchDirection,
 } from "@stateful-mcp/macro-protocol";
 import hljs from "highlight.js/lib/common";
-import { AlertTriangle, Check, Circle, Pin, Play } from "lucide-react";
+import { AlertTriangle, Check, Circle, Play } from "lucide-react";
 import {
 	type ReactNode,
 	type RefObject,
@@ -20,7 +20,6 @@ import type {
 	EditorSearchResult,
 } from "../lib/browser-vim";
 import { useI18n } from "../lib/macro-i18n-provider";
-import { PinnedMacroBar } from "./PinnedMacroBar";
 
 export interface EditorSurfaceViewHandle {
 	readonly element: HTMLElement | null;
@@ -31,7 +30,6 @@ export interface EditorSurfaceViewProps {
 	readonly documentId: string;
 	readonly lines: readonly ScratchpadLineDto[];
 	readonly draft?: readonly string[];
-	readonly pinnedMacroIds?: readonly string[];
 	readonly disabled?: boolean;
 	readonly activeCellIndex?: number;
 	readonly selectedCellRange?: CellRange | null;
@@ -48,7 +46,6 @@ export interface EditorSurfaceViewProps {
 	readonly onKeyDown?: (event: BrowserVimKeyboardEvent) => boolean;
 	readonly onExecuteLine?: (lineNumber: number) => void;
 	readonly onExecuteRange?: (startLine: number, endLine: number) => void;
-	readonly onPinMacro?: (macroId: string | null) => void;
 	readonly surfaceRef?: RefObject<HTMLElement | null>;
 	readonly searchWidget?: ReactNode;
 	readonly filePath?: string;
@@ -549,7 +546,6 @@ export function EditorSurfaceView({
 	documentId,
 	lines,
 	draft,
-	pinnedMacroIds = [],
 	disabled = false,
 	activeCellIndex,
 	selectedCellRange: selectedCellRangeProp = null,
@@ -565,7 +561,6 @@ export function EditorSurfaceView({
 	onKeyDown,
 	onExecuteLine,
 	onExecuteRange,
-	onPinMacro,
 	surfaceRef,
 }: EditorSurfaceViewProps) {
 	const { t } = useI18n();
@@ -708,26 +703,6 @@ export function EditorSurfaceView({
 				pointerDownRef.current = null;
 			}}
 		>
-			{pinnedMacroIds && pinnedMacroIds.length > 0 && (
-				<PinnedMacroBar
-					pinnedMacroIds={pinnedMacroIds}
-					onInsertMacro={(macroId) => {
-						const verb = macroId.split(":").pop() ?? macroId;
-						const snippet = `^${verb} `;
-						const authored = rootRef.current;
-						if (authored) {
-							const { lineIdx, col } = getActiveLineAndCol(authored);
-							const currentLines = linesFromSurface(authored);
-							const currentLine = currentLines[lineIdx] ?? "";
-							currentLines[lineIdx] =
-								`${currentLine.slice(0, col)}${snippet}${currentLine.slice(col)}`;
-							onTextChange(currentLines);
-							setLineAndCol(authored, lineIdx, col + snippet.length);
-							updateCursor();
-						}
-					}}
-				/>
-			)}
 			{searchWidget}
 			<div className="editor-canvas">
 				{/* Lined Cells Container: Hybrid Jupyter/Editor per-cell companion layout */}
@@ -799,10 +774,7 @@ export function EditorSurfaceView({
 								lineDto?.preview?.text ?? lineDto?.executionPreview?.text;
 							const hasError =
 								lineDto?.lineStatus === "invalid" || Boolean(diagnostic);
-							const isPinned = Boolean(
-								lineDto?.macroName &&
-									pinnedMacroIds.includes(lineDto.macroName),
-							);
+							const isPinned = lineDto?.macroResolution === "default";
 							const isValid = lineDto?.lineStatus === "valid";
 
 							// Only show cell output when there's an actual diagnostic, preview, or macro match
@@ -887,19 +859,6 @@ export function EditorSurfaceView({
 													) : null}
 												</div>
 												<div className="cell-output-actions">
-													{lineDto?.macroName && !isPinned && (
-														<button
-															type="button"
-															className="cell-action-btn pin"
-															title={t("editor.document.pinMacro")}
-															onClick={(e) => {
-																e.stopPropagation();
-																onPinMacro?.(lineDto.macroName ?? null);
-															}}
-														>
-															<Pin size={12} />
-														</button>
-													)}
 													{isValid && (
 														<button
 															type="button"

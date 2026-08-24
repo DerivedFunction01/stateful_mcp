@@ -93,6 +93,25 @@ export interface ScratchpadLineDto {
 	readonly lineNumber: number;
 	readonly rawText: string;
 	readonly macroName?: string;
+	/**
+	 * Hidden default macro id for this cell, if any. Not persisted as visible
+	 * text.
+	 */
+	readonly defaultMacroId?: string;
+	/**
+	 * Effective macro used for parsing/execution. May differ from `macroName`
+	 * (explicit) when a cell default applies.
+	 */
+	readonly effectiveMacroName?: string;
+	/**
+	 * How the effective macro was resolved for this cell.
+	 */
+	readonly macroResolution?: "explicit" | "default" | "none";
+	/**
+	 * Display-only placeholder for empty cells that have a default. Never
+	 * persisted or parsed as user text.
+	 */
+	readonly placeholder?: string;
 	readonly lineStatus: ScratchpadLineStatus;
 	readonly isExecuted?: boolean;
 	readonly diagnostics: readonly import("./workspace").DiagnosticDto[];
@@ -109,7 +128,6 @@ export interface EditorDocumentDto {
 	readonly filePath?: string;
 	readonly dirty: boolean;
 	readonly textRevision: number;
-	readonly pinnedMacroIds?: readonly string[];
 }
 
 export interface EditorGroupDto {
@@ -186,7 +204,11 @@ export interface ScratchpadTemplateDescriptor {
 	readonly providerId: MacroDocumentProviderId;
 	readonly title: string;
 	readonly description?: string;
-	readonly pinnedMacroIds?: readonly string[];
+	/** Per-cell hidden defaults, keyed by 1-based line number. */
+	readonly cellDefaults?: readonly {
+		readonly lineNumber: number;
+		readonly defaultMacroId: string;
+	}[];
 	readonly sourceExtensionId?: string;
 	readonly requiresProfile?: boolean;
 	readonly initialText?: string;
@@ -259,9 +281,11 @@ export type EditorOperation =
 			readonly title: string;
 	  })
 	| (EditorRequestBase & {
-			readonly operation: "editor.pinMacro";
+			readonly operation: "editor.setCellDefault";
 			readonly documentId: string;
-			readonly macroId: string | null;
+			readonly lineNumber: number;
+			readonly defaultMacroId: string | null;
+			readonly expectedTextRevision: number;
 	  })
 	| (EditorRequestBase & {
 			readonly operation: "editor.replaceText";

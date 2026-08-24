@@ -101,7 +101,8 @@ export const EN_PROJECT: Record<string, string> = {
 		"The partial target was retained: {reason}",
 	"project.settings.journalRecovery.activeMigrationRetained":
 		"A migration is still in progress elsewhere and was not interrupted.",
-	"project.settings.journalRecovery.removedTargetPath": "Removed target: {path}",
+	"project.settings.journalRecovery.removedTargetPath":
+		"Removed target: {path}",
 	"project.settings.activeGroup": "Active Extension Group",
 	"project.settings.noActiveGroup": "No active extension group",
 	"project.settings.manageActivationGroups": "Manage Activation Groups",
@@ -120,7 +121,8 @@ export const EN_PROJECT: Record<string, string> = {
 	"project.activationGroups.duplicate": "Duplicate",
 	"project.activationGroups.delete": "Delete",
 	"project.activationGroups.cancel": "Close",
-	"project.activationGroups.duplicateName": "A group named {name} already exists.",
+	"project.activationGroups.duplicateName":
+		"A group named {name} already exists.",
 	"project.activationGroups.confirmDelete":
 		"Delete the {name} group and its membership?",
 	"project.activationGroups.noGroups":
@@ -136,15 +138,18 @@ export const EN_PROJECT: Record<string, string> = {
 	"project.activationGroups.requires": "requires: {names}",
 	"project.activationGroups.lockedDependency": "Locked",
 	"project.activationGroups.readOnly": "Read-only",
-	"project.activationGroups.noExtensions": "No extensions are available for this project.",
+	"project.activationGroups.noExtensions":
+		"No extensions are available for this project.",
 	"project.activationGroups.preview": "Preview",
 	"project.activationGroups.previewTitle": "Pending Changes",
 	"project.activationGroups.previewNone": "No changes to apply.",
 	"project.activationGroups.previewActiveChange": "Active group: {from} → {to}",
 	"project.activationGroups.previewGroupRenamed": "Renamed {from} → {to}",
-	"project.activationGroups.previewGroupAdded": "Added group {name} ({count} members)",
+	"project.activationGroups.previewGroupAdded":
+		"Added group {name} ({count} members)",
 	"project.activationGroups.previewGroupRemoved": "Removed group {name}",
-	"project.activationGroups.previewGroupChanged": "Changed membership of {name}",
+	"project.activationGroups.previewGroupChanged":
+		"Changed membership of {name}",
 	"project.activationGroups.diagnostics": "Diagnostics",
 	"project.activationGroups.diagnosticsTitle": "Diagnostics",
 	"project.activationGroups.diagnosticsNone": "No problems detected.",
@@ -152,7 +157,8 @@ export const EN_PROJECT: Record<string, string> = {
 		"Group {group} references unknown extension {id}.",
 	"project.activationGroups.diagMissingDependency":
 		"Group {group} enables {id}, which requires {dep}, but {dep} is not a member.",
-	"project.activationGroups.diagCycle": "Group {group} has a dependency cycle: {path}.",
+	"project.activationGroups.diagCycle":
+		"Group {group} has a dependency cycle: {path}.",
 	"project.activationGroups.diagEmptyActive":
 		"Active group {group} has no members enabled.",
 	"project.activationGroups.apply": "Apply Changes",

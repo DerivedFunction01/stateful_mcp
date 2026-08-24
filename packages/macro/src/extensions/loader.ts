@@ -34,7 +34,7 @@ export class ExtensionLoader {
 		for (const sourceFile of files ?? (await this.discover())) {
 			try {
 				const module = await import(
-					`file://${resolve(sourceFile).replaceAll("\\", "/")}`,
+					`file://${resolve(sourceFile).replaceAll("\\", "/")}`
 				);
 				const extension = module.default as MacroExtension | undefined;
 				validateExtensionExport(extension, sourceFile);

@@ -1,6 +1,6 @@
 /**
  * Persisted project manifest shape version. Version 2 replaced the flat
-	 * legacy extension-profile fields with the rich
+ * legacy extension-profile fields with the rich
  * Extension Activation Group model (`extensionGroups`/`activeExtensionGroupId`).
  * Older manifests are rejected; there are no compatibility readers.
  */
@@ -85,7 +85,13 @@ export interface MacroProjectManifest {
 		readonly title: string;
 		readonly description?: string;
 		readonly initialText?: string;
-		readonly pinnedMacroIds?: readonly string[];
+		/**
+		 * Per-cell hidden defaults for the template, keyed by 1-based line number.
+		 */
+		readonly cellDefaults?: readonly {
+			readonly lineNumber: number;
+			readonly defaultMacroId: string;
+		}[];
 		readonly tags?: readonly string[];
 	}[];
 	/** Values explicitly opted into project sharing by an extension. */
@@ -141,7 +147,7 @@ export interface ProjectMigrationContext {
 	readonly targetBackend: MacroProjectBackendDescriptor;
 	readonly signal?: AbortSignal;
 	readonly sourceHistory: import("@stateful-mcp/core").HistoryResourceStore;
-	readonly sourceScratchpads: import("@stateful-mcp/core").ScratchpadResourceStore;
+	readonly sourceScratchpads: import("../scratchpad/contracts").ScratchpadResourceStore;
 	/**
 	 * Target stores exist only once the migration has been applied. The host
 	 * boundary cannot open a real target store while merely planning, so it
@@ -149,7 +155,7 @@ export interface ProjectMigrationContext {
 	 * supplies the real target stores when it applies the migration.
 	 */
 	readonly targetHistory?: import("@stateful-mcp/core").HistoryResourceStore;
-	readonly targetScratchpads?: import("@stateful-mcp/core").ScratchpadResourceStore;
+	readonly targetScratchpads?: import("../scratchpad/contracts").ScratchpadResourceStore;
 }
 
 export interface ProjectMigrationParticipantPlan {

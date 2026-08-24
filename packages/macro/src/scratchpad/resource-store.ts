@@ -1,5 +1,4 @@
-import type { KvBackend } from "../../adapters/storage/generic/kv/KvBackend";
-import type { SqlExecutor } from "../../adapters/storage/generic/SqlExecutor";
+import type { KvBackend, SqlExecutor } from "@stateful-mcp/core";
 import type {
 	ScratchpadCell,
 	ScratchpadResource,
@@ -120,7 +119,6 @@ export class SqlScratchpadResourceStore implements ScratchpadResourceStore {
 				{ name: "raw_text", type: "text", nullable: false },
 				{ name: "lines", type: "json", nullable: false },
 				{ name: "executed_line_indices", type: "json", nullable: false },
-				{ name: "pinned_macro_ids", type: "json", nullable: false },
 				{ name: "metadata", type: "json", nullable: false },
 			],
 		});
@@ -169,7 +167,6 @@ export class SqlScratchpadResourceStore implements ScratchpadResourceStore {
 				raw_text: resource.rawText,
 				lines: JSON.stringify(resource.lines),
 				executed_line_indices: JSON.stringify(resource.executedLineIndices),
-				pinned_macro_ids: JSON.stringify(resource.pinnedMacroIds),
 				metadata: JSON.stringify(resource.metadata),
 			},
 			conflictColumns: ["scratchpad_id"],
@@ -244,7 +241,6 @@ function emptyScratchpadResource(
 		rawText: initialText,
 		lines,
 		executedLineIndices: [],
-		pinnedMacroIds: [],
 		metadata: structuredClone(metadata),
 	};
 }
@@ -262,7 +258,6 @@ function decodeScratchpadResource(
 		rawText: String(row.raw_text ?? ""),
 		lines: parseJsonValue(row.lines) as ScratchpadCell[],
 		executedLineIndices: parseJsonValue(row.executed_line_indices) as number[],
-		pinnedMacroIds: parseJsonValue(row.pinned_macro_ids) as string[],
 		metadata: parseJsonValue(row.metadata) as Record<string, unknown>,
 	};
 }

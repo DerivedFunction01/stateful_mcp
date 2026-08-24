@@ -76,16 +76,18 @@ describe("ScratchpadSession: Pinned & Frequent Macro Tracking", () => {
 			{ macroName: "dx", count: 1 },
 		]);
 
-		// Test getPinnedMacros with project pins
-		const pins = session.getPinnedMacros(["triage"]);
+		// Test getQuickRuns with project quick runs
+		const quickRuns = session.getQuickRuns(["triage"]);
 		expect(
-			pins.some((p) => p.macroName === "triage" && p.source === "project"),
+			quickRuns.some((p) => p.macroName === "triage" && p.source === "project"),
 		).toBe(true);
 		expect(
-			pins.some((p) => p.macroName === "vitals" && p.source === "frequent"),
+			quickRuns.some(
+				(p) => p.macroName === "vitals" && p.source === "frequent",
+			),
 		).toBe(true);
 		expect(
-			pins.some((p) => p.macroName === "dx" && p.source === "frequent"),
+			quickRuns.some((p) => p.macroName === "dx" && p.source === "frequent"),
 		).toBe(true);
 	});
 });

@@ -33,7 +33,7 @@ export function WorkbenchInspector({
 	onToggleOpen,
 	dockPosition = "right",
 	onToggleDockPosition: _onToggleDockPosition,
-	onPin,
+	onSetCellDefault,
 	onJumpToLine,
 	onInsertSnippet,
 	onOpenTemplatePicker,
@@ -45,7 +45,6 @@ export function WorkbenchInspector({
 	const { t } = useI18n();
 	const [activeTab, setActiveTab] = useState<InspectorTab>("problems");
 
-	const pinned = meta?.pinnedMacroIds ?? [];
 	const lines = document?.lines ?? [];
 	const activeLine: ScratchpadLineDto | undefined =
 		activeLineIndex !== undefined && activeLineIndex >= 0
@@ -154,8 +153,8 @@ export function WorkbenchInspector({
 						{activeTab === "slots" && (
 							<InspectorSlotsTab
 								validSlots={validSlots}
-								pinnedMacroIds={pinned}
-								onPin={onPin}
+								cellDefaults={lines}
+								onSetDefault={onSetCellDefault}
 							/>
 						)}
 

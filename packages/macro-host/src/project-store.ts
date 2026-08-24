@@ -14,15 +14,12 @@ import {
 	type HistoryResourceStore,
 	JsonlKvBackend,
 	KvHistoryResourceStore,
-	KvScratchpadResourceStore,
-	type ScratchpadResource,
-	type ScratchpadResourceStore,
 	SqlBackend,
 	SqlExecutor,
 	SqlHistoryResourceStore,
-	SqlScratchpadResourceStore,
 } from "@stateful-mcp/core";
 import {
+	KvScratchpadResourceStore,
 	MACRO_PROJECT_FORMAT_VERSION,
 	type MacroProjectBackendKind,
 	MacroProjectConflictError,
@@ -33,6 +30,9 @@ import {
 	type MacroProjectResourceReference,
 	type ProjectMigrationContext,
 	type ProjectMigrationParticipant,
+	type ScratchpadResource,
+	type ScratchpadResourceStore,
+	SqlScratchpadResourceStore,
 	validateProjectExtensionGroups,
 } from "@stateful-mcp/macro";
 
@@ -986,7 +986,6 @@ export function scratchpadResourceChecksum(
 			rawText: resource.rawText,
 			lines: resource.lines ?? [],
 			executedLineIndices: resource.executedLineIndices ?? [],
-			pinnedMacroIds: resource.pinnedMacroIds ?? [],
 			metadata: resource.metadata ?? {},
 		}),
 	);

@@ -50,8 +50,6 @@ export * from "./middleware/history/resource-store";
 export * from "./middleware/history/sql-history-store";
 export * from "./middleware/object/constants";
 export * from "./middleware/object/store";
-export * from "./middleware/scratchpad/contracts";
-export * from "./middleware/scratchpad/resource-store";
 export * from "./middleware/trace/store";
 export * from "./middleware/trace/types";
 export * from "./middleware/variable/ast";

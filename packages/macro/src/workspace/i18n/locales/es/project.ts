@@ -124,7 +124,8 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.activationGroups.duplicate": "Duplicar",
 	"project.activationGroups.delete": "Eliminar",
 	"project.activationGroups.cancel": "Cerrar",
-	"project.activationGroups.duplicateName": "Ya existe un grupo llamado {name}.",
+	"project.activationGroups.duplicateName":
+		"Ya existe un grupo llamado {name}.",
 	"project.activationGroups.confirmDelete":
 		"¿Eliminar el grupo {name} y su membresía?",
 	"project.activationGroups.noGroups":
@@ -135,7 +136,8 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.activationGroups.activeBadge": "Activo",
 	"project.activationGroups.setActive": "Establecer como activo",
 	"project.activationGroups.details": "Detalles del grupo",
-	"project.activationGroups.noSelection": "Selecciona un grupo para ver sus detalles.",
+	"project.activationGroups.noSelection":
+		"Selecciona un grupo para ver sus detalles.",
 	"project.activationGroups.extensions": "Extensiones",
 	"project.activationGroups.requires": "requiere: {names}",
 	"project.activationGroups.lockedDependency": "Bloqueado",
@@ -150,7 +152,8 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.activationGroups.previewGroupAdded":
 		"Grupo añadido {name} ({count} miembros)",
 	"project.activationGroups.previewGroupRemoved": "Grupo eliminado {name}",
-	"project.activationGroups.previewGroupChanged": "Membresía cambiada de {name}",
+	"project.activationGroups.previewGroupChanged":
+		"Membresía cambiada de {name}",
 	"project.activationGroups.diagnostics": "Diagnóstico",
 	"project.activationGroups.diagnosticsTitle": "Diagnóstico",
 	"project.activationGroups.diagnosticsNone": "No se detectaron problemas.",

@@ -2,11 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { hostname } from "node:os";
 import { join } from "node:path";
-import {
-	JsonlKvBackend,
-	KvHistoryResourceStore,
-	KvScratchpadResourceStore,
-} from "@stateful-mcp/core";
+import { JsonlKvBackend, KvHistoryResourceStore } from "@stateful-mcp/core";
+import { KvScratchpadResourceStore } from "@stateful-mcp/macro";
 import {
 	createMacroProject,
 	historyResourceChecksum,

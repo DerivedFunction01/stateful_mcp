@@ -138,7 +138,7 @@ describe("Phase 7 editor transport", () => {
 					templateId: "seeded-template",
 					title: "Seeded template",
 					initialText: "",
-					pinnedMacroIds: ["missing-macro"],
+					cellDefaults: [{ lineNumber: 1, defaultMacroId: "missing-macro" }],
 				},
 			],
 		});

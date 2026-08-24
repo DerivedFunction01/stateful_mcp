@@ -27,7 +27,7 @@ describe("Macro project scratchpad persistence", () => {
 
 		// Update scratchpad execution state
 		created.executedLineIndices = [0, 1];
-		created.pinnedMacroIds = ["vitals"];
+		created.lines[0]!.defaultMacroId = "vitals";
 		created.textRevision = 3;
 		await project.saveScratchpad(created);
 
@@ -39,7 +39,7 @@ describe("Macro project scratchpad persistence", () => {
 		expect(loaded).not.toBeNull();
 		expect(loaded?.title).toBe("Daily Triage");
 		expect(loaded?.executedLineIndices).toEqual([0, 1]);
-		expect(loaded?.pinnedMacroIds).toEqual(["vitals"]);
+		expect(loaded?.lines[0]?.defaultMacroId).toBe("vitals");
 		expect(loaded?.textRevision).toBe(3);
 
 		const list = await reopened.listScratchpads();

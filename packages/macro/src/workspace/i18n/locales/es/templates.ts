@@ -14,6 +14,7 @@ export const ES_TEMPLATES: Record<string, string> = {
 	"templates.picker.editTemplate": "Editar",
 	"templates.picker.deleteTemplate": "Eliminar",
 	"templates.picker.forkTemplate": "Bifurcar como plantilla de proyecto",
+	"templates.picker.copyTitle": "{name} (Copia)",
 	"templates.picker.allTags": "Todas las etiquetas",
 	"templates.editor.createTitle": "Crear nueva plantilla",
 	"templates.editor.editTitle": "Editar plantilla: {name}",

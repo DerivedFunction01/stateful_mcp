@@ -6,14 +6,14 @@ import { resolveDiagnosticMessage } from "./inspector-utils";
 
 export interface InspectorSlotsTabProps {
 	readonly validSlots: readonly ScratchpadLineDto[];
-	readonly pinnedMacroIds: readonly string[];
-	readonly onPin?: (macroId: string | null) => void;
+	readonly cellDefaults: readonly ScratchpadLineDto[];
+	readonly onSetDefault?: (lineNumber: number, macroId: string | null) => void;
 }
 
 export function InspectorSlotsTab({
 	validSlots,
-	pinnedMacroIds,
-	onPin,
+	cellDefaults,
+	onSetDefault,
 }: InspectorSlotsTabProps) {
 	const { t } = useI18n();
 
@@ -27,9 +27,7 @@ export function InspectorSlotsTab({
 			) : (
 				<div className="macro-slot-rows">
 					{validSlots.map((line) => {
-						const isPinned = Boolean(
-							line.macroName && pinnedMacroIds.includes(line.macroName),
-						);
+						const isPinned = Boolean(line.defaultMacroId !== undefined);
 						const availableProjections =
 							line.projections?.filter(
 								(p) => p.payload.availability === "available",
@@ -45,11 +43,14 @@ export function InspectorSlotsTab({
 										className={`slot-pin-toggle ${isPinned ? "pinned" : ""}`}
 										title={
 											isPinned
-												? t("editor.document.pinnedMacro")
-												: t("editor.document.pinMacro")
+												? "Clear cell default"
+												: "Use macro as cell default"
 										}
 										onClick={() =>
-											onPin?.(isPinned ? null : (line.macroName ?? null))
+											onSetDefault?.(
+												line.lineNumber,
+												isPinned ? null : (line.macroName ?? null),
+											)
 										}
 									>
 										<Pin size={11} />

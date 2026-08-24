@@ -107,6 +107,10 @@ export interface ScratchpadLineProjection {
 	readonly isValid: boolean;
 	readonly isExecuted?: boolean;
 	readonly macroName?: string;
+	readonly defaultMacroId?: string;
+	readonly effectiveMacroName?: string;
+	readonly macroResolution?: "explicit" | "default" | "none";
+	readonly placeholder?: string;
 	readonly projections: readonly {
 		readonly macroId: string;
 		readonly macroVersion: number;
@@ -125,7 +129,7 @@ export function toScratchpadLineDto(
 ): ScratchpadLineDto {
 	const lineStatus: ScratchpadLineStatus = !line.rawText.trim()
 		? "empty"
-		: !line.macroName
+		: !line.macroName && !line.effectiveMacroName
 			? "non-macro"
 			: line.isValid
 				? "valid"
@@ -154,6 +158,12 @@ export function toScratchpadLineDto(
 		lineNumber: line.lineNumber,
 		rawText: line.rawText,
 		...(line.macroName ? { macroName: line.macroName } : {}),
+		...(line.defaultMacroId ? { defaultMacroId: line.defaultMacroId } : {}),
+		...(line.effectiveMacroName
+			? { effectiveMacroName: line.effectiveMacroName }
+			: {}),
+		...(line.macroResolution ? { macroResolution: line.macroResolution } : {}),
+		...(line.placeholder ? { placeholder: line.placeholder } : {}),
 		lineStatus,
 		...(line.isExecuted !== undefined ? { isExecuted: line.isExecuted } : {}),
 		diagnostics: line.diagnostics.map((diagnostic) =>
@@ -184,9 +194,6 @@ export function toEditorDocumentDto(
 		...(document.templateId ? { templateId: document.templateId } : {}),
 		dirty: document.dirty,
 		textRevision: document.textRevision,
-		...(document.pinnedMacroIds?.length > 0
-			? { pinnedMacroIds: document.pinnedMacroIds }
-			: {}),
 	};
 }
 

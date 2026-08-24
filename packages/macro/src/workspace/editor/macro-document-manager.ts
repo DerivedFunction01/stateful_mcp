@@ -21,7 +21,11 @@ export interface MacroDocumentTemplate {
 	readonly tags?: readonly string[];
 	readonly source?: "extension" | "project" | "user";
 	readonly isReadonly?: boolean;
-	readonly pinnedMacroIds?: readonly string[];
+	/** Per-cell hidden defaults, keyed by 1-based line number. */
+	readonly cellDefaults?: readonly {
+		readonly lineNumber: number;
+		readonly defaultMacroId: string;
+	}[];
 	readonly sourceExtensionId?: string;
 	readonly requiresProfile?: boolean;
 	readonly initialText?: string;
@@ -40,7 +44,7 @@ export interface MacroDocument {
 	readonly editor: EditorKernel;
 	readonly session: ScratchpadSession;
 	readonly templateId?: string;
-	pinnedMacroIds: readonly string[];
+	cellDefaults: ReadonlyMap<number, string>;
 	title: string;
 	dirty: boolean;
 	textRevision: number;
@@ -163,6 +167,43 @@ export class MacroDocumentManager {
 		return document;
 	}
 
+	/**
+	 * Resolve a template's starter cells and per-cell defaults without synthesizing
+	 * any visible macro lines. Defaults are keyed by 0-based line index and the
+	 * target line is created (as an empty line) when absent. Every default macro
+	 * must be registered, otherwise template creation fails.
+	 */
+	private resolveTemplateCells(
+		template: MacroDocumentTemplate,
+		authoredText: string | undefined,
+	): { lines: string[]; cellDefaults: Map<number, string> } {
+		const lines = (
+			template.createText?.(this.runtime) ??
+			authoredText ??
+			""
+		).split("\n");
+		const cellDefaults = new Map<number, string>();
+		for (const cd of template.cellDefaults ?? []) {
+			const idx = cd.lineNumber - 1;
+			if (idx < 0) continue;
+			while (lines.length <= idx) lines.push("");
+			const available = this.runtime.adapters
+				.list()
+				.some(
+					(item) =>
+						item.adapter.definition.id === cd.defaultMacroId ||
+						item.adapter.definition.name === cd.defaultMacroId,
+				);
+			if (!available)
+				throw new DocumentManagerError(
+					"EDITOR_TEMPLATE_SEED_UNAVAILABLE",
+					"A configured template macro is unavailable",
+				);
+			cellDefaults.set(idx, cd.defaultMacroId);
+		}
+		return { lines, cellDefaults };
+	}
+
 	createBlank(title = this.defaultTitle): MacroDocument {
 		return this.createDocument({ initialText: "", title });
 	}
@@ -184,35 +225,16 @@ export class MacroDocumentManager {
 		const authoredText = liveTemplate
 			? liveTemplate.editor.getLines().join("\n")
 			: template.initialText;
-		for (const macroId of template.pinnedMacroIds ?? []) {
-			const available = this.runtime.adapters
-				.list()
-				.some(
-					(item) =>
-						item.adapter.definition.id === macroId ||
-						item.adapter.definition.name === macroId,
-				);
-			if (!available)
-				throw new DocumentManagerError(
-					"EDITOR_TEMPLATE_SEED_UNAVAILABLE",
-					"A configured template macro is unavailable",
-				);
-		}
+		const { lines, cellDefaults } = this.resolveTemplateCells(
+			template,
+			authoredText,
+		);
 		const document = this.createDocument({
-			initialText: template.createText?.(this.runtime) ?? authoredText ?? "",
+			initialText: template.createText?.(this.runtime) ?? lines.join("\n"),
 			title: template.title,
 			templateId: template.templateId,
-			pinnedMacroIds: template.pinnedMacroIds,
+			cellDefaults,
 		});
-		for (const macroId of template.pinnedMacroIds ?? []) {
-			document.session.setPinnedMacro(macroId);
-			const lastLine = document.editor.getLineCount() - 1;
-			document.editor.setCursor(
-				lastLine,
-				document.editor.getLine(lastLine).length,
-			);
-			document.session.createPinnedMacroLine();
-		}
 		// Template seeding is part of document creation, not a user edit.
 		document.savedLines = [...document.editor.getLines()];
 		document.savedTextRevision = document.textRevision;
@@ -254,12 +276,10 @@ export class MacroDocumentManager {
 			initialText: template.initialText ?? "",
 			title: template.title,
 			templateId: template.templateId,
-			pinnedMacroIds: template.pinnedMacroIds,
+			cellDefaults: this.resolveTemplateCells(template, template.initialText)
+				.cellDefaults,
 			providerId: MACRO_TEMPLATE_PROVIDER,
 		});
-		for (const macroId of template.pinnedMacroIds ?? []) {
-			document.session.setPinnedMacro(macroId);
-		}
 		// Opening for editing is not a user edit — mark as clean from the start.
 		document.savedLines = [...document.editor.getLines()];
 		document.savedTextRevision = document.textRevision;
@@ -300,11 +320,14 @@ export class MacroDocumentManager {
 		return document;
 	}
 
-	setPinnedMacro(documentId: string, macroId: string | null): MacroDocument {
+	setCellDefault(
+		documentId: string,
+		lineIndex: number,
+		macroId: string | null,
+	): MacroDocument {
 		const document = this.require(documentId);
-		const ids = macroId ? [macroId] : [];
-		document.session.setPinnedMacro(macroId);
-		document.pinnedMacroIds = ids;
+		document.session.setCellDefault(lineIndex, macroId);
+		document.cellDefaults = document.session.getCellDefaults();
 		this.notify();
 		return document;
 	}
@@ -348,7 +371,7 @@ export class MacroDocumentManager {
 		title: string;
 		rawText: string;
 		executedLineIndices?: readonly number[];
-		pinnedMacroIds?: readonly string[];
+		cellDefaults?: ReadonlyMap<number, string>;
 	}): MacroDocument {
 		const existing = this.list().find(
 			(d) => d.documentId === resource.scratchpadId,
@@ -361,15 +384,12 @@ export class MacroDocumentManager {
 			documentId: resource.scratchpadId,
 			initialText: resource.rawText,
 			title: resource.title,
-			pinnedMacroIds: resource.pinnedMacroIds,
+			cellDefaults: resource.cellDefaults ?? new Map(),
 		});
 		if (resource.executedLineIndices) {
 			for (const lineIdx of resource.executedLineIndices) {
 				document.session.markLineExecuted?.(lineIdx);
 			}
-		}
-		for (const macroId of resource.pinnedMacroIds ?? []) {
-			document.session.setPinnedMacro(macroId);
 		}
 		document.savedLines = [...document.editor.getLines()];
 		document.savedTextRevision = document.textRevision;
@@ -479,7 +499,7 @@ export class MacroDocumentManager {
 		const copy = this.createDocument({
 			initialText: original.editor.getLines().join("\n"),
 			title,
-			pinnedMacroIds: original.pinnedMacroIds,
+			cellDefaults: original.cellDefaults,
 		});
 		return copy;
 	}
@@ -524,7 +544,7 @@ export class MacroDocumentManager {
 		readonly initialText: string;
 		readonly title: string;
 		readonly templateId?: string;
-		readonly pinnedMacroIds?: readonly string[];
+		readonly cellDefaults?: ReadonlyMap<number, string>;
 		readonly providerId?: MacroDocumentProviderKind;
 		readonly filePath?: string;
 	}): MacroDocument {
@@ -535,8 +555,8 @@ export class MacroDocumentManager {
 			50,
 			this.scratchpadOptions,
 		);
-		const pinnedMacroIds = options.pinnedMacroIds ?? [];
-		if (pinnedMacroIds[0]) session.setPinnedMacro(pinnedMacroIds[0]);
+		const cellDefaults = options.cellDefaults ?? new Map<number, string>();
+		session.setCellDefaults(cellDefaults);
 		const document: MacroDocument = {
 			documentId: options.documentId ?? createDocumentId(),
 			providerId: options.providerId ?? MACRO_TEXT_DOCUMENT_PROVIDER,
@@ -544,7 +564,7 @@ export class MacroDocumentManager {
 			editor,
 			session,
 			...(options.templateId ? { templateId: options.templateId } : {}),
-			pinnedMacroIds,
+			cellDefaults,
 			title: options.title,
 			dirty: false,
 			textRevision: 0,

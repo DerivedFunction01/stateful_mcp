@@ -589,31 +589,48 @@ describe("Headless Workspace Kernel — Phase 3F.1", () => {
 			);
 			expect(multilineProjected[0]?.isValid).toBe(true);
 
-			// Pinned Macro Mode test
-			const pinnedBuffer = new CursorBuffer("#asma con #sibilancias");
-			const pinnedSession = new ScratchpadSession(runtime, pinnedBuffer, 10);
-			expect(pinnedSession.getPinnedMacro()).toBeNull();
+			// Cell default macro test
+			const defaultBuffer = new CursorBuffer("#asma\ncon #sibilancias");
+			const defaultSession = new ScratchpadSession(runtime, defaultBuffer, 10);
+			expect(defaultSession.getCellDefault(0)).toBeNull();
 
-			// Initially invalid without prefix
-			let pinnedProjected = await pinnedSession.parseAllLines();
-			expect(pinnedProjected[0]?.isValid).toBe(false);
+			// Initially invalid without explicit prefix
+			let defaultProjected = await defaultSession.parseAllLines();
+			expect(defaultProjected[0]?.isValid).toBe(false);
 
-			// Pin to evaluacion macro
-			pinnedSession.setPinnedMacro("evaluacion");
-			expect(pinnedSession.getPinnedMacro()).toBe("evaluacion");
+			// Apply a hidden cell default
+			defaultSession.setCellDefault(0, "evaluacion");
+			expect(defaultSession.getCellDefault(0)).toBe("evaluacion");
 
-			pinnedProjected = await pinnedSession.parseAllLines();
-			expect(pinnedProjected[0]?.isValid).toBe(false);
-			pinnedBuffer.setCursor(0, pinnedBuffer.getLine(0).length);
-			const inserted = pinnedSession.createPinnedMacroLine();
-			expect(inserted?.insertedText).toBe("^evaluacion ");
-			expect(pinnedBuffer.getLine(1)).toBe("^evaluacion ");
-			expect(pinnedBuffer.getCursor()).toEqual({
-				line: 1,
-				col: "^evaluacion ".length,
-			});
-			pinnedProjected = await pinnedSession.parseAllLines();
-			expect(pinnedProjected[1]?.macroName).toBe("evaluacion");
+			defaultProjected = await defaultSession.parseAllLines();
+			expect(defaultProjected[0]?.isValid).toBe(true);
+			expect(defaultProjected[0]?.macroResolution).toBe("default");
+			expect(defaultProjected[0]?.effectiveMacroName).toBe("evaluacion");
+
+			// Explicit macro syntax still wins over the default
+			defaultBuffer.setLine(0, "^evaluacion #asma\ncon #sibilancias");
+			defaultProjected = await defaultSession.parseAllLines();
+			expect(defaultProjected[0]?.macroResolution).toBe("explicit");
+
+			// Revert to plain text; the default is still effective
+			defaultBuffer.setLine(0, "#asma\ncon #sibilancias");
+			defaultProjected = await defaultSession.parseAllLines();
+			expect(defaultProjected[0]?.macroResolution).toBe("default");
+
+			// Clearing the default never rewrites the visible text
+			defaultSession.setCellDefault(0, null);
+			expect(defaultProjected[0]?.rawText).toContain("#asma");
+			defaultProjected = await defaultSession.parseAllLines();
+			expect(defaultProjected[0]?.isValid).toBe(false);
+
+			// Placeholder for an empty defaulted cell (never persisted)
+			const emptyBuffer = new CursorBuffer("");
+			const emptySession = new ScratchpadSession(runtime, emptyBuffer, 10);
+			emptySession.setCellDefault(0, "evaluacion");
+			const emptyProjected = await emptySession.parseAllLines();
+			expect(emptyProjected[0]?.macroResolution).toBe("default");
+			expect(emptyProjected[0]?.placeholder).toBe("^evaluacion ");
+			expect(emptyProjected[0]?.rawText).toBe("");
 		});
 	});
 

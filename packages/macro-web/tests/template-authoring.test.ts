@@ -12,7 +12,10 @@ describe("MacroDocumentManager: template authoring, tagging, and persistence", (
 			title: "Daily Review",
 			description: "Daily review routine",
 			tags: ["review", "daily"],
-			pinnedMacroIds: ["notes", "tasks"],
+			cellDefaults: [
+				{ lineNumber: 1, defaultMacroId: "notes" },
+				{ lineNumber: 2, defaultMacroId: "tasks" },
+			],
 			initialText: 'notes date="today"\ntasks status="pending"',
 			source: "project",
 		};
@@ -25,7 +28,10 @@ describe("MacroDocumentManager: template authoring, tagging, and persistence", (
 		expect(found).toBeDefined();
 		expect(found?.title).toBe("Daily Review");
 		expect(found?.tags).toEqual(["review", "daily"]);
-		expect(found?.pinnedMacroIds).toEqual(["notes", "tasks"]);
+		expect(found?.cellDefaults).toEqual([
+			{ lineNumber: 1, defaultMacroId: "notes" },
+			{ lineNumber: 2, defaultMacroId: "tasks" },
+		]);
 	});
 
 	test("updates an existing template without duplicating", () => {
