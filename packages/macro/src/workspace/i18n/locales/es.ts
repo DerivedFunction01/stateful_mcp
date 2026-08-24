@@ -7,6 +7,7 @@ import { ES_JOURNAL } from "./es/journal";
 import { ES_KEYMAP } from "./es/keymap";
 import { ES_NAVIGATION } from "./es/navigation";
 import { ES_PALETTE } from "./es/palette";
+import { ES_PROJECT } from "./es/project";
 import { ES_SETTINGS } from "./es/settings";
 import { ES_SHELL } from "./es/shell";
 import { ES_STATUS } from "./es/status";
@@ -17,6 +18,7 @@ export const ES_LOCALE: WorkspaceLocaleDictionary = {
 	...ES_SHELL,
 	...ES_NAVIGATION,
 	...ES_WORKBENCH,
+	...ES_PROJECT,
 	...ES_TEMPLATES,
 	...ES_EDITOR,
 	...ES_JOURNAL,

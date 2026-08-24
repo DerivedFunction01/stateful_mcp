@@ -7,7 +7,7 @@ import { Settings2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
-import { Button, Diagnostic, TextInput } from "./ui/primitives";
+import { Badge, Button, Diagnostic, TextInput } from "./ui/primitives";
 
 function jsonText(value: unknown): string {
 	return JSON.stringify(value ?? [], null, 2);
@@ -18,18 +18,18 @@ export function ProjectSettingsModal({
 	client,
 	onClose,
 	onUpdated,
+	onManageTemplates,
 }: {
 	readonly isOpen: boolean;
 	readonly client: HostClient;
 	readonly onClose: () => void;
 	readonly onUpdated?: (result: ProjectOperationResult) => void;
+	readonly onManageTemplates?: () => void;
 }) {
 	const { t } = useI18n();
 	const [configuration, setConfiguration] = useState<ProjectConfigurationDto>();
 	const [draft, setDraft] = useState<ProjectConfigurationDto>();
-	const [extensionsText, setExtensionsText] = useState("[]");
-	const [profilesText, setProfilesText] = useState("{}");
-	const [templatesText, setTemplatesText] = useState("[]");
+	const [activeExtensionProfileId, setActiveExtensionProfileId] = useState("");
 	const [projectSettings, setProjectSettings] = useState<
 		ProjectConfigurationDto["projectSettings"]
 	>({});
@@ -43,7 +43,7 @@ export function ProjectSettingsModal({
 	useEffect(() => {
 		if (!isOpen) return;
 		if (!client.getProjectConfiguration) {
-			setError(t("workbench.project.settings.unavailable"));
+			setError(t("project.settings.unavailable"));
 			return;
 		}
 		setConfiguration(undefined);
@@ -54,9 +54,7 @@ export function ProjectSettingsModal({
 			.then((value) => {
 				setConfiguration(value);
 				setDraft(value);
-				setExtensionsText(jsonText(value.extensions));
-				setProfilesText(jsonText(value.extensionProfiles ?? {}));
-				setTemplatesText(jsonText(value.templates ?? []));
+				setActiveExtensionProfileId(value.activeExtensionProfileId ?? "");
 				setProjectSettings(value.projectSettings ?? {});
 				setTargetBackend(value.backend.kind);
 			})
@@ -70,36 +68,34 @@ export function ProjectSettingsModal({
 	const update = (change: Partial<ProjectConfigurationDto>) =>
 		setDraft((value) => (value ? { ...value, ...change } : value));
 	const profileIds = draft ? Object.keys(draft.extensionProfiles ?? {}) : [];
-	const localeOptions = ["en", "es"];
+	const resolvedLocale = Intl.DateTimeFormat().resolvedOptions().locale;
+	const localeIds = draft?.availableLocales.map((locale) => locale.id) ?? [];
+	const localeDisplayNames = new Intl.DisplayNames([resolvedLocale], {
+		type: "language",
+	});
 
 	const parseJson = <T,>(value: string, label: string): T | undefined => {
 		try {
 			return JSON.parse(value) as T;
 		} catch {
-			setError(t("workbench.project.settings.invalidJson", { field: label }));
+			setError(t("project.settings.invalidJson", { field: label }));
 			return undefined;
 		}
 	};
 
 	const save = async () => {
 		if (!draft || !configuration || !client.updateProjectConfiguration) return;
-		const extensions = parseJson<ProjectConfigurationDto["extensions"]>(
-			extensionsText,
-			t("workbench.project.settings.extensions"),
-		);
-		const extensionProfiles = parseJson<
-			ProjectConfigurationDto["extensionProfiles"]
-		>(profilesText, t("workbench.project.settings.extensionProfiles"));
-		const templates = parseJson<ProjectConfigurationDto["templates"]>(
-			templatesText,
-			t("workbench.project.settings.templates"),
-		);
-		if (!extensions || !extensionProfiles || !templates) return;
+		const extensions = draft.extensions;
 		setBusy(true);
 		setError(undefined);
 		try {
 			const result = await client.updateProjectConfiguration(
-				{ ...draft, extensions, extensionProfiles, templates, projectSettings },
+				{
+					...draft,
+					extensions,
+					activeExtensionProfileId: activeExtensionProfileId || undefined,
+					projectSettings,
+				},
 				configuration.revision,
 			);
 			if (result.status === "accepted") {
@@ -111,7 +107,7 @@ export function ProjectSettingsModal({
 				setError(
 					"message" in result
 						? result.message
-						: t("workbench.project.settings.migrationUnavailable"),
+						: t("project.settings.migrationUnavailable"),
 				);
 			}
 		} catch (reason) {
@@ -137,7 +133,7 @@ export function ProjectSettingsModal({
 				setError(
 					"message" in result
 						? result.message
-						: t("workbench.project.settings.migrationUnavailable"),
+						: t("project.settings.migrationUnavailable"),
 				);
 		} catch (reason) {
 			setError(reason instanceof Error ? reason.message : String(reason));
@@ -167,7 +163,7 @@ export function ProjectSettingsModal({
 				setError(
 					"message" in result
 						? result.message
-						: t("workbench.project.settings.migrationUnavailable"),
+						: t("project.settings.migrationUnavailable"),
 				);
 		} catch (reason) {
 			setError(reason instanceof Error ? reason.message : String(reason));
@@ -189,7 +185,7 @@ export function ProjectSettingsModal({
 					<div className="modal-title-row">
 						<Settings2 size={18} className="modal-icon" />
 						<h2 id="project-settings-title" className="modal-title">
-							{t("workbench.project.settings.title")}
+							{t("project.settings.title")}
 						</h2>
 					</div>
 					<button
@@ -204,61 +200,73 @@ export function ProjectSettingsModal({
 				{draft ? (
 					<div className="project-settings-form">
 						<TextInput
-							label={t("workbench.project.settings.displayName")}
+							label={t("project.settings.displayName")}
 							value={draft.displayName}
 							onChange={(event) => update({ displayName: event.target.value })}
 						/>
 						<TextInput
-							label={t("workbench.project.settings.projectId")}
+							label={t("project.settings.projectId")}
 							value={draft.projectId}
 							readOnly
 						/>
 						<SelectField
-							label={t("workbench.project.settings.locale")}
+							label={t("project.settings.locale")}
 							value={draft.uiLocale ?? ""}
 							onChange={(value) => update({ uiLocale: value || undefined })}
-							options={localeOptions.map((value) => ({
+							options={localeIds.map((value) => ({
 								value,
-								label:
-									value === "es"
-										? t("workbench.project.settings.localeSpanish")
-										: t("workbench.project.settings.localeEnglish"),
+								label: localeDisplayNames.of(value) ?? value,
 							}))}
-							emptyLabel={t("workbench.project.settings.inheritLocale")}
 						/>
 						<SelectField
-							label={t("workbench.project.settings.defaultProfile")}
-							value={draft.defaultProfileId ?? ""}
-							onChange={(value) =>
-								update({ defaultProfileId: value || undefined })
-							}
+							label={t("project.settings.activeExtensionProfile")}
+							value={activeExtensionProfileId}
+							onChange={setActiveExtensionProfileId}
 							options={profileIds.map((value) => ({ value, label: value }))}
-							emptyLabel={t("workbench.project.settings.noProfile")}
+							emptyLabel={t("project.settings.noProfile")}
 						/>
-						<SelectField
-							label={t("workbench.project.settings.activeProfile")}
-							value={draft.activeProfileId ?? ""}
-							onChange={(value) =>
-								update({ activeProfileId: value || undefined })
-							}
-							options={profileIds.map((value) => ({ value, label: value }))}
-							emptyLabel={t("workbench.project.settings.noProfile")}
-						/>
-						<JsonField
-							label={t("workbench.project.settings.extensions")}
-							value={extensionsText}
-							onChange={setExtensionsText}
-						/>
-						<JsonField
-							label={t("workbench.project.settings.extensionProfiles")}
-							value={profilesText}
-							onChange={setProfilesText}
-						/>
-						<JsonField
-							label={t("workbench.project.settings.templates")}
-							value={templatesText}
-							onChange={setTemplatesText}
-						/>
+						<section className="project-settings-section">
+							<h3>{t("project.settings.extensions")}</h3>
+							{draft.extensions.map((extension) => {
+								const members =
+									draft.extensionProfiles?.[activeExtensionProfileId] ?? [];
+								const enabled = members.includes(extension.id);
+								return (
+									<label
+										className="project-settings-extension-row"
+										key={extension.id}
+									>
+										<input
+											type="checkbox"
+											checked={enabled}
+											onChange={(event) => {
+												const groups = draft.extensionProfiles ?? {};
+												const next = new Set(
+													groups[activeExtensionProfileId] ?? [],
+												);
+												if (event.target.checked) next.add(extension.id);
+												else next.delete(extension.id);
+												update({
+													extensionProfiles: {
+														...groups,
+														[activeExtensionProfileId]: [...next],
+													},
+												});
+											}}
+										/>
+										<span>
+											<strong>{extension.id}</strong>
+											<small>
+												{extension.source} · {extension.version}
+											</small>
+										</span>
+										{extension.requires?.map((dependency) => (
+											<Badge key={dependency}>{dependency}</Badge>
+										))}
+									</label>
+								);
+							})}
+						</section>
 						{draft.projectSettingsContributions.map((contribution) => (
 							<ExtensionProjectSettingsSection
 								key={`${contribution.extensionId}:${contribution.namespace}`}
@@ -272,16 +280,37 @@ export function ProjectSettingsModal({
 								}
 							/>
 						))}
+						<section className="project-settings-section">
+							<div className="project-settings-section-heading">
+								<h3>{t("project.settings.templates")}</h3>
+								<Button onClick={onManageTemplates}>
+									{t("project.settings.manageTemplates")}
+								</Button>
+							</div>
+							{(draft.templates ?? []).map((template) => (
+								<div
+									className="project-settings-template-row"
+									key={template.templateId}
+								>
+									<strong>{template.title}</strong>
+									<span>{template.templateId}</span>
+									{template.tags?.map((tag) => (
+										<Badge key={tag}>{tag}</Badge>
+									))}
+								</div>
+							))}
+							{!(draft.templates ?? []).length && (
+								<span>{t("project.settings.noTemplates")}</span>
+							)}
+						</section>
 						<div className="project-settings-readonly">
-							<strong>{t("workbench.project.settings.backend")}</strong>
+							<strong>{t("project.settings.backend")}</strong>
 							<code>
 								{draft.backend.kind}: {draft.backend.path}
 							</code>
-							<span>
-								{t("workbench.project.settings.backendMigrationNotice")}
-							</span>
+							<span>{t("project.settings.backendMigrationNotice")}</span>
 							<SelectField
-								label={t("workbench.project.settings.targetBackend")}
+								label={t("project.settings.targetBackend")}
 								value={targetBackend}
 								onChange={(value) =>
 									setTargetBackend(value as "jsonl" | "sqlite")
@@ -289,11 +318,11 @@ export function ProjectSettingsModal({
 								options={[
 									{
 										value: "jsonl",
-										label: t("workbench.project.settings.backendJsonl"),
+										label: t("project.settings.backendJsonl"),
 									},
 									{
 										value: "sqlite",
-										label: t("workbench.project.settings.backendSqlite"),
+										label: t("project.settings.backendSqlite"),
 									},
 								]}
 							/>
@@ -302,7 +331,7 @@ export function ProjectSettingsModal({
 									onClick={() => void previewMigration()}
 									disabled={busy || targetBackend === draft.backend.kind}
 								>
-									{t("workbench.project.settings.previewMigration")}
+									{t("project.settings.previewMigration")}
 								</Button>
 								{migrationPlan?.status === "plan" && (
 									<Button
@@ -310,19 +339,19 @@ export function ProjectSettingsModal({
 										onClick={() => void applyMigration()}
 										disabled={busy}
 									>
-										{t("workbench.project.settings.applyMigration")}
+										{t("project.settings.applyMigration")}
 									</Button>
 								)}
 							</div>
 							{migrationPlan?.status === "plan" && (
 								<span>
-									{t("workbench.project.settings.migrationSummary", {
+									{t("project.settings.migrationSummary", {
 										history: migrationPlan.plan.historyCount,
 										scratchpads: migrationPlan.plan.scratchpadCount,
 									})}
 								</span>
 							)}
-							<strong>{t("workbench.project.settings.resources")}</strong>
+							<strong>{t("project.settings.resources")}</strong>
 							<code>
 								{jsonText({
 									resources: draft.resources,
@@ -335,19 +364,19 @@ export function ProjectSettingsModal({
 					</div>
 				) : (
 					<div className="project-settings-loading">
-						{t("workbench.project.settings.loading")}
+						{t("project.settings.loading")}
 					</div>
 				)}
 				<footer className="modal-footer">
 					<Button onClick={onClose} disabled={busy}>
-						{t("workbench.project.settings.cancel")}
+						{t("project.settings.cancel")}
 					</Button>
 					<Button
 						variant="primary"
 						onClick={() => void save()}
 						disabled={!draft || busy}
 					>
-						{t("workbench.project.settings.save")}
+						{t("project.settings.save")}
 					</Button>
 				</footer>
 			</div>

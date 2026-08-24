@@ -8,6 +8,7 @@ export * from "./types";
 export interface LocaleRegistration {
 	readonly languageId: string;
 	readonly dictionary: WorkspaceLocaleDictionary | Record<string, string>;
+	readonly source?: "builtin" | "extension";
 }
 
 export function createDefaultI18nKernel(
@@ -18,12 +19,17 @@ export function createDefaultI18nKernel(
 
 	// Register all configured built-in and shipped locales
 	for (const [langId, dict] of Object.entries(BUILTIN_LOCALES)) {
-		kernel.registerTranslations(langId, dict);
+		kernel.registerTranslations(langId, dict, undefined, "builtin");
 	}
 
 	// Register any dynamically supplied or extension locales
 	for (const reg of extraLocales) {
-		kernel.registerTranslations(reg.languageId, reg.dictionary);
+		kernel.registerTranslations(
+			reg.languageId,
+			reg.dictionary,
+			undefined,
+			reg.source ?? "extension",
+		);
 	}
 
 	return kernel;

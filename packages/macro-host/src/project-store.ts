@@ -44,7 +44,6 @@ export interface CreateMacroProjectOptions {
 	readonly displayName?: string;
 	readonly backend?: MacroProjectBackendKind;
 	readonly extensions?: readonly MacroProjectExtensionSpec[];
-	readonly defaultProfileId?: string;
 	readonly uiLocale?: string;
 }
 
@@ -130,9 +129,6 @@ export async function createMacroProject(
 			kind: backend,
 			path: `${MACRO_DIRECTORY}/${backend === "jsonl" ? JSONL_STATE_FILE : "state.sqlite"}`,
 		},
-		...(options.defaultProfileId
-			? { defaultProfileId: options.defaultProfileId }
-			: {}),
 		...(options.uiLocale ? { uiLocale: options.uiLocale } : {}),
 		extensions: [...(options.extensions ?? [])],
 		resources: [],

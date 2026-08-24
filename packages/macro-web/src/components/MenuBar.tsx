@@ -292,20 +292,20 @@ export function MenuBar({
 			{ kind: "separator", id: "file.sep1" },
 			{
 				id: "file.openProject",
-				label: t("workbench.openProjectTitle"),
+				label: t("project.openProjectTitle"),
 				icon: <FolderGit2 size={14} />,
 				shortcut: openProjectShortcut,
 				onSelect: () => onOpenFolderModal?.("open"),
 			},
 			{
 				id: "file.initProject",
-				label: t("workbench.initProjectTitle"),
+				label: t("project.initProjectTitle"),
 				icon: <FolderPlus size={14} />,
 				onSelect: () => onOpenFolderModal?.("init"),
 			},
 			{
 				id: "file.saveAsProject",
-				label: t("workbench.saveAsProjectTitle"),
+				label: t("project.saveAsProjectTitle"),
 				icon: <Save size={14} />,
 				shortcut: saveAsShortcut,
 				onSelect: () => onOpenFolderModal?.("saveAs"),
@@ -315,7 +315,7 @@ export function MenuBar({
 		if (snapshot?.project && !snapshot.project.ephemeral) {
 			fileItems.push({
 				id: "file.projectSettings",
-				label: t("workbench.project.settings.title"),
+				label: t("project.settings.title"),
 				icon: <Settings size={14} />,
 				onSelect: () => onCommand("workbench.openProjectSettings"),
 			});

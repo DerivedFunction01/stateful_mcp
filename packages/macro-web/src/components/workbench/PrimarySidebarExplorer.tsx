@@ -110,7 +110,7 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 										className="vscode-btn primary"
 										onClick={() => onOpenFolderModal?.("open")}
 									>
-										{t("workbench.openProjectAction")}
+										{t("project.openProjectAction")}
 									</button>
 									<button
 										type="button"

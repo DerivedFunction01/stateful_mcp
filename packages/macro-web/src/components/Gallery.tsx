@@ -223,21 +223,21 @@ function ProjectFolderModalStory() {
 					icon={<FolderGit2 size={14} />}
 					onClick={() => setModalMode("open")}
 				>
-					{t("workbench.openProjectTitle")}
+					{t("project.openProjectTitle")}
 				</Button>
 				<Button
 					variant="secondary"
 					icon={<FolderPlus size={14} />}
 					onClick={() => setModalMode("init")}
 				>
-					{t("workbench.initProjectTitle")}
+					{t("project.initProjectTitle")}
 				</Button>
 				<Button
 					variant="ghost"
 					icon={<Save size={14} />}
 					onClick={() => setModalMode("saveAs")}
 				>
-					{t("workbench.saveAsProjectTitle")}
+					{t("project.saveAsProjectTitle")}
 				</Button>
 			</div>
 
@@ -1882,7 +1882,7 @@ function ProjectInitModalStory() {
 						icon={<FolderPlus size={14} />}
 						onClick={() => setIsOpen(true)}
 					>
-						{t("workbench.project.init.title")}
+						{t("project.init.title")}
 					</Button>
 				</div>
 				{initReport && (

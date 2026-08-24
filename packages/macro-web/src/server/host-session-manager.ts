@@ -602,6 +602,7 @@ export class HostSessionManager {
 		return {
 			...manifest,
 			projectSettingsContributions,
+			availableLocales: session.loaded.workspace.i18n.getAvailableLocales(),
 			revision: project.descriptor.revision,
 		} as ProjectConfigurationDto;
 	}
@@ -777,8 +778,7 @@ export class HostSessionManager {
 		const candidate = {
 			...current,
 			displayName: configuration.displayName.trim(),
-			defaultProfileId: configuration.defaultProfileId,
-			activeProfileId: configuration.activeProfileId,
+			activeExtensionProfileId: configuration.activeExtensionProfileId,
 			uiLocale: configuration.uiLocale,
 			extensions: configuration.extensions,
 			extensionProfiles: configuration.extensionProfiles,
@@ -792,7 +792,8 @@ export class HostSessionManager {
 				JSON.stringify(candidate.projectSettings)
 				? "templates"
 				: current.uiLocale !== candidate.uiLocale ||
-						current.activeProfileId !== candidate.activeProfileId ||
+						current.activeExtensionProfileId !==
+							candidate.activeExtensionProfileId ||
 						JSON.stringify(current.extensions) !==
 							JSON.stringify(candidate.extensions) ||
 						JSON.stringify(current.extensionProfiles) !==

@@ -7,6 +7,7 @@ import { EN_JOURNAL } from "./en/journal";
 import { EN_KEYMAP } from "./en/keymap";
 import { EN_NAVIGATION } from "./en/navigation";
 import { EN_PALETTE } from "./en/palette";
+import { EN_PROJECT } from "./en/project";
 import { EN_SETTINGS } from "./en/settings";
 import { EN_SHELL } from "./en/shell";
 import { EN_STATUS } from "./en/status";
@@ -17,6 +18,7 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	...EN_SHELL,
 	...EN_NAVIGATION,
 	...EN_WORKBENCH,
+	...EN_PROJECT,
 	...EN_TEMPLATES,
 	...EN_EDITOR,
 	...EN_JOURNAL,

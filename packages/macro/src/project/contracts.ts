@@ -24,8 +24,7 @@ export interface MacroProjectManifest {
 	readonly projectId: string;
 	readonly displayName: string;
 	readonly backend: MacroProjectBackendDescriptor;
-	readonly defaultProfileId?: string;
-	readonly activeProfileId?: string;
+	readonly activeExtensionProfileId?: string;
 	readonly uiLocale?: string;
 	readonly extensions: readonly MacroProjectExtensionSpec[];
 	readonly extensionProfiles?: Readonly<Record<string, readonly string[]>>;

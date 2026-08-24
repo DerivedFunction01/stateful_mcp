@@ -52,14 +52,14 @@ export function ProjectInitModal({
 					<div className="modal-title-row">
 						<FolderPlus size={18} className="modal-icon" />
 						<h2 id="project-init-title" className="modal-title">
-							{t("workbench.project.init.title")}
+							{t("project.init.title")}
 						</h2>
 					</div>
 					<button
 						type="button"
 						className="modal-close-btn"
 						onClick={onClose}
-						aria-label={t("workbench.project.init.cancel")}
+						aria-label={t("project.init.cancel")}
 					>
 						<X size={16} />
 					</button>
@@ -67,15 +67,15 @@ export function ProjectInitModal({
 
 				<form onSubmit={handleSubmit} className="project-init-form">
 					<div className="project-init-path-preview">
-						<span className="path-label">{t("workbench.project")}</span>
+						<span className="path-label">{t("project")}</span>
 						<code className="path-value">{currentPath}</code>
 					</div>
 
 					<TextInput
-						label={t("workbench.project.init.projectName")}
+						label={t("project.init.projectName")}
 						value={displayName}
 						onChange={(e) => setDisplayName(e.target.value)}
-						placeholder={t("workbench.project.init.projectPlaceholder")}
+						placeholder={t("project.init.projectPlaceholder")}
 					/>
 
 					<div className="modal-actions-row">
@@ -85,7 +85,7 @@ export function ProjectInitModal({
 							onClick={onClose}
 							disabled={isSubmitting}
 						>
-							{t("workbench.project.init.cancel")}
+							{t("project.init.cancel")}
 						</Button>
 						<Button
 							type="submit"
@@ -93,7 +93,7 @@ export function ProjectInitModal({
 							disabled={isSubmitting}
 							icon={<FolderPlus size={14} />}
 						>
-							{t("workbench.project.init.submit")}
+							{t("project.init.submit")}
 						</Button>
 					</div>
 				</form>

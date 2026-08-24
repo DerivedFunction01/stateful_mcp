@@ -965,6 +965,10 @@ export function App() {
 					isOpen={isProjectSettingsOpen}
 					client={host}
 					onClose={() => setIsProjectSettingsOpen(false)}
+					onManageTemplates={() => {
+						setIsProjectSettingsOpen(false);
+						setIsTemplatePickerOpen(true);
+					}}
 					onUpdated={(result) => {
 						if (result.status === "accepted")
 							store.installSnapshot(result.snapshot);

@@ -113,17 +113,17 @@ export function OpenFolderModal({
 
 	const title =
 		mode === "init"
-			? t("workbench.initProjectTitle")
+			? t("project.initProjectTitle")
 			: mode === "saveAs"
-				? t("workbench.saveAsProjectTitle")
-				: t("workbench.openProjectTitle");
+				? t("project.saveAsProjectTitle")
+				: t("project.openProjectTitle");
 
 	const actionLabel =
 		mode === "init"
-			? t("workbench.initProjectAction")
+			? t("project.initProjectAction")
 			: mode === "saveAs"
-				? t("workbench.saveProjectAction")
-				: t("workbench.openProjectAction");
+				? t("project.saveProjectAction")
+				: t("project.openProjectAction");
 
 	const handleNavigate = (entryName: string) => {
 		const sep = currentPath.includes("\\") ? "\\" : "/";
@@ -310,13 +310,13 @@ export function OpenFolderModal({
 					<div className="project-init-name-row">
 						<label className="field">
 							<span className="field-label">
-								{t("workbench.project.init.projectName")}
+								{t("project.init.projectName")}
 							</span>
 							<input
 								className="input"
 								value={projectName}
 								onChange={(event) => setProjectName(event.target.value)}
-								placeholder={t("workbench.project.init.projectPlaceholder")}
+								placeholder={t("project.init.projectPlaceholder")}
 							/>
 						</label>
 					</div>
@@ -325,7 +325,7 @@ export function OpenFolderModal({
 				<div
 					className="folder-entries-container"
 					role="listbox"
-					aria-label={t("workbench.project")}
+					aria-label={t("project")}
 				>
 					{parentPath && (
 						<button

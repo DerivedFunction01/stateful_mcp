@@ -108,13 +108,13 @@ export const DEFAULT_COMMAND_KEYBINDINGS: readonly WorkspaceKeybinding[] = [
 		command: "workbench.openProject",
 		chords: ["primary+o"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
-		labelI18nKey: "workbench.openProjectTitle",
+		labelI18nKey: "project.openProjectTitle",
 	},
 	{
 		command: "workbench.saveAsProject",
 		chords: ["primary+shift+s"],
 		modes: ["NORMAL", "INSERT", "VISUAL"],
-		labelI18nKey: "workbench.saveAsProjectTitle",
+		labelI18nKey: "project.saveAsProjectTitle",
 	},
 	{
 		command: "editor.saveAll",

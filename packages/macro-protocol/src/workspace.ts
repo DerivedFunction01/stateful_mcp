@@ -171,8 +171,7 @@ export interface ProjectConfigurationDto {
 		readonly kind: "jsonl" | "sqlite";
 		readonly path: string;
 	};
-	readonly defaultProfileId?: string;
-	readonly activeProfileId?: string;
+	readonly activeExtensionProfileId?: string;
 	readonly uiLocale?: string;
 	readonly extensions: readonly {
 		readonly id: string;
@@ -190,6 +189,10 @@ export interface ProjectConfigurationDto {
 	>;
 	readonly projectSettingsContributions: readonly ProjectSettingsContributionDto[];
 	readonly revision: string;
+	readonly availableLocales: readonly {
+		readonly id: string;
+		readonly source: "builtin" | "extension";
+	}[];
 }
 
 export type ProjectConfigurationImpact =

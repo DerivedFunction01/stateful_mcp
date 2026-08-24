@@ -339,7 +339,7 @@ function toWorkspaceManifest(
 	return {
 		extensions: manifest.extensions,
 		profiles: manifest.extensionProfiles,
-		activeProfile: manifest.activeProfileId,
+		activeProfile: manifest.activeExtensionProfileId,
 	};
 }
 

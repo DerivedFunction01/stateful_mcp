@@ -1,8 +1,13 @@
 /**
- * Headless i18n translation kernel with parameter interpolation, cascading locale fallback, and extension NLS registries.
+ * Headless i18n translation kernel with parameter interpolation and extension NLS registries.
  */
 
 export type TranslationParams = Readonly<Record<string, unknown>>;
+
+export interface LocaleDescriptor {
+	readonly id: string;
+	readonly source: "builtin" | "extension";
+}
 
 interface TranslationRegistration {
 	readonly value: string;
@@ -11,11 +16,11 @@ interface TranslationRegistration {
 
 export class I18nKernel {
 	private activeLocale = "en";
-	private readonly fallbackLocale = "en";
 	private readonly dictionaries = new Map<
 		string,
 		Map<string, TranslationRegistration[]>
 	>();
+	private readonly localeSources = new Map<string, "builtin" | "extension">();
 	private readonly listeners = new Set<() => void>();
 
 	constructor(initialLocale = "en") {
@@ -24,6 +29,12 @@ export class I18nKernel {
 
 	getActiveLocale(): string {
 		return this.activeLocale;
+	}
+
+	getAvailableLocales(): readonly LocaleDescriptor[] {
+		return [...this.dictionaries.keys()]
+			.sort()
+			.map((id) => ({ id, source: this.localeSources.get(id) ?? "extension" }));
 	}
 
 	setActiveLocale(locale: string): void {
@@ -37,8 +48,10 @@ export class I18nKernel {
 		locale: string,
 		translations: Record<string, string>,
 		ownerId?: string,
+		source: "builtin" | "extension" = ownerId ? "extension" : "builtin",
 	): void {
 		const normalized = locale.toLowerCase();
+		this.localeSources.set(normalized, source);
 		let dict = this.dictionaries.get(normalized);
 		if (!dict) {
 			dict = new Map();
@@ -92,13 +105,6 @@ export class I18nKernel {
 				if (baseMatch !== undefined) return baseMatch;
 			}
 		}
-
-		// 3. Fallback locale ("en")
-		const fallback = this.dictionaries
-			.get(this.fallbackLocale)
-			?.get(key)
-			?.at(-1)?.value;
-		if (fallback !== undefined) return fallback;
 
 		return undefined;
 	}
