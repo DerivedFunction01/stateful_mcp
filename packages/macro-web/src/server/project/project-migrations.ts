@@ -169,7 +169,7 @@ export async function buildBackendMigrationPlan(
 			dependsOn: participant.dependsOn,
 			status: result?.status ?? "ready",
 			resourceIds: result?.resourceIds ?? participant.resourceIds ?? [],
-			...(result?.message ? { message: result.message } : {}),
+			...(result?.message ? { messageKey: result.message } : {}),
 		});
 	}
 	return {
@@ -260,13 +260,13 @@ export async function resumeBackendMigration(
 	if (!journal)
 		return {
 			status: "rejected",
-			message: "No migration journal is available to resume",
+			messageKey: "project.migration.resume.noJournal",
 			configuration: context.getConfiguration(),
 		};
 	if (!isResumableMigrationStatus(journal.status))
 		return {
 			status: "rejected",
-			message: "A migration in the 'finalizing' state cannot be resumed safely",
+			messageKey: "project.migration.finalizingCannotResume",
 			configuration: context.getConfiguration(),
 		};
 	return applyBackendMigration(
@@ -297,19 +297,19 @@ export async function applyBackendMigration(
 	)
 		return {
 			status: "rejected",
-			message: "The target backend must differ from the current backend",
+			messageKey: "project.migration.apply.identicalBackend",
 			configuration: context.getConfiguration(),
 		};
 	if (plan.participants.some((participant) => participant.status !== "ready"))
 		return {
 			status: "rejected",
-			message: "A project migration participant is unavailable",
+			messageKey: "project.migration.participantUnavailable",
 			configuration: context.getConfiguration(),
 		};
 	if (expectedRevision !== project.descriptor.revision)
 		return {
 			status: "conflict",
-			message: "Project configuration is stale",
+			messageKey: "project.configuration.stale",
 			configuration: context.getConfiguration(),
 		};
 	const participants = context

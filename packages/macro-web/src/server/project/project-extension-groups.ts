@@ -369,9 +369,7 @@ export async function applyExtensionGroupChange(
 	if (!planned.ok)
 		return {
 			status: "rejected",
-			message: planned.diagnostics
-				.map((diagnostic) => diagnostic.message)
-				.join("; "),
+			messageKey: "project.extensionGroup.changeRejected",
 			configuration,
 			diagnostics: planned.diagnostics.map(
 				toProjectExtensionGroupDiagnosticDto,
@@ -382,7 +380,7 @@ export async function applyExtensionGroupChange(
 	if (blocking.length > 0)
 		return {
 			status: "rejected",
-			message: blocking.map((diagnostic) => diagnostic.message).join("; "),
+			messageKey: "project.extensionGroup.validationFailed",
 			configuration,
 			diagnostics: validation.map(toProjectExtensionGroupDiagnosticDto),
 		};
@@ -391,7 +389,7 @@ export async function applyExtensionGroupChange(
 	if (request.expectedRevision !== project.descriptor.revision)
 		return {
 			status: "conflict",
-			message: "Project configuration is stale",
+			messageKey: "project.configuration.stale",
 			configuration,
 		};
 
@@ -472,7 +470,8 @@ export async function applyExtensionGroupChange(
 		);
 		return {
 			status: "rejected",
-			message: `Activating the extension group failed and was rolled back: ${message}`,
+			messageKey: "project.extensionGroup.activation.rolledBack",
+			messageParams: { reason: message },
 			...(context.tryGetProject()
 				? { configuration: context.getConfiguration() }
 				: {}),

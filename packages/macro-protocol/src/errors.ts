@@ -1,27 +1,30 @@
-export interface HostError {
+export type MessageParam = string | number | boolean;
+
+export interface MessageDescriptor {
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+}
+
+export interface HostError extends MessageDescriptor {
 	readonly code: string;
-	readonly message: string;
 	readonly details?: unknown;
 	readonly retryable?: boolean;
 }
 
 export const hostError = (
 	code: string,
-	message: string,
+	message: MessageDescriptor,
 	details?: unknown,
 	retryable?: boolean,
 ): HostError => ({
 	code,
-	message,
+	...message,
 	...(details === undefined ? {} : { details }),
 	...(retryable === undefined ? {} : { retryable }),
 });
 
 export function safeHostError(
 	error: unknown,
-	fallback = "Host request failed",
 ): HostError {
-	return error instanceof Error
-		? hostError("HOST_REQUEST_FAILED", error.message)
-		: hostError("HOST_REQUEST_FAILED", fallback);
+	return hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
 }

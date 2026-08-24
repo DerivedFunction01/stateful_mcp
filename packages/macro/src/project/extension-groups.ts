@@ -52,6 +52,11 @@ export interface ProjectExtensionGroupDiagnostic {
 	readonly dependencyId?: string;
 	readonly path?: readonly string[];
 	readonly message: string;
+	/** Structured message key; preferred over `message` when present. */
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<
+		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+	>;
 }
 
 export type ProjectExtensionAvailability =

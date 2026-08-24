@@ -49,7 +49,7 @@ export class ExtensionContributionManager {
 				validateSurfaceKeybindings(bindings),
 			);
 			if (keybindingDiagnostics.length > 0)
-				throw new Error(keybindingDiagnostics[0]!.message);
+				throw new Error(keybindingDiagnostics[0]!.messageKey);
 			for (const contribution of manifest?.settings ?? []) {
 				this.settings?.register(extension.manifest.id, contribution);
 				owned.settings.push(contribution.namespace);

@@ -162,7 +162,7 @@ async function jsonBody(request: Request): Promise<JsonRequest> {
 	) {
 		throw new SessionError(
 			"INVALID_REQUEST",
-			"Request envelope is invalid",
+			"request.envelope.invalid",
 			false,
 		);
 	}
@@ -174,13 +174,10 @@ function requestId(request: Request): string {
 }
 
 function errorResponse(id: string, error: unknown): Response {
-	const hostErrorValue =
-		error instanceof SessionError
-			? error.toHostError()
-			: hostError(
-					"HOST_REQUEST_FAILED",
-					error instanceof Error ? error.message : "Host request failed",
-				);
+		const hostErrorValue =
+			error instanceof SessionError
+				? error.toHostError()
+				: hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
 	const status =
 		hostErrorValue.code === "SESSION_NOT_FOUND" ||
 		hostErrorValue.code === "COMMAND_NOT_FOUND" ||
@@ -207,7 +204,7 @@ async function handleJson(
 		if (sessionId && envelope.sessionId !== sessionId)
 			throw new SessionError(
 				"SESSION_MISMATCH",
-				"Request session does not match URL",
+				"session.mismatch",
 				false,
 			);
 		const payload = await handler(envelope);
@@ -277,18 +274,18 @@ const server = Bun.serve<SocketData>({
 					name?: unknown;
 				};
 				if (typeof payload.parentPath !== "string" || !payload.parentPath) {
-					throw new SessionError(
-						"INVALID_REQUEST",
-						"Parent directory path is required",
-						false,
-					);
+				throw new SessionError(
+					"INVALID_REQUEST",
+					"request.parentPath.required",
+					false,
+				);
 				}
 				if (typeof payload.name !== "string") {
-					throw new SessionError(
-						"INVALID_REQUEST",
-						"Directory name is required",
-						false,
-					);
+				throw new SessionError(
+					"INVALID_REQUEST",
+					"request.directoryName.required",
+					false,
+				);
 				}
 				const created = await sessions.createDirectory(
 					payload.parentPath,
@@ -311,7 +308,7 @@ const server = Bun.serve<SocketData>({
 				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"File parent and name are required",
+						"request.filePath.required",
 						false,
 					);
 				return sessions.createFile(
@@ -326,7 +323,7 @@ const server = Bun.serve<SocketData>({
 				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"Directory parent and name are required",
+						"request.directoryPath.required",
 						false,
 					);
 				return sessions.createProjectDirectory(
@@ -341,7 +338,7 @@ const server = Bun.serve<SocketData>({
 				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"Rename paths are required",
+						"request.renamePaths.required",
 						false,
 					);
 				await sessions.renamePath(
@@ -357,7 +354,7 @@ const server = Bun.serve<SocketData>({
 				if (!payload)
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"Delete path is required",
+						"request.deletePath.required",
 						false,
 					);
 				await sessions.deletePath(envelope.sessionId, payload.path);
@@ -370,7 +367,12 @@ const server = Bun.serve<SocketData>({
 			const artifact = sessions.getArtifact(
 				decodeURIComponent(artifactMatch[2]!),
 			);
-			if (!artifact) return new Response("Artifact not found", { status: 404 });
+			if (
+				!artifact ||
+				(artifact.owner !== undefined &&
+					artifact.owner !== decodeURIComponent(artifactMatch[1]!))
+			)
+				return new Response("Artifact not found", { status: 404 });
 			return new Response(new Blob([artifact.data as BlobPart]), {
 				headers: {
 					"Content-Type": artifact.mimeType,
@@ -394,7 +396,7 @@ const server = Bun.serve<SocketData>({
 				if (raw.keymap !== undefined && !keymap)
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"Keymap profile is malformed",
+						"request.keymap.malformed",
 						false,
 					);
 				const snapshot = await sessions.create({
@@ -522,7 +524,7 @@ const server = Bun.serve<SocketData>({
 					if (!payload || typeof payload.operation !== "string")
 						throw new SessionError(
 							"INVALID_EDITOR_OPERATION",
-							"Editor operation is required",
+							"editor.operation.required",
 							false,
 						);
 					return sessions.editor(sessionId, payload);
@@ -533,7 +535,7 @@ const server = Bun.serve<SocketData>({
 					if (!payload)
 						throw new SessionError(
 							"INVALID_REQUEST",
-							"Project request payload is malformed",
+							"request.payload.malformed",
 							false,
 						);
 					if (payload.operation === "project.getConfiguration")
@@ -543,7 +545,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Project configuration update payload is malformed",
+								"project.configuration.update.malformed",
 								false,
 							);
 						if (parsed.unsupportedFields?.length)
@@ -558,7 +560,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Backend migration preview target is malformed",
+								"project.migration.preview.malformed",
 								false,
 							);
 						return sessions.previewBackendMigration(sessionId, parsed.target);
@@ -568,7 +570,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Backend migration apply request is malformed",
+								"project.migration.apply.malformed",
 								false,
 							);
 						return sessions.applyBackendMigration(
@@ -584,7 +586,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Migration journal request is malformed",
+								"project.migration.journal.malformed",
 								false,
 							);
 						return sessions.getMigrationJournal(sessionId);
@@ -594,7 +596,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Discard migration request is malformed",
+								"project.migration.discard.malformed",
 								false,
 							);
 						return sessions.discardBackendMigration(sessionId);
@@ -604,7 +606,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Resume migration request is malformed",
+								"project.migration.resume.malformed",
 								false,
 							);
 						return sessions.resumeBackendMigration(sessionId);
@@ -614,7 +616,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group preview request is malformed",
+								"project.extensionGroup.preview.malformed",
 								false,
 							);
 						return sessions.previewExtensionGroup(sessionId, parsed);
@@ -624,7 +626,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group update request is malformed",
+								"project.extensionGroup.update.malformed",
 								false,
 							);
 						return sessions.updateExtensionGroup(sessionId, parsed);
@@ -634,7 +636,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group create request is malformed",
+								"project.extensionGroup.create.malformed",
 								false,
 							);
 						return sessions.createExtensionGroup(sessionId, parsed);
@@ -644,7 +646,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group duplicate request is malformed",
+								"project.extensionGroup.duplicate.malformed",
 								false,
 							);
 						return sessions.duplicateExtensionGroup(sessionId, parsed);
@@ -654,7 +656,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group delete request is malformed",
+								"project.extensionGroup.delete.malformed",
 								false,
 							);
 						return sessions.deleteExtensionGroup(sessionId, parsed);
@@ -664,7 +666,7 @@ const server = Bun.serve<SocketData>({
 						if (!parsed)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Extension group activation request is malformed",
+								"project.extensionGroup.activate.malformed",
 								false,
 							);
 						return sessions.setActiveExtensionGroup(sessionId, parsed);
@@ -673,7 +675,7 @@ const server = Bun.serve<SocketData>({
 						if (!payload.path)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Project path required",
+								"project.path.required",
 								false,
 							);
 						const snapshot = await sessions.openProject(
@@ -686,7 +688,7 @@ const server = Bun.serve<SocketData>({
 						if (!payload.path)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Project path required",
+								"project.path.required",
 								false,
 							);
 						const snapshot = await sessions.initProject(
@@ -700,7 +702,7 @@ const server = Bun.serve<SocketData>({
 						if (!payload.path)
 							throw new SessionError(
 								"INVALID_REQUEST",
-								"Project path required",
+								"project.path.required",
 								false,
 							);
 						const snapshot = await sessions.saveAsProject(
@@ -716,7 +718,7 @@ const server = Bun.serve<SocketData>({
 					}
 					throw new SessionError(
 						"INVALID_REQUEST",
-						"Unknown project action",
+						"project.action.unknown",
 						false,
 					);
 				});

@@ -75,12 +75,16 @@ export class ExpressionIndex implements ExpressionBackend {
 			try {
 				new RegExp(record.regexPattern, record.isCaseInsensitive ? "iu" : "u");
 			} catch (error) {
+				const detail =
+					error instanceof Error ? error.message : String(error);
 				this.diagnostics.push({
 					code: "INVALID_EXPRESSION_REGEX",
-					message: `Expression '${record.id}' has an invalid regex: ${error instanceof Error ? error.message : String(error)}`,
+					message: `Expression '${record.id}' has an invalid regex: ${detail}`,
 					recordType: "expression",
 					recordId: record.id,
 					severity: "error",
+					messageKey: "errors.resourceExpressionRegexInvalid",
+					messageParams: { expressionId: record.id, detail },
 				});
 				continue;
 			}

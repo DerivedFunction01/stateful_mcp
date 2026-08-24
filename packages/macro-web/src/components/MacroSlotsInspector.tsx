@@ -4,6 +4,8 @@ import type {
 } from "@stateful-mcp/macro-protocol";
 import { AlertTriangle, Check, Pin, ShieldAlert, Sparkles } from "lucide-react";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
+import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
 import { Badge } from "./ui/primitives";
 
 export interface MacroSlotsInspectorProps {
@@ -89,10 +91,19 @@ export function MacroSlotsInspector({
 										</div>
 
 										{line.diagnostics.length > 0 ? (
-											<div className="slot-item-diagnostic">
-												<ShieldAlert size={11} />
-												<span>{line.diagnostics[0]?.message}</span>
-											</div>
+										<div className="slot-item-diagnostic">
+											<ShieldAlert size={11} />
+											<span>
+												{resolveDiagnosticMessage(
+													{
+														line: line.lineNumber,
+														macroName: line.macroName,
+														...line.diagnostics[0]!,
+													} as InspectorDiagnosticItem,
+													t,
+												)}
+											</span>
+										</div>
 										) : availableProjections.length > 0 ? (
 											<div className="slot-item-projection">
 												<Check size={11} />
@@ -123,7 +134,9 @@ export function MacroSlotsInspector({
 							{diagnostics.map((d, index) => (
 								<div className="diagnostic-item" key={`${d.line}-${index}`}>
 									<span className="diag-line">L{d.line}</span>
-									<span className="diag-msg">{d.message}</span>
+									<span className="diag-msg">
+										{resolveDiagnosticMessage(d as InspectorDiagnosticItem, t)}
+									</span>
 								</div>
 							))}
 						</div>

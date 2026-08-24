@@ -34,6 +34,7 @@ import {
 	EditorSurfaceRegistryContext,
 } from "./lib/editor-surface-registry";
 import { BrowserHostClient, type HostClient } from "./lib/host-client";
+import { resolveMessage, resolveThrownError } from "./lib/message-resolver";
 import {
 	GalleryI18nScope,
 	useI18n,
@@ -57,7 +58,8 @@ function routeFromPath(pathname: string): AppRoute {
 }
 
 export function App() {
-	const { t, setLocale } = useI18n();
+	const i18n = useI18n();
+	const { t, setLocale } = i18n;
 	const [route, setRoute] = useState<AppRoute>(() =>
 		routeFromPath(window.location.pathname),
 	);
@@ -246,9 +248,7 @@ export function App() {
 			await store.refreshFileTree();
 			setCreateFileTarget(null);
 		} catch (error) {
-			setCreateFileError(
-				error instanceof Error ? error.message : String(error),
-			);
+			setCreateFileError(resolveThrownError(i18n, error));
 		} finally {
 			setCreateFileSubmitting(false);
 		}
@@ -739,9 +739,11 @@ export function App() {
 								editorResult={workspaceState.editorResult}
 								pendingEditorRequests={workspaceState.pendingEditorRequests}
 								editorError={workspaceState.editorError}
-								errorMessage={
-									workspaceState.protocolError?.message ?? t("common.error")
-								}
+							errorMessage={
+								workspaceState.protocolError
+									? resolveMessage(i18n, workspaceState.protocolError)
+									: t("common.error")
+							}
 								activePrimaryTab={activePrimaryTab}
 								onOpenFolderModal={setFolderModalMode}
 								onCommand={(command, args) => {

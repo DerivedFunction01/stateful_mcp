@@ -39,4 +39,21 @@ export class ResourceRegistry {
 				(a.order ?? 100) - (b.order ?? 100) || a.kind.localeCompare(b.kind),
 		);
 	}
+
+	project(
+		references: readonly import("../../project/contracts").MacroProjectResourceReference[],
+	): readonly {
+		readonly provider: RegisteredResourceProvider;
+		readonly items: readonly {
+			readonly resourceId: string;
+			readonly label: string;
+			readonly metadata?: Readonly<Record<string, unknown>>;
+		}[];
+	}[] {
+		return this.list().flatMap((provider) => {
+			const result = provider.provider.listProjectResources?.({ references });
+			if (!result || result instanceof Promise) return [];
+			return [{ provider, items: result }];
+		});
+	}
 }

@@ -1,4 +1,5 @@
 import type { SidepanelPosition } from "./workspace";
+import type { MessageParam } from "./errors";
 
 export type SettingsScope = "user" | "workspace" | "folder";
 
@@ -102,7 +103,9 @@ export interface SettingsDiagnosticDto {
 	readonly severity: "error" | "warning";
 	readonly code?: string;
 	readonly path?: readonly string[];
-	readonly message: string;
+	/** Structured i18n key; the only message carrier. No human-readable fallback. */
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly line?: number;
 	readonly column?: number;
 	readonly restartRequired?: boolean;
@@ -274,7 +277,8 @@ export type SettingsUiOperation =
 export interface SettingsConflictResult {
 	readonly status: "conflict";
 	readonly code: "SETTINGS_REVISION_STALE";
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	readonly expectedRevision: string;
 	readonly actualRevision: string;
 	readonly snapshot: SettingsUiSnapshotDto;
@@ -289,7 +293,8 @@ export interface SettingsBlockedResult {
 export interface SettingsUnsupportedResult {
 	readonly status: "unsupported";
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	readonly snapshot: SettingsUiSnapshotDto;
 }
 
@@ -359,18 +364,21 @@ export type SettingsBundleStageResult =
 	  }
 	| {
 			readonly status: "invalid";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly diagnostics: readonly SettingsDiagnosticDto[];
 	  }
 	| {
 			readonly status: "unsupported";
 			readonly code: string;
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	  }
 	| {
 			readonly status: "stale";
 			readonly code: "SETTINGS_REVISION_STALE";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly expectedRevision: string;
 			readonly actualRevision: string;
 	  };
@@ -384,7 +392,8 @@ export type SettingsBundleApplyResult =
 	| {
 			readonly status: "stale";
 			readonly code: "SETTINGS_REVISION_STALE";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly expectedRevision: string;
 			readonly actualRevision: string;
 	  }

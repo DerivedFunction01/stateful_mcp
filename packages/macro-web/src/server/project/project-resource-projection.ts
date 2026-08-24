@@ -7,6 +7,26 @@ export function projectResourceTree(
 	const project = session.loaded.project;
 	if (!project) return [];
 	const references = project.descriptor.scratchpadResources ?? [];
+	const providerTrees = session.loaded.workspace.resources
+		.project(references)
+		.map(({ provider, items }) => ({
+			nodeId: `provider:${provider.kind}`,
+			nodeType: "folder" as const,
+			label: provider.title,
+			icon: provider.icon,
+			children: items.map((item) => ({
+				nodeId: `${provider.kind}:${item.resourceId}`,
+				nodeType: "resource" as const,
+				label: item.label,
+				category: "resource" as const,
+				scope: "project" as const,
+				resourceKind: provider.kind,
+				resourceId: item.resourceId,
+				capabilities: provider.capabilities ?? [],
+				metadata: item.metadata,
+			})),
+		}));
+	if (providerTrees.length > 0) return providerTrees;
 	const scratchpads = references.map((reference) => ({
 		nodeId: `${reference.kind}:${reference.resourceId}`,
 		nodeType: "resource" as const,

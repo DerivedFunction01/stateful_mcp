@@ -21,14 +21,14 @@ describe("macro protocol envelopes", () => {
 		expect(
 			failure("request-2", {
 				code: "STALE_REVISION",
-				message: "Stale",
+				messageKey: "common.error",
 				retryable: true,
 			}),
 		).toEqual({
 			version: MACRO_PROTOCOL_VERSION,
 			requestId: "request-2",
 			ok: false,
-			error: { code: "STALE_REVISION", message: "Stale", retryable: true },
+			error: { code: "STALE_REVISION", messageKey: "common.error", retryable: true },
 		});
 	});
 

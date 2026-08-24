@@ -128,9 +128,18 @@ export class ExtensionRuntime {
 				(dependency) => !this.extensions.get(dependency),
 			);
 			if (missing.length) {
-				const diagnostic = {
+				const messageParams = {
+					extensionId: id,
+					missing: missing.join(", "),
+				};
+				const diagnostic: ExtensionDiagnostic = {
 					code: "EXTENSION_DEPENDENCY_UNAVAILABLE",
-					message: `Extension '${id}' cannot activate because dependencies are unavailable: ${missing.join(", ")}`,
+					messageKey: "errors.extensionDependencyUnavailable",
+					messageParams,
+					message: defaultExtensionMessage(
+						"errors.extensionDependencyUnavailable",
+						messageParams,
+					),
 					extensionId: id,
 					sourceFile: item.sourceFile,
 				};
@@ -257,11 +266,13 @@ export class ExtensionRuntime {
 			this.contexts.delete(manifest.id);
 			await scope.close();
 			throw new ExtensionError(
-				`Activation failed for extension '${manifest.id}' from '${sourceFile}': ${error instanceof Error ? error.message : String(error)}`,
+				`Activation failed for extension '${manifest.id}' from '${sourceFile}'`,
 				"EXTENSION_ACTIVATION_FAILED",
 				manifest.id,
 				sourceFile,
 				error,
+				"errors.extensionActivationFailed",
+				{ extensionId: manifest.id, sourceFile },
 			);
 		}
 	}

@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { mkdir, rename as renameFile, rm, writeFile } from "node:fs/promises";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
@@ -28,6 +27,7 @@ import {
 	type HostEventType,
 	type KeymapBindingContextDto,
 	type KeymapBindingResolutionDto,
+	type MessageParam,
 	MACRO_PROTOCOL_VERSION,
 	type ProjectConfigurationDto,
 	type ProjectExtensionGroupDraft,
@@ -136,7 +136,7 @@ export class HostSessionManager {
 			requestId: operation.requestId,
 			status: "conflict",
 			code: "EDITOR_REVISION_STALE",
-			message: this.message(session, "editor.input.stale"),
+			messageKey: "editor.input.stale",
 			snapshot: this.editorSnapshot(session),
 			workspaceSnapshot: this.snapshot(session),
 			workspaceRevision: session.revision,
@@ -149,15 +149,15 @@ export class HostSessionManager {
 			requestId: operation.requestId,
 			status: "conflict",
 			code: "EDITOR_WORKSPACE_REVISION_STALE",
-			message: this.message(session, "editor.input.stale"),
+			messageKey: "editor.input.stale",
 			snapshot: this.editorSnapshot(session),
 			workspaceSnapshot: this.snapshot(session),
 			workspaceRevision: session.revision,
 			expectedWorkspaceRevision: expected,
 			actualWorkspaceRevision: session.revision,
 		}),
-		reject: (session, operation, code, message) =>
-			this.rejectedEditorResult(session, operation, code, message),
+		reject: (session, operation, code, _message) =>
+			this.rejectedEditorResult(session, operation, code),
 		emit: (session, type) => this.emit(session, type),
 		lines: extractedEditorLinesForOperation,
 		executeExecution: executeExecutionOperation,
@@ -175,6 +175,16 @@ export class HostSessionManager {
 		projectRoot: (session) => this.requireProjectRoot(session),
 		resolvePath: (root, path) => this.resolveProjectPath(root, path, false),
 		getArtifact: (token: string) => this.getArtifact(token),
+		sessionOwner: (session) => session.id,
+		isResourceExposed: (session, kind, resourceId) =>
+			Boolean(
+				session.loaded.project?.descriptor.scratchpadResources?.some(
+					(reference) =>
+						reference.kind === kind && reference.resourceId === resourceId,
+				),
+			),
+		materializeArtifact: (session, token) =>
+			this.materializeArtifact(session, token),
 		openScratchpad: (session: Session, id: string, groupId?: string) =>
 			this.openScratchpadDocument(session, id, groupId),
 	});
@@ -203,13 +213,55 @@ export class HostSessionManager {
 		mimeType: string;
 		lifecycle?: "ephemeral" | "project" | "extension" | "external";
 		expiresAt?: number;
+		owner?: string;
+		projectId?: string;
 	}): string {
-		const token = randomUUID();
 		return this.artifacts.register(input);
 	}
 
 	getArtifact(token: string) {
 		return this.artifacts.get(token);
+	}
+
+	private async materializeArtifact(session: Session, token: string) {
+		const artifact = this.artifacts.get(token);
+		if (
+			!artifact ||
+			(artifact.owner !== undefined && artifact.owner !== session.id)
+		)
+			throw new SessionError(
+				"ARTIFACT_UNAUTHORIZED",
+				"artifact.unauthorized",
+				false,
+			);
+		const project = session.loaded.project;
+		if (!project)
+			throw new SessionError("PROJECT_NOT_FOUND", "project.notFound", false);
+		const resourceId = `artifact-${token}`;
+		const safeName = artifact.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+		const directory = join(project.rootPath, ".macro-artifacts");
+		await mkdir(directory, { recursive: true });
+		await writeFile(
+			join(directory, `${resourceId}-${safeName}`),
+			artifact.data,
+		);
+		await project.saveManifest(
+			{
+				...project.manifest,
+				resources: [
+					...project.manifest.resources.filter(
+						(item) => item.resourceId !== resourceId,
+					),
+					{
+						resourceId,
+						kind: "artifact",
+						metadata: { title: artifact.name, mimeType: artifact.mimeType },
+					},
+				],
+			},
+			project.descriptor.revision,
+		);
+		return { resourceId };
 	}
 
 	async getUserPreferences(): Promise<UserPreferencesDto> {
@@ -287,7 +339,7 @@ export class HostSessionManager {
 		) {
 			throw new SessionError(
 				"INVALID_REQUEST",
-				"Directory name must be a single non-empty path segment",
+				"request.directoryName.invalid",
 				false,
 			);
 		}
@@ -361,7 +413,7 @@ export class HostSessionManager {
 		if (from === root || to === root)
 			throw new SessionError(
 				"INVALID_REQUEST",
-				"Project root cannot be renamed",
+				"project.root.renameForbidden",
 				false,
 			);
 		for (const document of session.loaded.workspace.documents.list()) {
@@ -373,7 +425,7 @@ export class HostSessionManager {
 			)
 				throw new SessionError(
 					"INVALID_REQUEST",
-					"Dirty open documents must be saved before rename",
+					"project.rename.dirtyDocuments",
 					false,
 				);
 		}
@@ -402,7 +454,7 @@ export class HostSessionManager {
 		if (path === root)
 			throw new SessionError(
 				"INVALID_REQUEST",
-				"Project root cannot be deleted",
+				"project.root.deleteForbidden",
 				false,
 			);
 		for (const document of session.loaded.workspace.documents.list()) {
@@ -412,7 +464,7 @@ export class HostSessionManager {
 			)
 				throw new SessionError(
 					"INVALID_REQUEST",
-					"Open documents must be closed before delete",
+					"project.delete.openDocuments",
 					false,
 				);
 		}
@@ -423,7 +475,7 @@ export class HostSessionManager {
 	private requireProjectRoot(session: Session): string {
 		const root = session.loaded.project?.rootPath;
 		if (!root)
-			throw new SessionError("PROJECT_NOT_OPENED", "No project is open", false);
+			throw new SessionError("PROJECT_NOT_OPENED", "project.notOpened", false);
 		return resolve(root);
 	}
 
@@ -443,7 +495,7 @@ export class HostSessionManager {
 		)
 			return resolve(this.projectRoot);
 		if (!session)
-			throw new SessionError("PROJECT_NOT_OPENED", "No project is open", false);
+			throw new SessionError("PROJECT_NOT_OPENED", "project.notOpened", false);
 		return this.requireProjectRoot(session);
 	}
 
@@ -529,7 +581,7 @@ export class HostSessionManager {
 		if (!project)
 			throw new SessionError(
 				"PROJECT_REQUIRED",
-				"A project workspace is required",
+				"project.required",
 				false,
 			);
 		return extractedGetProjectConfiguration(project, session.loaded);
@@ -543,7 +595,7 @@ export class HostSessionManager {
 					(() => {
 						throw new SessionError(
 							"SESSION_NOT_FOUND",
-							"Session not found",
+							"session.notFound",
 							false,
 						);
 					})(),
@@ -607,7 +659,7 @@ export class HostSessionManager {
 		if (!session.loaded.project)
 			throw new SessionError(
 				"PROJECT_REQUIRED",
-				"A project workspace is required",
+				"project.required",
 				false,
 			);
 		return extractedUpdateProjectConfiguration(
@@ -723,7 +775,7 @@ export class HostSessionManager {
 		if (!project)
 			throw new SessionError(
 				"PROJECT_REQUIRED",
-				"A project workspace is required",
+				"project.required",
 				false,
 			);
 		return project;
@@ -964,15 +1016,15 @@ export class HostSessionManager {
 		session: Session,
 		operation: EditorOperation,
 		code: string,
-		message: string,
+		messageParams?: Readonly<Record<string, MessageParam>>,
 	): EditorOperationResult {
-		const localizedMessage = this.editorMessage(session, code, message);
 		return {
 			operation: operation.operation,
 			requestId: operation.requestId,
 			status: "rejected",
 			code,
-			message: localizedMessage,
+			messageKey: this.editorMessageKey(code),
+			...(messageParams ? { messageParams } : {}),
 			snapshot: this.editorSnapshot(session),
 			workspaceSnapshot: this.snapshot(session),
 			workspaceRevision: session.revision,
@@ -982,32 +1034,36 @@ export class HostSessionManager {
 		};
 	}
 
-	private editorMessage(
-		session: Session,
-		code: string,
-		fallback: string,
-	): string {
+	private editorMessageKey(code: string): string {
 		switch (code) {
 			case "EDITOR_DOCUMENT_NOT_FOUND":
-				return this.message(session, "editor.document.notFound");
+				return "editor.document.notFound";
 			case "EDITOR_GROUP_NOT_FOUND":
-				return this.message(session, "editor.group.notFound");
+				return "editor.group.notFound";
 			case "EDITOR_LAST_GROUP":
-				return this.message(session, "editor.group.last");
+				return "editor.group.last";
 			case "EDITOR_DOCUMENT_DIRTY":
-				return this.message(session, "editor.document.closeDirty");
+				return "editor.document.closeDirty";
 			case "EDITOR_LAST_DOCUMENT":
-				return this.message(session, "editor.document.last");
+				return "editor.document.last";
 			case "EDITOR_TITLE_REQUIRED":
-				return this.message(session, "editor.document.titleRequired");
+				return "editor.document.titleRequired";
 			case "EDITOR_TEMPLATE_NOT_FOUND":
-				return this.message(session, "editor.template.notFound");
+				return "editor.template.notFound";
 			case "EDITOR_TEMPLATE_SEED_UNAVAILABLE":
-				return this.message(session, "editor.template.seedUnavailable");
+				return "editor.template.seedUnavailable";
+			case "EDITOR_TEMPLATE_READONLY":
+				return "editor.template.readOnly";
 			case "EDITOR_OPERATION_FAILED":
-				return this.message(session, "editor.operation.failed");
+				return "editor.operation.failed";
+			case "EDITOR_LINE_NOT_EXECUTABLE":
+				return "editor.line.notExecutable";
+			case "EDITOR_RANGE_INVALID":
+				return "editor.range.invalid";
+			case "RESOURCE_NOT_FOUND":
+				return "editor.resource.notFound";
 			default:
-				return fallback;
+				return code;
 		}
 	}
 
@@ -1117,3 +1173,5 @@ export class HostSessionManager {
 		});
 	}
 }
+
+import { randomUUID } from "node:crypto";

@@ -123,6 +123,12 @@ describe("neutral macro parser", () => {
 				(diagnostic) => diagnostic.code === "UNKNOWN_ARGUMENT",
 			),
 		).toBe(true);
+		const unknown = result?.diagnostics.find(
+			(diagnostic) => diagnostic.code === "UNKNOWN_ARGUMENT",
+		);
+		expect(unknown?.messageKey).toBe("errors.unknownArgument");
+		expect(unknown?.messageParams).toEqual({ argumentName: "bogus" });
+		expect(unknown?.message).toBe("errors.unknownArgument");
 		expect(result?.matches.some((match) => match.rawValue === "disabled")).toBe(
 			false,
 		);

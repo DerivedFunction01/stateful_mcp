@@ -26,8 +26,17 @@ export function toScratchpadDiagnosticDto(
 ): DiagnosticDto {
 	return {
 		severity: isValid ? "info" : "error",
-		message: diagnostic.message,
+		/**
+		 * The DTO is a strict structured descriptor: it carries only
+		 * `messageKey` + `messageParams`, never a human-readable `message`.
+		 * Prefer the macro-supplied key, falling back to its `code` so a
+		 * structured identifier is always present.
+		 */
 		code: diagnostic.code,
+		messageKey: diagnostic.messageKey ?? diagnostic.code,
+		...(diagnostic.messageParams !== undefined
+			? { messageParams: diagnostic.messageParams }
+			: {}),
 		...(diagnostic.start !== undefined && diagnostic.end !== undefined
 			? {
 					span: {

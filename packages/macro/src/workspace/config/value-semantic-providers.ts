@@ -51,7 +51,8 @@ function diagnostic(
 		severity: "error",
 		code: item.code,
 		path,
-		message: item.message,
+		messageKey: "settings.values.parseError",
+		messageParams: { code: item.code ?? "unknown", message: item.message },
 	};
 }
 
@@ -140,13 +141,14 @@ export const quantitySettingsSemanticProvider: SettingsSemanticProvider = {
 		const analyses = templates.map((template) =>
 			analyzeFormatTemplate(template, QUANTITY_TOKENS),
 		);
-		const diagnostics = analyses.flatMap((analysis) =>
-			analysis.unknownTokens.map((item) =>
-				diagnostic(path, {
-					code: "UNKNOWN_TEMPLATE_TOKEN",
-					message: item.text,
-				}),
-			),
+		const diagnostics = analyses.flatMap<SettingsDiagnostic>((analysis) =>
+			analysis.unknownTokens.map((item) => ({
+				severity: "error" as const,
+				code: "UNKNOWN_TEMPLATE_TOKEN",
+				path,
+				messageKey: "settings.values.unknownTemplateToken",
+				messageParams: { token: item.text },
+			})),
 		);
 		let sample: SettingsPreviewResult["sample"];
 		if (request.sampleInput) {
@@ -209,13 +211,14 @@ export const frequencySettingsSemanticProvider: SettingsSemanticProvider = {
 		const analyses = templates.map((template) =>
 			analyzeFormatTemplate(template, FREQUENCY_TOKENS),
 		);
-		const diagnostics = analyses.flatMap((analysis) =>
-			analysis.unknownTokens.map((item) =>
-				diagnostic(path, {
-					code: "UNKNOWN_TEMPLATE_TOKEN",
-					message: item.text,
-				}),
-			),
+		const diagnostics = analyses.flatMap<SettingsDiagnostic>((analysis) =>
+			analysis.unknownTokens.map((item) => ({
+				severity: "error" as const,
+				code: "UNKNOWN_TEMPLATE_TOKEN",
+				path,
+				messageKey: "settings.values.unknownTemplateToken",
+				messageParams: { token: item.text },
+			})),
 		);
 		let sample: SettingsPreviewResult["sample"];
 		if (request.sampleInput) {
@@ -318,13 +321,14 @@ export const currencySettingsSemanticProvider: SettingsSemanticProvider = {
 		const analyses = templates.map((template) =>
 			analyzeFormatTemplate(template, CURRENCY_TOKENS),
 		);
-		const diagnostics = analyses.flatMap((analysis) =>
-			analysis.unknownTokens.map((item) =>
-				diagnostic(request.path, {
-					code: "UNKNOWN_TEMPLATE_TOKEN",
-					message: item.text,
-				}),
-			),
+		const diagnostics = analyses.flatMap<SettingsDiagnostic>((analysis) =>
+			analysis.unknownTokens.map((item) => ({
+				severity: "error" as const,
+				code: "UNKNOWN_TEMPLATE_TOKEN",
+				path: request.path,
+				messageKey: "settings.values.unknownTemplateToken",
+				messageParams: { token: item.text },
+			})),
 		);
 		const parsed = request.sampleInput
 			? parseCurrency(request.sampleInput, config)
@@ -380,12 +384,13 @@ export const dateTimeSettingsSemanticProvider: SettingsSemanticProvider = {
 		const config = parseDateTimeStringToConfig(
 			template,
 		) as DateTimeFormatConfig;
-		const diagnostics = analysis.unknownTokens.map((item) =>
-			diagnostic(request.path, {
-				code: "UNKNOWN_TEMPLATE_TOKEN",
-				message: item.text,
-			}),
-		);
+		const diagnostics = analysis.unknownTokens.map((item) => ({
+			severity: "error" as const,
+			code: "UNKNOWN_TEMPLATE_TOKEN",
+			path: request.path,
+			messageKey: "settings.values.unknownTemplateToken",
+			messageParams: { token: item.text },
+		}));
 		return {
 			requestId: request.requestId,
 			settingsRevision: request.settingsRevision,

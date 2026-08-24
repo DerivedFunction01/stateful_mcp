@@ -20,6 +20,11 @@ export interface ResourceDiagnostic {
 	recordType?: DictionaryRecordType;
 	recordId?: string;
 	severity?: "warning" | "error";
+	/** Structured i18n key; the canonical message carrier for user-facing surfaces. */
+	messageKey?: string;
+	messageParams?: Readonly<
+		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+	>;
 }
 
 export interface NamespaceSeed {

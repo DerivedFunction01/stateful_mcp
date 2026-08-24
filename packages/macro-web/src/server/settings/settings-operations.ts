@@ -116,7 +116,7 @@ export function buildConflictResult(
 	return {
 		status: "conflict",
 		code: "SETTINGS_REVISION_STALE",
-		message: host.message(workspace, "settings.bundle.stale"),
+		messageKey: "settings.bundle.stale",
 		expectedRevision: result.expectedRevision,
 		actualRevision: result.actualRevision,
 		snapshot: host.settingsSnapshot(workspace),
@@ -131,9 +131,8 @@ export function buildUnsupportedScopeResult(
 	return {
 		status: "unsupported",
 		code: "SETTINGS_SCOPE_UNSUPPORTED",
-		message: host.message(workspace, "settings.bundle.scopeUnsupported", {
-			scope,
-		}),
+		messageKey: "settings.bundle.scopeUnsupported",
+		messageParams: { scope },
 		snapshot: host.settingsSnapshot(workspace),
 	};
 }

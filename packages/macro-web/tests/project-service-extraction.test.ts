@@ -164,8 +164,8 @@ describe("project-migrations equivalence with HostSessionManager", () => {
 		expect(serviceResult).toEqual(managerResult);
 		expect(serviceResult.status).toBe("rejected");
 		if (serviceResult.status === "rejected")
-			expect(serviceResult.message).toBe(
-				"No migration journal is available to resume",
+			expect(serviceResult.messageKey).toBe(
+				"project.migration.resume.noJournal",
 			);
 		await h.dispose();
 	});
@@ -185,8 +185,8 @@ describe("project-migrations equivalence with HostSessionManager", () => {
 		);
 		expect(sameBackend.status).toBe("rejected");
 		if (sameBackend.status === "rejected")
-			expect(sameBackend.message).toBe(
-				"The target backend must differ from the current backend",
+			expect(sameBackend.messageKey).toBe(
+				"project.migration.apply.identicalBackend",
 			);
 
 		const target = { kind: "sqlite" as const, path: ".macro/state.sqlite" };
@@ -462,9 +462,10 @@ describe("project-extension-groups equivalence with HostSessionManager", () => {
 
 		expect(result.status).toBe("rejected");
 		if (result.status === "rejected") {
-			expect(result.message).toBe(
-				"Activating the extension group failed and was rolled back: boom",
+			expect(result.messageKey).toBe(
+				"project.extensionGroup.activation.rolledBack",
 			);
+			expect(result.messageParams).toEqual({ reason: "boom" });
 			// A project is still open, so the configuration is reported.
 			expect(result.configuration).toBeDefined();
 		}

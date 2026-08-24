@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { trapFocus } from "../lib/focus-trap";
 import type { HostClient } from "../lib/host-client";
 import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
+import { resolveMessage } from "../lib/message-resolver";
 import {
 	Badge,
 	Button,
@@ -44,7 +45,8 @@ export function SettingsTab({
 	readonly client: HostClient;
 	readonly snapshot?: WorkspaceSnapshot;
 }) {
-	const { t } = useI18n();
+	const i18n = useI18n();
+	const { t } = i18n;
 	const hostSettings = snapshot?.settings;
 	const [ui, setUi] = useState<SettingsUiSnapshotDto | undefined>(hostSettings);
 	const [query, setQuery] = useState(hostSettings?.searchQuery ?? "");
@@ -120,7 +122,7 @@ export function SettingsTab({
 			const result = await client.applySettingsUi(operation);
 			if (result.snapshot) setUi(result.snapshot);
 			if (result.status === "unsupported") {
-				setNotice({ severity: "warning", message: result.message });
+				setNotice({ severity: "warning", message: resolveMessage(i18n, result) });
 			}
 		} catch (error) {
 			setNotice({ severity: "error", message: t("common.error") });
@@ -151,7 +153,7 @@ export function SettingsTab({
 					message: t("settings.conflict"),
 				});
 			} else if (result.status === "unsupported") {
-				setNotice({ severity: "warning", message: result.message });
+				setNotice({ severity: "warning", message: resolveMessage(i18n, result) });
 			} else if (result.status === "preview") {
 				setNotice({
 					severity: result.preview.status === "invalid" ? "error" : "info",

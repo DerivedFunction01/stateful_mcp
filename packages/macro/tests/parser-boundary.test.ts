@@ -161,6 +161,16 @@ describe("Phase 2 parser boundary hardening", () => {
 			expect(
 				result?.diagnostics.some((d) => d.code === "DUPLICATE_ARGUMENT"),
 			).toBe(true);
+			const unknown = result?.diagnostics.find(
+				(d) => d.code === "UNKNOWN_ARGUMENT",
+			);
+			expect(unknown?.messageKey).toBe("errors.unknownArgument");
+			expect(unknown?.messageParams).toEqual({ argumentName: "bogus" });
+			const duplicate = result?.diagnostics.find(
+				(d) => d.code === "DUPLICATE_ARGUMENT",
+			);
+			expect(duplicate?.messageKey).toBe("errors.duplicateArgument");
+			expect(duplicate?.messageParams).toEqual({ argumentName: "year" });
 		});
 	});
 
@@ -248,6 +258,15 @@ describe("Phase 2 parser boundary hardening", () => {
 			expect(result?.diagnostics.some((d) => d.code === "STALE_SNAPSHOT")).toBe(
 				true,
 			);
+			const stale = result?.diagnostics.find(
+				(d) => d.code === "STALE_SNAPSHOT",
+			);
+			expect(stale?.messageKey).toBe("errors.staleSnapshot");
+			expect(stale?.messageParams).toEqual({
+				snapshotVersion: "v0.9.0-old",
+				resolverId: "books",
+				currentVersion: "v1.0.0",
+			});
 			// Falls back to live backend
 			expect(result?.matches[0]?.canonicalValue).toBe("harry-series");
 		});

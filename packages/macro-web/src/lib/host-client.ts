@@ -16,6 +16,7 @@ import {
 	type ProjectMigrationJournalStatusDto,
 	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
+	safeHostError,
 	type SettingsApplyResult,
 	type SettingsBundleOperation,
 	type SettingsBundleResult,
@@ -39,7 +40,7 @@ export type TransportState =
 
 export class HostRequestError extends Error {
 	constructor(readonly error: HostError) {
-		super(error.message);
+		super(error.code);
 		this.name = "HostRequestError";
 	}
 }
@@ -777,12 +778,7 @@ export class BrowserHostClient implements HostClient {
 		});
 		const envelope = (await response.json()) as HostResponse<T>;
 		if (!response.ok || !envelope.ok) {
-			throw new HostRequestError(
-				envelope.error ?? {
-					code: "HOST_REQUEST_FAILED",
-					message: `Host responded with ${response.status}`,
-				},
-			);
+			throw new HostRequestError(envelope.error ?? safeHostError(response.status));
 		}
 		return envelope.payload as T;
 	}

@@ -1,5 +1,6 @@
 import type { CommandDescriptorDto } from "./commands";
 import type { EditorWorkspaceSnapshotDto } from "./editor";
+import type { MessageParam } from "./errors";
 import type { SettingsSchemaEntryDto, SettingsUiSnapshotDto } from "./settings";
 
 export type GitFileStatus = "modified" | "untracked" | "staged" | "deleted";
@@ -191,7 +192,8 @@ export type ProjectExtensionGroupDiagnosticSeverityDto =
 export interface ProjectExtensionGroupDiagnosticDto {
 	readonly code: string;
 	readonly severity: ProjectExtensionGroupDiagnosticSeverityDto;
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, import("./errors").MessageParam>>;
 	readonly groupId?: string;
 	readonly extensionId?: string;
 	readonly dependencyId?: string;
@@ -324,7 +326,8 @@ export interface ProjectMigrationParticipantDto {
 	readonly dependsOn?: readonly string[];
 	readonly status: "ready" | "missing" | "incompatible";
 	readonly resourceIds: readonly string[];
-	readonly message?: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 }
 
 export interface ProjectBackendMigrationPlanDto {
@@ -572,7 +575,8 @@ export type ProjectExtensionGroupOperationResult =
 	  }
 	| {
 			readonly status: "conflict" | "rejected" | "unsupported";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly configuration?: ProjectConfigurationDto;
 			readonly diagnostics?: readonly ProjectExtensionGroupDiagnosticDto[];
 	  };
@@ -586,7 +590,8 @@ export type ProjectOperationResult =
 	  }
 	| {
 			readonly status: "migrationRequired";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly configuration: ProjectConfigurationDto;
 	  }
 	| {
@@ -602,7 +607,8 @@ export type ProjectOperationResult =
 	  }
 	| {
 			readonly status: "conflict" | "rejected" | "unsupported";
-			readonly message: string;
+			readonly messageKey: string;
+			readonly messageParams?: Readonly<Record<string, MessageParam>>;
 			readonly configuration?: ProjectConfigurationDto;
 			readonly diagnostics?: readonly ProjectExtensionGroupDiagnosticDto[];
 	  };
@@ -667,9 +673,9 @@ export interface LayoutSnapshotDto {
 
 export interface DiagnosticDto {
 	readonly severity: "info" | "warning" | "error";
-	readonly message: string;
 	readonly code?: string;
-	readonly messageKey?: string;
+	/** Structured i18n key; the only message carrier. No human-readable fallback. */
+	readonly messageKey: string;
 	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly span?: {
 		readonly start: number;

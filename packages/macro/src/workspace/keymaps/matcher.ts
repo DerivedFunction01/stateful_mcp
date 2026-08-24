@@ -478,7 +478,8 @@ export interface KeymapDiagnostic {
 		| "sequence-prefix-conflict"
 		| "invalid-chord"
 		| "reserved-binding";
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly bindings: readonly string[];
 	readonly paths: readonly string[];
 }
@@ -499,7 +500,7 @@ export function auditKeymapAndLogDiagnostics(
 	for (const d of diagnostics) {
 		const prefix =
 			d.severity === "error" ? "[Keymap Conflict]" : "[Keymap Warning]";
-		console.warn(`${prefix} (${d.code}): ${d.message}`);
+		console.warn(`${prefix} (${d.code}): ${d.messageKey}`);
 	}
 	return diagnostics;
 }
@@ -515,7 +516,8 @@ export function validateEditorKeymap(
 				diagnostics.push({
 					severity: "error",
 					code: "invalid-chord",
-					message: `Unknown chord '${chord}' for command '${binding.command}'.`,
+					messageKey: "keymap.diagnostic.invalidChord",
+					messageParams: { chord, command: binding.command },
 					bindings: [chord],
 					paths: [`keybindings.${binding.command}`],
 				});
@@ -525,7 +527,12 @@ export function validateEditorKeymap(
 		diagnostics.push({
 			severity: "error",
 			code: "duplicate-binding",
-			message: `Chord '${conflict.chord}' is bound to both '${conflict.first}' and '${conflict.second}'.`,
+			messageKey: "keymap.diagnostic.duplicateBinding",
+			messageParams: {
+				chord: conflict.chord,
+				first: conflict.first,
+				second: conflict.second,
+			},
 			bindings: [conflict.chord],
 			paths: [
 				`keybindings.${conflict.first}`,
@@ -550,7 +557,8 @@ export function validateEditorKeymap(
 					diagnostics.push({
 						severity: "error",
 						code: "invalid-chord",
-						message: `Unknown chord '${chord}'. Must conform to canonical grammar [ctrl+][meta+][primary+][shift+]<canonical_key>.`,
+						messageKey: "keymap.diagnostic.invalidChordFormat",
+						messageParams: { chord },
 						bindings: [chord],
 						paths: [`${mode}.${action}`],
 					});
@@ -559,13 +567,18 @@ export function validateEditorKeymap(
 				const key = normalized ?? chord;
 				const prior = seen.get(key);
 				if (prior && prior[1] !== action) {
-					diagnostics.push({
-						severity: "error",
-						code: "duplicate-binding",
-						message: `Chord '${chord}' is bound to both '${prior[1]}' and '${action}'.`,
-						bindings: [prior[0], chord],
-						paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
-					});
+				diagnostics.push({
+					severity: "error",
+					code: "duplicate-binding",
+					messageKey: "keymap.diagnostic.duplicateBinding",
+					messageParams: {
+						chord,
+						first: prior[1],
+						second: action,
+					},
+					bindings: [prior[0], chord],
+					paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
+				});
 				} else seen.set(key, [chord, action]);
 			}
 		}
@@ -593,7 +606,8 @@ export function validateEditorKeymap(
 					diagnostics.push({
 						severity: "error",
 						code: "sequence-prefix-conflict",
-						message: `Sequences '${first}' and '${second}' conflict.`,
+						messageKey: "keymap.diagnostic.sequencePrefixConflict",
+						messageParams: { first, second },
 						bindings: [first, second],
 						paths: [`sequences.${a}`, `sequences.${b}`],
 					});

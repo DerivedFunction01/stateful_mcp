@@ -130,7 +130,7 @@ export async function executePersistenceOperation(
 			...context.base(),
 			status: "conflict",
 			code: "EDITOR_EXTERNAL_CHANGE",
-			message: "The file changed on disk. Reload or overwrite it.",
+			messageKey: "editor.externalChange",
 			documentId: document.documentId,
 			path: relative(root, path).split(sep).join("/"),
 			textRevision: document.textRevision,

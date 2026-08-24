@@ -114,7 +114,11 @@ describe("shared lexical scanner", () => {
 		const quoteDiag: MacroDiagnostic[] = [];
 		scanNamedAssignments('^cmd val="unterminated', 5, quoteDiag);
 		expect(quoteDiag).toContainEqual(
-			expect.objectContaining({ code: "UNTERMINATED_QUOTE" }),
+			expect.objectContaining({
+				code: "UNTERMINATED_QUOTE",
+				messageKey: "errors.unterminatedQuote",
+				message: "errors.unterminatedQuote",
+			}),
 		);
 
 		const groupDiag: MacroDiagnostic[] = [];
@@ -123,7 +127,11 @@ describe("shared lexical scanner", () => {
 			groupClose: "]",
 		});
 		expect(groupDiag).toContainEqual(
-			expect.objectContaining({ code: "UNTERMINATED_GROUP" }),
+			expect.objectContaining({
+				code: "UNTERMINATED_GROUP",
+				messageKey: "errors.unterminatedGroup",
+				message: "errors.unterminatedGroup",
+			}),
 		);
 	});
 

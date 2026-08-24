@@ -1,4 +1,5 @@
 import type { I18nKernel, TranslationParams } from "./i18n-kernel";
+import type { MessageDescriptor } from "@stateful-mcp/macro-protocol";
 import { EN_LOCALE, ES_LOCALE } from "./locales";
 
 export function translate(
@@ -30,3 +31,19 @@ export function registerMacroLocales(i18n: I18nKernel): void {
 }
 
 export const t = translate;
+
+export function messageDescriptor(
+	messageKey: string,
+	messageParams?: Readonly<Record<string, string | number | boolean>>,
+): MessageDescriptor {
+	return messageParams === undefined
+		? { messageKey }
+		: { messageKey, messageParams };
+}
+
+export function resolveMessage(
+	i18n: I18nKernel | undefined,
+	descriptor: MessageDescriptor,
+): string {
+	return translate(i18n, descriptor.messageKey, descriptor.messageParams);
+}

@@ -77,5 +77,11 @@ describe("neutral payload compiler", () => {
 				(diagnostic) => diagnostic.code === "PATH_CONFLICT",
 			),
 		).toBe(true);
+		const conflict = result.diagnostics.find(
+			(diagnostic) => diagnostic.code === "PATH_CONFLICT",
+		);
+		expect(conflict?.messageKey).toBe("errors.payloadPathDuplicate");
+		expect(conflict?.messageParams).toEqual({ path: "same.value" });
+		expect(conflict?.message).toBe("errors.payloadPathDuplicate");
 	});
 });

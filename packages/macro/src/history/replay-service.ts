@@ -11,7 +11,15 @@ export interface MacroReplayResult {
 	events: import("@stateful-mcp/core").HistoryEvent<MacroExecutionAttempt>[];
 	listenerOutputs: import("../listeners/listener-registry").MacroListenerOutput[];
 	rendererOutputs: MacroRenderOutput[];
-	diagnostics: { code: string; message: string; sequence?: number }[];
+	diagnostics: {
+		code: string;
+		message?: string;
+		messageKey?: string;
+		messageParams?: Readonly<
+			Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+		>;
+		sequence?: number;
+	}[];
 	fingerprint: string;
 }
 
@@ -37,6 +45,7 @@ export class MacroReplayService {
 				diagnostics: [
 					{
 						code: "HISTORY_CURSOR_INVALID",
+						messageKey: "errors.historyCursorInvalid",
 						message: "Replay range is invalid",
 					},
 				],
@@ -48,19 +57,32 @@ export class MacroReplayService {
 		const listenerOutputs: import("../listeners/listener-registry").MacroListenerOutput[] =
 			[];
 		const rendererOutputs: MacroRenderOutput[] = [];
-		const diagnostics: { code: string; message: string; sequence?: number }[] =
-			result.diagnostics.map((item) => ({
-				code: item.code,
-				message: item.message,
-				sequence: item.sequence,
-			}));
+		const diagnostics: {
+			code: string;
+			message?: string;
+			messageKey?: string;
+			messageParams?: Readonly<
+				Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+			>;
+			sequence?: number;
+		}[] = result.diagnostics.map((item) => ({
+			code: item.code,
+			message: item.message,
+			sequence: item.sequence,
+		}));
 		for (const event of result.events.sort(
 			(left, right) => left.sequence - right.sequence,
 		)) {
 			diagnostics.push(
 				...event.payload.diagnostics.map((item) => ({
 					code: item.code,
-					message: item.message,
+					message: item.message ?? item.messageKey ?? item.code,
+					...(item.messageKey !== undefined
+						? { messageKey: item.messageKey }
+						: {}),
+					...(item.messageParams !== undefined
+						? { messageParams: item.messageParams }
+						: {}),
 					sequence: event.sequence,
 				})),
 			);

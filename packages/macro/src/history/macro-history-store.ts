@@ -125,7 +125,10 @@ export class MacroExecutionHistory {
 				diagnostics: [
 					{
 						code: "EXECUTOR_FAILED",
-						message: error instanceof Error ? error.message : String(error),
+						messageKey: "errors.executorFailed",
+						messageParams: {
+							detail: error instanceof Error ? error.message : String(error),
+						},
 					},
 				],
 			};
@@ -135,7 +138,14 @@ export class MacroExecutionHistory {
 	private async dispatchStored(
 		event: HistoryEvent<MacroExecutionAttempt>,
 		history: readonly HistoryEvent<MacroExecutionAttempt>[],
-		recoveryDiagnostics: readonly { code: string; message: string }[],
+		recoveryDiagnostics: readonly {
+			code: string;
+			message?: string;
+			messageKey?: string;
+			messageParams?: Readonly<
+				Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+			>;
+		}[],
 	): Promise<MacroExecutionResult> {
 		const attempts = history
 			.filter((item) => item.sequence <= event.sequence)
@@ -161,6 +171,12 @@ export class MacroExecutionHistory {
 				...recoveryDiagnostics.map((item) => ({
 					code: item.code,
 					message: item.message,
+					...(item.messageKey !== undefined
+						? { messageKey: item.messageKey }
+						: {}),
+					...(item.messageParams !== undefined
+						? { messageParams: item.messageParams }
+						: {}),
 				})),
 				...listenerResult.diagnostics,
 				...rendererResult.diagnostics,
@@ -186,6 +202,10 @@ const defaultMacroExecutor: import("./contracts").MacroExecutor = {
 function toDraftDiagnostic(diagnostic: {
 	code: string;
 	message: string;
+	messageKey?: string;
+	messageParams?: Readonly<
+		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+	>;
 	start?: number;
 	end?: number;
 	argumentId?: string;
@@ -194,6 +214,12 @@ function toDraftDiagnostic(diagnostic: {
 	return {
 		code: diagnostic.code,
 		message: diagnostic.message,
+		...(diagnostic.messageKey !== undefined
+			? { messageKey: diagnostic.messageKey }
+			: {}),
+		...(diagnostic.messageParams !== undefined
+			? { messageParams: diagnostic.messageParams }
+			: {}),
 		start: diagnostic.start,
 		end: diagnostic.end,
 		argumentId: diagnostic.argumentId,

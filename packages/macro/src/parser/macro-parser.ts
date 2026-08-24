@@ -100,7 +100,9 @@ export function parseMacroLine(
 		if (!argument) {
 			diagnostics.push({
 				code: "UNKNOWN_ARGUMENT",
-				message: `Unknown argument '${segment.name}'`,
+				message: "errors.unknownArgument",
+				messageKey: "errors.unknownArgument",
+				messageParams: { argumentName: segment.name },
 				start: segment.start,
 				end: segment.end,
 			});
@@ -111,7 +113,9 @@ export function parseMacroLine(
 			diagnostics.push({
 				code: "DUPLICATE_ARGUMENT",
 				argumentId: argument.argumentId,
-				message: `Argument '${argument.name}' was provided more than once`,
+				message: "errors.duplicateArgument",
+				messageKey: "errors.duplicateArgument",
+				messageParams: { argumentName: argument.name },
 				start: segment.start,
 				end: segment.end,
 			});
@@ -266,7 +270,9 @@ export function parseMacroLine(
 				diagnostics.push({
 					code: "MISSING_REQUIRED",
 					argumentId: argument.argumentId,
-					message: `Required argument '${argument.name}' is missing`,
+					message: "errors.missingRequiredArgument",
+					messageKey: "errors.missingRequiredArgument",
+					messageParams: { argumentName: argument.name },
 				});
 			}
 			continue;
@@ -587,7 +593,13 @@ function findArgumentMatches(
 					diagnostics.push({
 						code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
 						argumentId: argument.argumentId,
-						message: `Candidate snapshot from extension '${snapshot.ownerExtensionId}' rejected for resolver '${matcher.backendId}' owned by '${backend.ownerExtensionId}'`,
+						message: "errors.crossResourceCandidateRejectedExtension",
+						messageKey: "errors.crossResourceCandidateRejectedExtension",
+						messageParams: {
+							ownerExtensionId: snapshot.ownerExtensionId,
+							resolverId: matcher.backendId,
+							backendOwnerExtensionId: backend.ownerExtensionId,
+						},
 					});
 					return [];
 				}
@@ -599,7 +611,12 @@ function findArgumentMatches(
 					diagnostics.push({
 						code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
 						argumentId: argument.argumentId,
-						message: `Candidate snapshot from resource '${snapshot.resourceId}' rejected for resolver '${matcher.backendId}'`,
+						message: "errors.crossResourceCandidateRejectedResource",
+						messageKey: "errors.crossResourceCandidateRejectedResource",
+						messageParams: {
+							resourceId: snapshot.resourceId,
+							resolverId: matcher.backendId,
+						},
 					});
 					return [];
 				}
@@ -613,7 +630,13 @@ function findArgumentMatches(
 						diagnostics.push({
 							code: "STALE_SNAPSHOT",
 							argumentId: argument.argumentId,
-							message: `Candidate snapshot version '${snapshot.version}' is stale for resolver '${matcher.backendId}' (current: '${backendVersion}')`,
+							message: "errors.staleSnapshot",
+							messageKey: "errors.staleSnapshot",
+							messageParams: {
+								snapshotVersion: String(snapshot.version),
+								resolverId: matcher.backendId,
+								currentVersion: String(backendVersion),
+							},
 						});
 						// Invalidate and fallback to live backend lookup
 						const candidates = backend.search({
@@ -652,7 +675,13 @@ function findArgumentMatches(
 							diagnostics.push({
 								code: "CROSS_RESOURCE_CANDIDATE_REJECTED",
 								argumentId: argument.argumentId,
-								message: `Candidate '${candidate.id}' from extension '${candidate.ownerExtensionId}' rejected for resolver '${matcher.backendId}'`,
+								message: "errors.crossResourceCandidateRejectedCandidate",
+								messageKey: "errors.crossResourceCandidateRejectedCandidate",
+								messageParams: {
+									candidateId: candidate.id,
+									ownerExtensionId: candidate.ownerExtensionId,
+									resolverId: matcher.backendId,
+								},
 							});
 							return false;
 						}
@@ -704,7 +733,9 @@ function findArgumentMatches(
 			diagnostics.push({
 				code: "BACKEND_MISSING",
 				argumentId: argument.argumentId,
-				message: `Expression backend '${matcher.backendId}' is not available`,
+				message: "errors.backendMissing",
+				messageKey: "errors.backendMissing",
+				messageParams: { resolverId: matcher.backendId },
 			});
 			return [];
 		}
@@ -790,7 +821,9 @@ function scanPatternMatches(
 		diagnostics.push({
 			code: "INVALID_PATTERN",
 			argumentId: argument.argumentId,
-			message: `Invalid pattern for '${argument.name}'`,
+			message: "errors.invalidPattern",
+			messageKey: "errors.invalidPattern",
+			messageParams: { argumentName: argument.name },
 			start: region.start,
 			end: region.end,
 		});

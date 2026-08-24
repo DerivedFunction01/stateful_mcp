@@ -1,13 +1,13 @@
 import type { ScratchpadExecutionReceipt } from "@stateful-mcp/macro";
+import {
+	DocumentManagerError,
+	DocumentRevisionError,
+} from "@stateful-mcp/macro";
 import type {
 	EditorOperation,
 	EditorOperationResult,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
-import {
-	DocumentManagerError,
-	DocumentRevisionError,
-} from "@stateful-mcp/macro";
 import { isPersistenceOperation } from "./document-persistence-operations";
 import { isExecutionOperation } from "./execution-operations";
 import { isResourceOperation } from "./resource-operations";
@@ -73,7 +73,15 @@ export interface EditorOperationRouterContext {
 			readonly emit: () => void;
 			readonly getArtifact: (
 				token: string,
-			) => { readonly lifecycle?: string } | undefined;
+			) => { readonly lifecycle?: string; readonly owner?: string } | undefined;
+			readonly sessionOwner?: string;
+			readonly materializeArtifact?: (
+				token: string,
+			) => Promise<{ readonly resourceId: string }>;
+			readonly isResourceExposed?: (
+				kind: string,
+				resourceId: string,
+			) => boolean;
 			readonly openScratchpad: (
 				id: string,
 				groupId?: string,
@@ -156,7 +164,17 @@ export interface EditorOperationRouterContext {
 	) => Promise<EditorOperationResult>;
 	readonly getArtifact: (
 		token: string,
-	) => { readonly lifecycle?: string } | undefined;
+	) => { readonly lifecycle?: string; readonly owner?: string } | undefined;
+	readonly sessionOwner?: (session: Session) => string;
+	readonly isResourceExposed?: (
+		session: Session,
+		kind: string,
+		resourceId: string,
+	) => boolean;
+	readonly materializeArtifact?: (
+		session: Session,
+		token: string,
+	) => Promise<{ readonly resourceId: string }>;
 	readonly openScratchpad: (
 		session: Session,
 		id: string,
@@ -662,6 +680,14 @@ export function createEditorOperationRouter(
 						reject,
 						emit: () => context.emit(session, "workspace.changed"),
 						getArtifact: context.getArtifact,
+						sessionOwner: context.sessionOwner?.(session),
+						isResourceExposed: context.isResourceExposed
+							? (kind, resourceId) =>
+									context.isResourceExposed!(session, kind, resourceId)
+							: undefined,
+						materializeArtifact: context.materializeArtifact
+							? (token) => context.materializeArtifact!(session, token)
+							: undefined,
 						openScratchpad: (id, groupId) =>
 							context.openScratchpad(session, id, groupId),
 					});

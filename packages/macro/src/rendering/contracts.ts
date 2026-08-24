@@ -63,7 +63,11 @@ export class MacroRendererRegistry {
 			} catch (error) {
 				diagnostics.push({
 					code: "RENDERER_FAILED",
-					message: `Renderer '${renderer.id}' failed: ${error instanceof Error ? error.message : String(error)}`,
+					messageKey: "errors.rendererFailed",
+					messageParams: {
+						rendererId: renderer.id,
+						detail: error instanceof Error ? error.message : String(error),
+					},
 				});
 			}
 		}

@@ -9,6 +9,7 @@ import { Settings2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { resolveMessage, resolveThrownError } from "../lib/message-resolver";
 import { Badge, Button, Diagnostic, TextInput } from "./ui/primitives";
 
 function jsonText(value: unknown): string {
@@ -30,7 +31,8 @@ export function ProjectSettingsModal({
 	readonly onManageTemplates?: () => void;
 	readonly onManageActivationGroups?: () => void;
 }) {
-	const { t, availableLocales } = useI18n();
+	const i18n = useI18n();
+	const { t, availableLocales } = i18n;
 	const [configuration, setConfiguration] = useState<ProjectConfigurationDto>();
 	const [draft, setDraft] = useState<ProjectConfigurationDto>();
 	const [projectSettings, setProjectSettings] = useState<
@@ -69,7 +71,7 @@ export function ProjectSettingsModal({
 				if (client.getMigrationJournal) void refreshJournal();
 			})
 			.catch((reason: unknown) =>
-				setError(reason instanceof Error ? reason.message : String(reason)),
+				setError(resolveThrownError(i18n, reason)),
 			);
 	}, [client, isOpen, t]);
 
@@ -117,13 +119,13 @@ export function ProjectSettingsModal({
 				onClose();
 			} else {
 				setError(
-					"message" in result
-						? result.message
+					"messageKey" in result
+						? resolveMessage(i18n, result)
 						: t("project.settings.migrationUnavailable"),
 				);
 			}
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setBusy(false);
 		}
@@ -143,12 +145,12 @@ export function ProjectSettingsModal({
 			if (result.status === "plan") setMigrationPlan(result);
 			else
 				setError(
-					"message" in result
-						? result.message
+					"messageKey" in result
+						? resolveMessage(i18n, result)
 						: t("project.settings.migrationUnavailable"),
 				);
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setBusy(false);
 		}
@@ -181,12 +183,12 @@ export function ProjectSettingsModal({
 				onClose();
 			} else
 				setError(
-					"message" in result
-						? result.message
+					"messageKey" in result
+						? resolveMessage(i18n, result)
 						: t("project.settings.migrationUnavailable"),
 				);
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setBusy(false);
 		}
@@ -200,7 +202,7 @@ export function ProjectSettingsModal({
 			const journal = await client.getMigrationJournal();
 			setMigrationJournal(journal.journal ? journal : null);
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setJournalBusy(false);
 		}
@@ -215,7 +217,7 @@ export function ProjectSettingsModal({
 			setJournalResult(result);
 			await refreshJournal();
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setJournalBusy(false);
 		}
@@ -230,7 +232,7 @@ export function ProjectSettingsModal({
 			setJournalResult(result);
 			await refreshJournal();
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setJournalBusy(false);
 		}
@@ -242,8 +244,8 @@ export function ProjectSettingsModal({
 		setError(undefined);
 		try {
 			const result = await client.resumeBackendMigration();
-			if ("message" in result) {
-				setError(result.message);
+			if ("messageKey" in result) {
+				setError(resolveMessage(i18n, result));
 				return;
 			}
 			if (result.status !== "migrated") {
@@ -261,7 +263,7 @@ export function ProjectSettingsModal({
 			onUpdated?.(result);
 			onClose();
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setJournalBusy(false);
 		}

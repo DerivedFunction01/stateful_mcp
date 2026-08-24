@@ -19,6 +19,8 @@ import type {
 	CellRange,
 	EditorSearchResult,
 } from "../lib/browser-vim";
+import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
+import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
 import { useI18n } from "../lib/macro-i18n-provider";
 
 export interface EditorSurfaceViewHandle {
@@ -854,7 +856,14 @@ export function EditorSurfaceView({
 												<div className="cell-output-content">
 													{diagnostic ? (
 														<span className="cell-diagnostic-message">
-															{diagnostic.message}
+															{resolveDiagnosticMessage(
+																{
+																	line: cellIdx + 1,
+																	macroName: lineDto?.macroName,
+																	...diagnostic,
+																} as InspectorDiagnosticItem,
+																t,
+															)}
 														</span>
 													) : projectionText ? (
 														<span className="cell-projection-preview">

@@ -55,6 +55,10 @@ export const EN_EDITOR: Record<string, string> = {
 		"The line contains an invalid macro.",
 	"editor.lineStatus.nonMacro.description":
 		"The line is not a recognized macro.",
+	"editor.diagnostics.parseFailed":
+		"The arguments for macro '{macroName}' could not be parsed.",
+	"editor.diagnostics.parseError":
+		"Macro '{macroName}' could not be parsed because of an unexpected error.",
 	"editor.preview.title": "Preview",
 	"editor.preview.pending": "Preview pending",
 	"editor.preview.result": "Preview result",

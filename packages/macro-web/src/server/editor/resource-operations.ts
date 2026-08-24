@@ -44,7 +44,12 @@ export async function executeResourceOperation(
 		>;
 		readonly getArtifact: (
 			token: string,
-		) => { readonly lifecycle?: string } | undefined;
+		) => { readonly lifecycle?: string; readonly owner?: string } | undefined;
+		readonly sessionOwner?: string;
+		readonly isResourceExposed?: (kind: string, resourceId: string) => boolean;
+		readonly materializeArtifact?: (
+			token: string,
+		) => Promise<{ readonly resourceId: string }>;
 	},
 ): Promise<EditorOperationResult> {
 	if (operation.operation === "editor.saveArtifact") {
@@ -54,15 +59,28 @@ export async function executeResourceOperation(
 				"ARTIFACT_NOT_FOUND",
 				"Artifact is unavailable or expired",
 			);
+		if (artifact.owner !== undefined && artifact.owner !== context.sessionOwner)
+			return context.reject(
+				"ARTIFACT_UNAUTHORIZED",
+				"This artifact is not available to the current session",
+			);
 		if (artifact.lifecycle !== "project")
 			return context.reject(
 				"ARTIFACT_NOT_SAVEABLE",
 				"This artifact cannot be saved to the project",
 			);
-		return context.reject(
-			"ARTIFACT_MATERIALIZATION_UNAVAILABLE",
-			"Project artifact materialization is not available yet",
-		);
+		if (!context.materializeArtifact)
+			return context.reject(
+				"ARTIFACT_MATERIALIZATION_UNAVAILABLE",
+				"Project artifact materialization is unavailable",
+			);
+		const saved = await context.materializeArtifact(operation.artifactToken);
+		context.emit();
+		return {
+			...context.base(),
+			status: "accepted",
+			resourceId: saved.resourceId,
+		} as unknown as EditorOperationResult;
 	}
 	if (operation.operation === "editor.resourceAction") {
 		if (
@@ -70,6 +88,13 @@ export async function executeResourceOperation(
 			operation.expectedWorkspaceRevision !== session.revision
 		)
 			return context.workspaceConflict(operation.expectedWorkspaceRevision);
+		if (
+			!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
+		)
+			return context.reject(
+				"RESOURCE_NOT_FOUND",
+				"Resource is not exposed by the project",
+			);
 		const provider = session.loaded.workspace.resources.get(
 			operation.resourceKind,
 		);
@@ -111,6 +136,14 @@ export async function executeResourceOperation(
 		return context.reject(
 			"RESOURCE_KIND_UNSUPPORTED",
 			"This resource kind cannot be opened by the editor",
+		);
+	if (
+		operation.operation === "editor.openResource" &&
+		!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
+	)
+		return context.reject(
+			"RESOURCE_NOT_FOUND",
+			"Resource is not exposed by the project",
 		);
 	const opened = await context.openScratchpad(
 		id,

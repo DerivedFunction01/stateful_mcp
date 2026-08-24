@@ -42,6 +42,19 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.bundle.sensitiveOmitted":
 		"Se omitió la configuración sensible del paquete importado.",
 	"settings.bundle.valueInvalid": "El ajuste {path} tiene un valor no válido.",
+	"settings.diagnostic.rootNotObject":
+		"La raíz de la configuración debe ser un objeto JSON.",
+	"settings.diagnostic.jsonParseError":
+		"El texto de configuración no es JSON válido.",
+	"settings.diagnostic.invalidValue": "Valor no válido para {path}.",
+	"settings.diagnostic.outOfRange":
+		"El valor de {path} está fuera de su rango permitido.",
+	"settings.diagnostic.previewStale":
+		"La vista previa de configuración está desactualizada.",
+	"settings.values.unknownTemplateToken":
+		"Token de plantilla desconocido '{token}'.",
+	"settings.values.parseError":
+		"No se pudo analizar el valor ({code}): {message}",
 	"settings.modifiedOnly": "Mostrar solo modificados",
 	"settings.categories": "Categorías de configuración",
 	"settings.category.syntax": "Sintaxis principal",

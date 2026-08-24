@@ -73,13 +73,15 @@ export type ProjectExtensionGroupPlanResult =
 
 function error(
 	code: string,
-	message: string,
+	messageKey: string,
 	extra: { readonly groupId?: string; readonly extensionId?: string } = {},
 ): ProjectExtensionGroupDiagnostic {
 	return {
 		code,
 		severity: "error",
-		message,
+		message: messageKey,
+		messageKey,
+		messageParams: extra,
 		...(extra.groupId === undefined ? {} : { groupId: extra.groupId }),
 		...(extra.extensionId === undefined
 			? {}
@@ -488,7 +490,10 @@ export function toProjectExtensionGroupDiagnosticDto(
 	return {
 		code: diagnostic.code,
 		severity: diagnostic.severity,
-		message: diagnostic.message,
+		messageKey: diagnostic.messageKey ?? diagnostic.message,
+		...(diagnostic.messageParams === undefined
+			? {}
+			: { messageParams: diagnostic.messageParams }),
 		...(diagnostic.groupId === undefined
 			? {}
 			: { groupId: diagnostic.groupId }),

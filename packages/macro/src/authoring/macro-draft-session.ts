@@ -250,7 +250,8 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				.map((item) => ({
 					code: "UNSTABLE_CANDIDATE" as const,
 					argumentId: item.argumentId,
-					message: "Candidate is visible but not accepted during live preview",
+					messageKey: "errors.unstableCandidate",
+					messageParams: { argumentId: item.argumentId },
 				})),
 		];
 
@@ -494,7 +495,8 @@ function clamp(value: number, min: number, max: number): number {
 function staleLockDiagnostic(lock: AcceptedMacroLock): MacroDraftDiagnostic {
 	return {
 		code: "STALE_LOCK",
-		message: `Accepted lock '${lock.lockId}' is stale and was discarded`,
+		messageKey: "errors.staleLock",
+		messageParams: { lockId: lock.lockId },
 		argumentId: lock.argumentId,
 		start: lock.start,
 		end: lock.end,
@@ -507,7 +509,8 @@ function invalidAcceptanceDiagnostic(
 ): MacroDraftDiagnostic {
 	return {
 		code: "INVALID_ACCEPTANCE",
-		message: `No live candidate exists for '${argumentId}' occurrence ${occurrence}`,
+		messageKey: "errors.invalidAcceptance",
+		messageParams: { argumentId, occurrence },
 		argumentId,
 	};
 }

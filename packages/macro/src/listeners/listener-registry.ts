@@ -109,7 +109,8 @@ export function adaptParseListener(
 				json: output.json,
 				diagnostics: output.diagnostics?.map((message) => ({
 					code: "PARSE_LISTENER_DIAGNOSTIC",
-					message,
+					messageKey: "errors.parseListenerDiagnostic",
+					messageParams: { detail: message },
 				})),
 			};
 		},
@@ -128,6 +129,10 @@ function compareOrdered(
 function listenerDiagnostic(id: string, error: unknown): MacroDraftDiagnostic {
 	return {
 		code: "LISTENER_FAILED",
-		message: `Listener '${id}' failed: ${error instanceof Error ? error.message : String(error)}`,
+		messageKey: "errors.listenerFailed",
+		messageParams: {
+			listenerId: id,
+			detail: error instanceof Error ? error.message : String(error),
+		},
 	};
 }

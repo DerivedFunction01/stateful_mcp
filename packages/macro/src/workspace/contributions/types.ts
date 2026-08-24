@@ -172,7 +172,7 @@ export interface ResourceProviderContribution {
 }
 
 export interface ResourceProvider {
-	listProjectResources?():
+	listProjectResources?(context: ResourceProviderProjectContext):
 		| Promise<
 				readonly {
 					readonly resourceId: string;
@@ -190,6 +190,10 @@ export interface ResourceProvider {
 		resourceId: string,
 		args: readonly unknown[],
 	): Promise<unknown> | unknown;
+}
+
+export interface ResourceProviderProjectContext {
+	readonly references: readonly import("../../project/contracts").MacroProjectResourceReference[];
 }
 
 export interface ProjectSettingsContribution {

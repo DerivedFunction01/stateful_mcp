@@ -55,6 +55,10 @@ export const ES_EDITOR: Record<string, string> = {
 		"La línea contiene una macro no válida.",
 	"editor.lineStatus.nonMacro.description":
 		"La línea no es una macro reconocida.",
+	"editor.diagnostics.parseFailed":
+		"No se pudieron analizar los argumentos de la macro '{macroName}'.",
+	"editor.diagnostics.parseError":
+		"La macro '{macroName}' no se pudo analizar por un error inesperado.",
 	"editor.preview.title": "Vista previa",
 	"editor.preview.pending": "Vista previa pendiente",
 	"editor.preview.result": "Resultado de vista previa",

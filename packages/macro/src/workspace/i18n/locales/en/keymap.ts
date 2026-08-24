@@ -13,4 +13,16 @@ export const EN_KEYMAP: Record<string, string> = {
 	"keymap.shortcutConditional": "Browser may handle this shortcut:",
 	"keymap.noBinding": "No binding is active for this context",
 	"keymap.profileUnknown": "The selected keymap profile is unavailable",
+	"keymap.diagnostic.invalidChord":
+		"Unknown chord '{chord}' for command '{command}'.",
+	"keymap.diagnostic.invalidChordFormat":
+		"Unknown chord '{chord}'. Must conform to canonical grammar [ctrl+][meta+][primary+][shift+]<canonical_key>.",
+	"keymap.diagnostic.duplicateBinding":
+		"Chord '{chord}' is bound to both '{first}' and '{second}'.",
+	"keymap.diagnostic.sequencePrefixConflict":
+		"Sequences '{first}' and '{second}' conflict.",
+	"keymap.diagnostic.surface.requiredFields":
+		"Surface keybindings require a key, action, and label.",
+	"keymap.diagnostic.surface.duplicate":
+		"Duplicate surface keybinding '{key}' in {mode} mode.",
 };

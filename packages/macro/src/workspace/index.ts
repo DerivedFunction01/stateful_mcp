@@ -209,7 +209,7 @@ export function createMacroWorkspace(
 							message:
 								result.status === "blocked"
 									? result.diagnostics
-											.map((diagnostic) => diagnostic.message)
+											.map((diagnostic) => diagnostic.messageKey)
 											.join("; ")
 									: "Settings revision conflict",
 						};

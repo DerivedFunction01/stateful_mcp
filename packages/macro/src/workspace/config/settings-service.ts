@@ -69,7 +69,8 @@ export interface SettingsDiagnostic {
 	readonly severity: "error" | "warning";
 	readonly code?: string;
 	readonly path?: readonly string[];
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly line?: number;
 	readonly column?: number;
 	readonly restartRequired?: boolean;
@@ -204,7 +205,7 @@ export class WorkspaceSettingsService {
 					{
 						severity: "error",
 						code: "SETTINGS_PREVIEW_STALE",
-						message: "The settings preview is stale",
+						messageKey: "settings.diagnostic.previewStale",
 					},
 				],
 			};
@@ -263,7 +264,7 @@ export class WorkspaceSettingsService {
 				diagnostics: [
 					{
 						severity: "error",
-						message: "Invalid or unsupported settings bundle version",
+						messageKey: "settings.bundle.versionInvalid",
 					},
 				],
 			};
@@ -367,7 +368,7 @@ export class WorkspaceSettingsService {
 				this.diagnostics = [
 					{
 						severity: "error",
-						message: "Settings root must be a JSON object.",
+						messageKey: "settings.diagnostic.rootNotObject",
 					},
 				];
 			} else {
@@ -380,7 +381,7 @@ export class WorkspaceSettingsService {
 			this.diagnostics = [
 				{
 					severity: "error",
-					message: error instanceof Error ? error.message : String(error),
+					messageKey: "settings.diagnostic.jsonParseError",
 				},
 			];
 		}
@@ -404,7 +405,8 @@ export class WorkspaceSettingsService {
 				diagnostics.push({
 					severity: "error",
 					path: entry.path,
-					message: `Invalid value for ${entry.path.join(".")}.`,
+					messageKey: "settings.diagnostic.invalidValue",
+					messageParams: { path: entry.path.join(".") },
 					restartRequired: entry.restartRequired,
 				});
 				continue;
@@ -417,7 +419,8 @@ export class WorkspaceSettingsService {
 				diagnostics.push({
 					severity: "error",
 					path: entry.path,
-					message: `Value for ${entry.path.join(".")} is outside its allowed range.`,
+					messageKey: "settings.diagnostic.outOfRange",
+					messageParams: { path: entry.path.join(".") },
 					restartRequired: entry.restartRequired,
 				});
 		}

@@ -37,6 +37,14 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.bundle.sensitiveOmitted":
 		"Sensitive setting was omitted from the imported bundle.",
 	"settings.bundle.valueInvalid": "Setting {path} has an invalid value.",
+	"settings.diagnostic.rootNotObject": "Settings root must be a JSON object.",
+	"settings.diagnostic.jsonParseError": "The settings text is not valid JSON.",
+	"settings.diagnostic.invalidValue": "Invalid value for {path}.",
+	"settings.diagnostic.outOfRange":
+		"Value for {path} is outside its allowed range.",
+	"settings.diagnostic.previewStale": "The settings preview is stale.",
+	"settings.values.unknownTemplateToken": "Unknown template token '{token}'.",
+	"settings.values.parseError": "Value could not be parsed ({code}): {message}",
 	"settings.modifiedOnly": "Show modified only",
 	"settings.categories": "Settings categories",
 	"settings.category.syntax": "Core Syntax",

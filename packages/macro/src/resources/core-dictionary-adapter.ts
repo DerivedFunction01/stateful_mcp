@@ -146,6 +146,8 @@ export class CoreDictionaryResource implements DictionaryResource {
 					"namespace",
 					item.code,
 					"Namespace code is required",
+					"errors.resourceSeedNamespaceCodeRequired",
+					{ code: item.code },
 				);
 				report.skipped.namespace += 1;
 				continue;
@@ -176,6 +178,8 @@ export class CoreDictionaryResource implements DictionaryResource {
 					"concept",
 					item.id,
 					"Concept ID is required",
+					"errors.resourceSeedConceptIdRequired",
+					{ id: item.id ?? "" },
 				);
 				report.skipped.concept += 1;
 				continue;
@@ -211,6 +215,12 @@ export class CoreDictionaryResource implements DictionaryResource {
 					"relation",
 					item.id,
 					"Relation ID and both concept endpoints are required",
+					"errors.resourceSeedRelationRequired",
+					{
+						id: item.id ?? "",
+						conceptId: item.conceptId ?? "",
+						linkedId: item.linkedId ?? "",
+					},
 				);
 				report.skipped.relation += 1;
 				continue;
@@ -224,6 +234,8 @@ export class CoreDictionaryResource implements DictionaryResource {
 					message: `Relation '${item.id}' references a missing concept endpoint`,
 					recordType: "relation",
 					recordId: item.id,
+					messageKey: "errors.resourceRelationEndpointMissing",
+					messageParams: { relationId: item.id },
 				});
 				report.skipped.relation += 1;
 				continue;
@@ -234,6 +246,8 @@ export class CoreDictionaryResource implements DictionaryResource {
 					message: "The selected concept store cannot persist relations",
 					recordType: "relation",
 					recordId: item.id,
+					messageKey: "errors.resourceRelationsUnsupported",
+					messageParams: { relationId: item.id },
 				});
 				report.skipped.relation += 1;
 				continue;
@@ -248,6 +262,11 @@ export class CoreDictionaryResource implements DictionaryResource {
 					"relation",
 					item.id,
 					`Unsupported relationship type '${item.relationshipType}'`,
+					"errors.resourceRelationTypeUnsupported",
+					{
+						id: item.id,
+						relationshipType: item.relationshipType,
+					},
 				);
 				report.skipped.relation += 1;
 				continue;
@@ -339,6 +358,8 @@ export class CoreDictionaryResource implements DictionaryResource {
 				"expression",
 				item.id,
 				"Expression ID and term are required",
+				"errors.resourceSeedExpressionRequired",
+				{ id: item.id ?? "", term: item.term ?? "" },
 			);
 			report.skipped.expression += 1;
 			return;
@@ -347,11 +368,15 @@ export class CoreDictionaryResource implements DictionaryResource {
 		try {
 			new RegExp(pattern, item.isCaseInsensitive ? "iu" : "u");
 		} catch (error) {
+			const detail =
+				error instanceof Error ? error.message : String(error);
 			addDiagnostic(report.diagnostics, {
 				code: "INVALID_EXPRESSION_REGEX",
-				message: `Expression '${item.id}' has an invalid regex: ${error instanceof Error ? error.message : String(error)}`,
+				message: `Expression '${item.id}' has an invalid regex: ${detail}`,
 				recordType: "expression",
 				recordId: item.id,
+				messageKey: "errors.resourceExpressionRegexInvalid",
+				messageParams: { expressionId: item.id, detail },
 			});
 			if (this.strict)
 				throw new Error(`Invalid expression regex for '${item.id}'`);
@@ -367,6 +392,11 @@ export class CoreDictionaryResource implements DictionaryResource {
 				message: `Expression '${item.id}' references missing concept '${item.conceptId}'`,
 				recordType: "expression",
 				recordId: item.id,
+				messageKey: "errors.resourceExpressionConceptMissing",
+				messageParams: {
+					expressionId: item.id,
+					conceptId: item.conceptId,
+				},
 			});
 			report.skipped.expression += 1;
 			return;
@@ -649,12 +679,16 @@ function invalid(
 	type: ResourceDiagnostic["recordType"],
 	id: string,
 	message: string,
+	messageKey: string,
+	messageParams: ResourceDiagnostic["messageParams"],
 ): void {
 	addDiagnostic(diagnostics, {
 		code: "INVALID_SEED_RECORD",
 		message,
 		recordType: type,
 		recordId: id,
+		messageKey,
+		messageParams,
 	});
 }
 
@@ -668,6 +702,8 @@ function conflict(
 		message: `Cannot replace an existing ${type} '${id}' owned by another resource`,
 		recordType: type,
 		recordId: id,
+		messageKey: "errors.resourceOwnershipConflict",
+		messageParams: { recordType: type ?? "", recordId: id },
 	});
 }
 

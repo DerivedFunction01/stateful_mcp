@@ -201,7 +201,7 @@ function ResourceTreeView({
 }) {
 	if (tree.length === 0) return null;
 	return (
-		<div className="resource-tree-view" aria-label="Project resources">
+		<div className="resource-tree-view">
 			{tree.map((node) => (
 				<ResourceTreeNode
 					key={node.nodeId}

@@ -61,14 +61,14 @@ async function update(
 	)
 		return {
 			status: "rejected",
-			message:
-				"Extension Activation Groups must be changed through the group manager",
+			messageKey: "project.configuration.unsupportedField",
+			messageParams: { fields: "extensionGroups|activeExtensionGroupId" },
 			diagnostics: [
 				{
 					code: "unsupportedProjectConfigurationField",
 					severity: "error",
-					message:
-						"Project configuration field 'extensionGroups' or 'activeExtensionGroupId' is unsupported here",
+					messageKey: "project.configuration.unsupportedField",
+					messageParams: { fields: "extensionGroups|activeExtensionGroupId" },
 				},
 			],
 		};
@@ -79,11 +79,11 @@ async function update(
 	)
 		return {
 			status: "migrationRequired",
-			message: "Changing the project backend requires migration",
+			messageKey: "project.configuration.backendChangeRequiresMigration",
 			configuration: context.getConfiguration(),
 		};
 	if (!configuration.displayName.trim())
-		return { status: "rejected", message: "Project display name is required" };
+		return { status: "rejected", messageKey: "project.configuration.displayNameRequired" };
 	const validationErrors = validateProjectConfiguration(
 		configuration,
 		context.loaded().workspace.i18n.getAvailableLocales(),
@@ -92,13 +92,14 @@ async function update(
 	if (validationErrors.length > 0)
 		return {
 			status: "rejected",
-			message: validationErrors.join("; "),
+			messageKey: "project.configuration.validationFailed",
+			messageParams: { details: validationErrors.join("; ") },
 			configuration: context.getConfiguration(),
 		};
 	if (operation.expectedRevision !== project.descriptor.revision)
 		return {
 			status: "conflict",
-			message: "Project configuration is stale",
+			messageKey: "project.configuration.stale",
 			configuration: context.getConfiguration(),
 		};
 	const candidate = {
@@ -144,12 +145,14 @@ export function rejectUnsupportedProjectConfigurationFields(
 ): ProjectOperationResult {
 	return {
 		status: "rejected",
-		message: "Extension Activation Groups have a dedicated manager",
+		messageKey: "project.configuration.unsupportedField",
+		messageParams: { fields: fields.join("|") },
 		configuration: context.getConfiguration(),
 		diagnostics: fields.map((field) => ({
 			code: "unsupportedProjectConfigurationField",
 			severity: "error" as const,
-			message: `Project configuration field '${field}' is unsupported here`,
+			messageKey: "project.configuration.unsupportedField",
+			messageParams: { fields: field },
 		})),
 	};
 }

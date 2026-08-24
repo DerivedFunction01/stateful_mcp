@@ -12,6 +12,8 @@ export interface RegisteredArtifact {
 	readonly mimeType: string;
 	readonly expiresAt?: number;
 	readonly lifecycle?: ArtifactLifecycle;
+	readonly owner?: string;
+	readonly projectId?: string;
 }
 
 export class ArtifactService {
@@ -31,5 +33,9 @@ export class ArtifactService {
 			return undefined;
 		}
 		return artifact;
+	}
+
+	remove(token: string): void {
+		this.artifacts.delete(token);
 	}
 }

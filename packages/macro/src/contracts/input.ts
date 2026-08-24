@@ -89,6 +89,11 @@ export type MacroDiagnosticCode = (typeof MACRO_DIAGNOSTIC_CODES)[number];
 export interface MacroDiagnostic {
 	code: MacroDiagnosticCode;
 	message: string;
+	/** Structured message key; preferred over `message` when present. */
+	messageKey?: string;
+	messageParams?: Readonly<
+		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+	>;
 	start?: number;
 	end?: number;
 	argumentId?: string;

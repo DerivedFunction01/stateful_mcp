@@ -207,7 +207,8 @@ export function traverseLexicalTokens(
 		if (quote) {
 			diagnostics.push({
 				code: "UNTERMINATED_QUOTE",
-				message: "Unterminated quote",
+				message: "errors.unterminatedQuote",
+				messageKey: "errors.unterminatedQuote",
 				start: region.start,
 				end: region.end,
 			});
@@ -215,7 +216,8 @@ export function traverseLexicalTokens(
 		if (depth > 0) {
 			diagnostics.push({
 				code: "UNTERMINATED_GROUP",
-				message: "Unterminated grouped value",
+				message: "errors.unterminatedGroup",
+				messageKey: "errors.unterminatedGroup",
 				start: region.start,
 				end: region.end,
 			});

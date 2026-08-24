@@ -1,5 +1,6 @@
 import type {
 	CommandDescriptorDto,
+	DiagnosticDto,
 	EditorMode,
 	EditorOutputSnapshotDto,
 	PinnedMacroDto,
@@ -34,6 +35,9 @@ import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import type { HostWorkspaceSnapshot } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { resolveThrownError } from "../lib/message-resolver";
+import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
+import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import {
 	exportUserPreferencesBundle,
@@ -874,7 +878,8 @@ const GALLERY_SCRATCHPAD_LINES: readonly ScratchpadLineDto[] = [
 		diagnostics: [
 			{
 				severity: "error",
-				message: "Example diagnostic for the gallery",
+				message: "",
+				messageKey: "common.error",
 			},
 		],
 	},
@@ -1072,7 +1077,8 @@ function SettingsPreviewStory() {
 }
 
 function HostStory() {
-	const { t } = useI18n();
+	const i18n = useI18n();
+	const { t } = i18n;
 	const [snapshot, setSnapshot] = useState<HostWorkspaceSnapshot | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	useEffect(() => {
@@ -1080,10 +1086,8 @@ function HostStory() {
 		void client
 			.getSnapshot()
 			.then(setSnapshot)
-			.catch((reason: unknown) =>
-				setError(reason instanceof Error ? reason.message : String(reason)),
-			);
-	}, []);
+			.catch((reason: unknown) => setError(resolveThrownError(i18n, reason)));
+	}, [i18n]);
 	return (
 		<Card
 			title={t("gallery.hostDiagnostics")}
@@ -1122,9 +1126,15 @@ function HostStory() {
 								</div>
 							))}
 						</div>
-						{snapshot.diagnostics.map((item) => (
-							<Diagnostic key={item.message} severity={item.severity}>
-								{item.message}
+						{snapshot.diagnostics.map((item, index) => (
+							<Diagnostic
+								key={`${item.code}-${index}`}
+								severity={item.severity}
+							>
+								{resolveDiagnosticMessage(
+									{ line: 0, macroName: undefined, ...item } as InspectorDiagnosticItem,
+									t,
+								)}
 							</Diagnostic>
 						))}
 					</>
@@ -1196,16 +1206,14 @@ function WorkbenchInspectorStory() {
 				rawText: "^vitals bp=invalid_bp",
 				macroName: "vitals",
 				lineStatus: "invalid",
-				diagnostics: [
-					{
-						code: "invalidBloodPressure",
-						messageKey: "errors.invalidBloodPressure",
-						severity: "error",
-						message:
-							"Invalid blood pressure format: expected 'systolic/diastolic'",
-						span: { start: 11, end: 21 },
-					},
-				],
+			diagnostics: ([
+				{
+					code: "invalidBloodPressure",
+					messageKey: "errors.invalidBloodPressure",
+					severity: "error",
+					span: { start: 11, end: 21 },
+				},
+			] as unknown) as readonly DiagnosticDto[],
 				projections: [],
 			},
 			{
@@ -1213,17 +1221,15 @@ function WorkbenchInspectorStory() {
 				rawText: "^evaluacion #asma con #sibilancias",
 				macroName: "evaluacion",
 				lineStatus: "valid",
-				diagnostics: [
-					{
-						code: "conceptUnverified",
-						messageKey: "errors.conceptUnverified",
-						messageParams: { term: "sibilancias", confidence: 92 },
-						severity: "warning",
-						message:
-							"Term 'sibilancias' matched local ontology with 92% confidence",
-						span: { start: 22, end: 34 },
-					},
-				],
+			diagnostics: ([
+				{
+					code: "conceptUnverified",
+					messageKey: "errors.conceptUnverified",
+					messageParams: { term: "sibilancias", confidence: 92 },
+					severity: "warning",
+					span: { start: 22, end: 34 },
+				},
+			] as unknown) as readonly DiagnosticDto[],
 				projections: [
 					{
 						kind: "extension",

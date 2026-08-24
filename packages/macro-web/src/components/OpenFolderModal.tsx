@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { trapFocus } from "../lib/focus-trap";
 import type { FsBrowseResult, HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { resolveThrownError } from "../lib/message-resolver";
 import { Badge, Button, ModalOverlay, ModalSurface } from "./ui/primitives";
 
 export interface OpenFolderModalProps {
@@ -33,7 +34,8 @@ export function OpenFolderModal({
 	onSelect,
 	onClose,
 }: OpenFolderModalProps) {
-	const { t } = useI18n();
+	const i18n = useI18n();
+	const { t } = i18n;
 	const [currentPath, setCurrentPath] = useState(initialPath || "");
 	const [parentPath, setParentPath] = useState<string | null>(null);
 	const [pathInput, setPathInput] = useState(initialPath || "");
@@ -61,7 +63,7 @@ export function OpenFolderModal({
 			setEntries(result.entries);
 			setSelectedEntry(null);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
+			setError(resolveThrownError(i18n, err));
 		} finally {
 			setLoading(false);
 		}
@@ -105,7 +107,7 @@ export function OpenFolderModal({
 			setCreatingDirectory(false);
 			setDirectoryName("");
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
+			setError(resolveThrownError(i18n, err));
 		} finally {
 			setCreating(false);
 		}
@@ -156,7 +158,7 @@ export function OpenFolderModal({
 			);
 			onClose();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : String(err));
+			setError(resolveThrownError(i18n, err));
 		} finally {
 			setSubmitting(false);
 		}

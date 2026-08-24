@@ -164,4 +164,27 @@ export const EN_PROJECT: Record<string, string> = {
 	"project.activationGroups.apply": "Apply Changes",
 	"project.activationGroups.applyFailed":
 		"Activation groups could not be applied to this project.",
+	"project.configuration.unsupportedField":
+		"The following field(s) are managed by a dedicated manager: {fields}.",
+	"project.configuration.backendChangeRequiresMigration":
+		"Changing the project backend requires a migration.",
+	"project.configuration.displayNameRequired":
+		"A project display name is required.",
+	"project.configuration.validationFailed":
+		"The configuration is invalid: {details}.",
+	"project.configuration.stale": "Project configuration is stale.",
+	"project.extensionGroup.changeRejected":
+		"The extension group change could not be applied.",
+	"project.extensionGroup.validationFailed":
+		"The extension group change failed validation.",
+	"project.extensionGroup.activation.rolledBack":
+		"Activating the extension group failed and was rolled back: {reason}.",
+	"project.migration.resume.noJournal":
+		"No migration journal is available to resume.",
+	"project.migration.finalizingCannotResume":
+		"A migration in the 'finalizing' state cannot be resumed safely.",
+	"project.migration.apply.identicalBackend":
+		"The target backend must differ from the current backend.",
+	"project.migration.participantUnavailable":
+		"A project migration participant is unavailable.",
 };

@@ -20,6 +20,9 @@ const INVALID_PAYLOAD_DIAGNOSTICS: ReadonlySet<MacroDiagnosticCode> =
 		"AMBIGUOUS_MATCH",
 	]);
 
+/** Structured descriptor key for a normalizer that threw. */
+const NORMALIZATION_FAILED_KEY = "errors.normalizationFailed";
+
 export interface MacroPayloadCompileOptions extends MacroParseOptions {
 	acceptedLocks?: readonly AcceptedMacroLock[];
 }
@@ -36,7 +39,13 @@ export function compileMacroPayload(
 			macro: { id: spec.id, name: spec.name },
 			arguments: [],
 			payload: {},
-			diagnostics: [{ code: "NO_MATCH", message: "Input is not a macro line" }],
+			diagnostics: [
+				{
+					code: "NO_MATCH",
+					message: "errors.notAMacroLine",
+					messageKey: "errors.notAMacroLine",
+				},
+			],
 		};
 	}
 
@@ -138,14 +147,15 @@ function createArgumentResult(
 		if (argument.normalize)
 			value = argument.normalize(match.rawValue, match.captures ?? {});
 		else value = normalizeValue(argument, value);
-	} catch (error) {
+	} catch {
+		// Normalizers are extension-authored: their thrown text is developer
+		// facing and never localized, so only the structured descriptor is kept.
 		diagnostics.push({
 			code: "NORMALIZATION_FAILED",
 			argumentId: argument.argumentId,
-			message:
-				error instanceof Error
-					? error.message
-					: `Unable to normalize '${argument.name}'`,
+			message: NORMALIZATION_FAILED_KEY,
+			messageKey: NORMALIZATION_FAILED_KEY,
+			messageParams: { argumentName: argument.name },
 		});
 		return {
 			argumentId: argument.argumentId,
@@ -176,15 +186,13 @@ function normalizeValue(argument: MacroArgumentSpec, value: unknown): unknown {
 		return value;
 	if (argument.scalarType === "integer") {
 		const parsed = Number.parseInt(String(value), 10);
-		if (!Number.isInteger(parsed))
-			throw new Error(`Argument '${argument.name}' is not an integer`);
+		if (!Number.isInteger(parsed)) throw new TypeError();
 		checkBounds(argument, parsed);
 		return parsed;
 	}
 	if (argument.scalarType === "number") {
 		const parsed = Number(value);
-		if (!Number.isFinite(parsed))
-			throw new Error(`Argument '${argument.name}' is not a number`);
+		if (!Number.isFinite(parsed)) throw new TypeError();
 		checkBounds(argument, parsed);
 		return parsed;
 	}
@@ -192,7 +200,7 @@ function normalizeValue(argument: MacroArgumentSpec, value: unknown): unknown {
 		if (value === true || value === false) return value;
 		if (String(value).toLocaleLowerCase() === "true") return true;
 		if (String(value).toLocaleLowerCase() === "false") return false;
-		throw new Error(`Argument '${argument.name}' is not boolean`);
+		throw new TypeError();
 	}
 	if (argument.repeatable)
 		return String(value)
@@ -209,12 +217,12 @@ function checkBounds(argument: MacroArgumentSpec, value: number): void {
 		bounds.min !== undefined &&
 		(bounds.inclusiveMin === false ? value <= bounds.min : value < bounds.min)
 	)
-		throw new Error(`Argument '${argument.name}' is below its minimum`);
+		throw new RangeError();
 	if (
 		bounds.max !== undefined &&
 		(bounds.inclusiveMax === false ? value >= bounds.max : value > bounds.max)
 	)
-		throw new Error(`Argument '${argument.name}' is above its maximum`);
+		throw new RangeError();
 }
 
 function writePath(
@@ -229,7 +237,9 @@ function writePath(
 		diagnostics.push({
 			code: "INVALID_PATH",
 			argumentId: result.argumentId,
-			message: `Invalid payload path '${path}'`,
+			message: "errors.invalidPayloadPath",
+			messageKey: "errors.invalidPayloadPath",
+			messageParams: { path },
 		});
 		return;
 	}
@@ -246,7 +256,9 @@ function writePath(
 			diagnostics.push({
 				code: "PATH_CONFLICT",
 				argumentId: result.argumentId,
-				message: `Payload path '${path}' conflicts with an existing value`,
+				message: "errors.payloadPathConflict",
+				messageKey: "errors.payloadPathConflict",
+				messageParams: { path },
 			});
 			return;
 		}
@@ -256,7 +268,9 @@ function writePath(
 		diagnostics.push({
 			code: "PATH_CONFLICT",
 			argumentId: result.argumentId,
-			message: `Payload path '${path}' was written more than once`,
+			message: "errors.payloadPathDuplicate",
+			messageKey: "errors.payloadPathDuplicate",
+			messageParams: { path },
 		});
 		return;
 	}

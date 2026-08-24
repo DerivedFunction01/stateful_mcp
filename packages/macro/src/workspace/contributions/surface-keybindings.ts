@@ -3,7 +3,8 @@ import type { SurfaceKeybinding } from "./types";
 
 export interface SurfaceKeybindingDiagnostic {
 	readonly severity: "error";
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly key?: string;
 	readonly mode?: EditorMode;
 }
@@ -22,7 +23,7 @@ export function validateSurfaceKeybindings(
 		) {
 			diagnostics.push({
 				severity: "error",
-				message: "Surface keybindings require a key, action, and label.",
+				messageKey: "keymap.diagnostic.surface.requiredFields",
 				key: binding.key,
 				mode: binding.mode,
 			});
@@ -32,7 +33,8 @@ export function validateSurfaceKeybindings(
 		if (seen.has(identity))
 			diagnostics.push({
 				severity: "error",
-				message: `Duplicate surface keybinding '${binding.key}' in ${binding.mode} mode.`,
+				messageKey: "keymap.diagnostic.surface.duplicate",
+				messageParams: { key: binding.key, mode: binding.mode },
 				key: binding.key,
 				mode: binding.mode,
 			});

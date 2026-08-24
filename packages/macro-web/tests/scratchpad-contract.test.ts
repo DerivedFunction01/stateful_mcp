@@ -12,7 +12,7 @@ describe("host-owned scratchpad projection", () => {
 		});
 	});
 
-	test("projects Macro diagnostics at the browser protocol boundary", () => {
+	test("projects legacy Macro diagnostics with a messageKey derived from their code", () => {
 		expect(
 			toScratchpadDiagnosticDto(
 				{ code: "NO_MATCH", message: "Invalid macro" },
@@ -20,8 +20,40 @@ describe("host-owned scratchpad projection", () => {
 			),
 		).toEqual({
 			severity: "error",
-			message: "Invalid macro",
 			code: "NO_MATCH",
+			messageKey: "NO_MATCH",
+		});
+	});
+
+	test("projects structured Macro diagnostics by forwarding messageKey and messageParams", () => {
+		expect(
+			toScratchpadDiagnosticDto(
+				{
+					code: "INVALID_CANDIDATE_PROVENANCE",
+					message: "Candidate provenance is invalid",
+					messageKey: "errors.invalidCandidateProvenance",
+					messageParams: { reason: "untrusted-source" },
+				},
+				false,
+			),
+		).toEqual({
+			severity: "error",
+			code: "INVALID_CANDIDATE_PROVENANCE",
+			messageKey: "errors.invalidCandidateProvenance",
+			messageParams: { reason: "untrusted-source" },
+		});
+	});
+
+	test("always carries a structured messageKey, never a human-readable message", () => {
+		expect(
+			toScratchpadDiagnosticDto(
+				{ code: "NO_MATCH", message: "Invalid macro" },
+				true,
+			),
+		).toEqual({
+			severity: "info",
+			code: "NO_MATCH",
+			messageKey: "NO_MATCH",
 		});
 	});
 });

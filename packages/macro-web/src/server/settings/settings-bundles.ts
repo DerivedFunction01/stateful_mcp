@@ -75,20 +75,18 @@ export async function applySettingsBundleOperation(
 	if (operation.operation === "export") {
 		if (!host.supportedScopes(workspace).includes(operation.scope))
 			return {
-				status: "unsupported",
-				code: "SETTINGS_SCOPE_UNSUPPORTED",
-				message: host.message(workspace, "settings.bundle.scopeUnsupported", {
-					scope: operation.scope,
-				}),
-			};
+			status: "unsupported",
+			code: "SETTINGS_SCOPE_UNSUPPORTED",
+			messageKey: "settings.bundle.scopeUnsupported",
+			messageParams: { scope: operation.scope },
+		};
 		const profiles = await settings.listProfiles();
 		if (!profiles.includes(operation.profileId))
 			return {
 				status: "unsupported",
 				code: "SETTINGS_PROFILE_UNSUPPORTED",
-				message: host.message(workspace, "settings.bundle.profileUnsupported", {
-					profile: operation.profileId,
-				}),
+				messageKey: "settings.bundle.profileUnsupported",
+				messageParams: { profile: operation.profileId },
 			};
 		const exported = await settings.exportBundle(operation.profileId);
 		return {
@@ -106,14 +104,13 @@ export async function applySettingsBundleOperation(
 			return {
 				status: "unsupported",
 				code: "SETTINGS_SCOPE_UNSUPPORTED",
-				message: host.message(workspace, "settings.bundle.scopeUnsupported", {
-					scope: operation.scope,
-				}),
+				messageKey: "settings.bundle.scopeUnsupported",
+				messageParams: { scope: operation.scope },
 			};
 		if (!isSettingsBundleDto(operation.bundle))
 			return {
 				status: "invalid",
-				message: host.message(workspace, "settings.bundle.invalid"),
+				messageKey: "settings.bundle.invalid",
 				diagnostics: [
 					{
 						severity: "error",
@@ -126,16 +123,15 @@ export async function applySettingsBundleOperation(
 			return {
 				status: "unsupported",
 				code: "SETTINGS_PROFILE_UNSUPPORTED",
-				message: host.message(workspace, "settings.bundle.profileUnsupported", {
-					profile: operation.profileId,
-				}),
+				messageKey: "settings.bundle.profileUnsupported",
+				messageParams: { profile: operation.profileId },
 			};
 		const revision = settings.getSettingsRevision();
 		if (operation.expectedRevision && operation.expectedRevision !== revision)
 			return {
 				status: "stale",
 				code: "SETTINGS_REVISION_STALE",
-				message: host.message(workspace, "settings.bundle.stale"),
+				messageKey: "settings.bundle.stale",
 				expectedRevision: operation.expectedRevision,
 				actualRevision: revision,
 			};
@@ -150,7 +146,7 @@ export async function applySettingsBundleOperation(
 		)
 			return {
 				status: "invalid",
-				message: host.message(workspace, "settings.bundle.invalid"),
+				messageKey: "settings.bundle.invalid",
 				diagnostics: prepared.diagnostics,
 			};
 		const stageId = randomUUID();
@@ -174,7 +170,7 @@ export async function applySettingsBundleOperation(
 	if (!staged || staged.stageId !== operation.stageId)
 		return {
 			status: "invalid",
-			message: host.message(workspace, "settings.bundle.stageUnavailable"),
+			messageKey: "settings.bundle.stageUnavailable",
 			diagnostics: [
 				{
 					severity: "error",
@@ -187,7 +183,7 @@ export async function applySettingsBundleOperation(
 		return {
 			status: "stale",
 			code: "SETTINGS_REVISION_STALE",
-			message: host.message(workspace, "settings.bundle.stale"),
+			messageKey: "settings.bundle.stale",
 			expectedRevision: staged.revision,
 			actualRevision: expectedRevision,
 		};
@@ -202,7 +198,7 @@ export async function applySettingsBundleOperation(
 		return {
 			status: "stale",
 			code: "SETTINGS_REVISION_STALE",
-			message: host.message(workspace, "settings.bundle.stale"),
+			messageKey: "settings.bundle.stale",
 			expectedRevision: result.expectedRevision,
 			actualRevision: result.actualRevision,
 		};

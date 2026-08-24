@@ -46,8 +46,12 @@ export interface SerializedSettingsUiItem {
 	};
 	readonly diagnostics: readonly {
 		readonly severity: SettingsDiagnostic["severity"];
+		readonly code?: string;
 		readonly path?: readonly string[];
-		readonly message: string;
+		readonly messageKey: string;
+		readonly messageParams?: Readonly<
+			Record<string, string | number | boolean>
+		>;
 		readonly line?: number;
 		readonly column?: number;
 		readonly restartRequired?: boolean;
@@ -248,7 +252,10 @@ function serializeDiagnostic(diagnostic: SettingsDiagnostic): {
 	readonly severity: SettingsDiagnostic["severity"];
 	readonly code?: string;
 	readonly path?: readonly string[];
-	readonly message: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<
+		Record<string, string | number | boolean>
+	>;
 	readonly line?: number;
 	readonly column?: number;
 	readonly restartRequired?: boolean;
@@ -257,7 +264,8 @@ function serializeDiagnostic(diagnostic: SettingsDiagnostic): {
 		severity: diagnostic.severity,
 		code: diagnostic.code,
 		path: diagnostic.path,
-		message: diagnostic.message,
+		messageKey: diagnostic.messageKey,
+		messageParams: diagnostic.messageParams,
 		line: diagnostic.line,
 		column: diagnostic.column,
 		restartRequired: diagnostic.restartRequired,

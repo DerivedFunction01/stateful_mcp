@@ -4,6 +4,7 @@ import type {
 	FileTreeItemDto,
 	HostError,
 	HostEvent,
+	MessageParam,
 	SettingsApplyResult,
 	SettingsUiSnapshotDto,
 	WorkspaceSnapshot,
@@ -37,7 +38,11 @@ export interface BrowserWorkspaceState {
 	};
 	readonly editorResult?: EditorOperationResult;
 	readonly pendingEditorRequests: Readonly<Record<string, string>>;
-	readonly editorError?: { readonly code?: string; readonly message: string };
+	readonly editorError?: {
+		readonly code?: string;
+		readonly messageKey?: string;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	};
 	readonly projectFileTree: readonly FileTreeItemDto[];
 }
 
@@ -219,17 +224,26 @@ export class BrowserWorkspaceStore {
 			this.update({
 				editorError:
 					result.status === "rejected"
-						? { code: result.code, message: result.message ?? "" }
+						? {
+								code: result.code,
+								messageKey: result.messageKey,
+								messageParams: result.messageParams,
+							}
 						: undefined,
 			});
 			return result;
 		} catch (error) {
 			this.update({
-				editorError: {
-					code:
-						error instanceof HostRequestError ? error.error.code : undefined,
-					message: error instanceof Error ? error.message : String(error),
-				},
+				editorError:
+					error instanceof HostRequestError
+						? {
+								code: error.error.code,
+								messageKey: error.error.messageKey,
+								messageParams: error.error.messageParams,
+							}
+						: {
+								code: error instanceof Error ? error.name : undefined,
+							},
 			});
 			throw error;
 		} finally {
@@ -414,7 +428,11 @@ export class BrowserWorkspaceStore {
 				editorResult: result,
 				editorError:
 					result.status === "rejected"
-						? { code: result.code, message: result.message ?? "" }
+						? {
+								code: result.code,
+								messageKey: result.messageKey,
+								messageParams: result.messageParams,
+							}
 						: undefined,
 			});
 		if (result?.status === "conflict" && result.documentId) {

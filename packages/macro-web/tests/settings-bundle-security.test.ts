@@ -71,6 +71,7 @@ describe("settings bundle security boundary", () => {
 			expect.objectContaining({
 				severity: "error",
 				path: ["appearance", "theme"],
+				messageKey: "settings.bundle.valueInvalid",
 			}),
 		]);
 	});

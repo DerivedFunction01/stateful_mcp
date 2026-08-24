@@ -92,7 +92,14 @@ export function toSettingsDiagnosticDto(
 		severity: diagnostic.severity,
 		code: diagnostic.code,
 		path: diagnostic.path,
-		message: diagnostic.message,
+		/**
+		 * The DTO is a strict structured descriptor: it carries only
+		 * `messageKey`, never a human-readable `message`. The canonical
+		 * `SettingsDiagnostic` does not yet project a structured key, so use its
+		 * `code` (a structured identifier) and fall back to a generic key when
+		 * absent.
+		 */
+		messageKey: diagnostic.code ?? "settings.diagnostic.generic",
 		line: diagnostic.line,
 		column: diagnostic.column,
 		restartRequired: diagnostic.restartRequired,
@@ -169,9 +176,8 @@ export function prepareImportedBundle(
 		if (importedProfileId !== profileId) {
 			diagnostics.push({
 				severity: "error",
-				message: messageForKey("settings.bundle.profileOutsideSelection", {
-					profile: importedProfileId,
-				}),
+				messageKey: "settings.bundle.profileOutsideSelection",
+				messageParams: { profile: importedProfileId },
 			});
 		}
 	}
@@ -186,7 +192,7 @@ export function prepareImportedBundle(
 				diagnostics.push({
 					severity: "warning",
 					path: entry.path,
-					message: messageForKey("settings.bundle.sensitiveOmitted"),
+					messageKey: "settings.bundle.sensitiveOmitted",
 				});
 				deleteBundlePath(value, entry.path);
 				continue;
@@ -196,9 +202,8 @@ export function prepareImportedBundle(
 				diagnostics.push({
 					severity: "error",
 					path: entry.path,
-					message: messageForKey("settings.bundle.valueInvalid", {
-						path: entry.path.join("."),
-					}),
+					messageKey: "settings.bundle.valueInvalid",
+					messageParams: { path: entry.path.join(".") },
 				});
 		}
 	};

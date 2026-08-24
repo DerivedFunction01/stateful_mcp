@@ -19,6 +19,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import type { HostClient } from "../lib/host-client";
 import { useI18n } from "../lib/macro-i18n-provider";
+import { resolveMessage, resolveThrownError } from "../lib/message-resolver";
 import {
 	Badge,
 	Button,
@@ -71,7 +72,8 @@ export function ExtensionActivationGroupsModal({
 		result: ProjectOperationResult | ProjectExtensionGroupOperationResult,
 	) => void;
 }) {
-	const { t } = useI18n();
+	const i18n = useI18n();
+	const { t } = i18n;
 	const [configuration, setConfiguration] = useState<ProjectConfigurationDto>();
 	const [draft, setDraft] = useState<ProjectConfigurationDto>();
 	const [activeExtensionGroupId, setActiveExtensionGroupId] = useState("");
@@ -111,7 +113,7 @@ export function ExtensionActivationGroupsModal({
 				setSelectedGroupId(active || first);
 			})
 			.catch((reason: unknown) =>
-				setError(reason instanceof Error ? reason.message : String(reason)),
+				setError(resolveThrownError(i18n, reason)),
 			);
 	}, [client, isOpen, t]);
 
@@ -364,8 +366,8 @@ export function ExtensionActivationGroupsModal({
 			const run = async (result: ProjectExtensionGroupOperationResult) => {
 				if (result.status !== "accepted")
 					throw new Error(
-						"message" in result
-							? result.message
+						"messageKey" in result
+							? resolveMessage(i18n, result)
 							: "Extension group operation failed",
 					);
 				latest = result.configuration;
@@ -426,7 +428,7 @@ export function ExtensionActivationGroupsModal({
 			if (lastResult) onUpdated?.(lastResult);
 			onClose();
 		} catch (reason) {
-			setError(reason instanceof Error ? reason.message : String(reason));
+			setError(resolveThrownError(i18n, reason));
 		} finally {
 			setBusy(false);
 		}

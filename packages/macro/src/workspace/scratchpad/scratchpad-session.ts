@@ -1,12 +1,28 @@
-import type { PinnedMacroDto } from "@stateful-mcp/macro-protocol";
+import type {
+	MessageDescriptor,
+	PinnedMacroDto,
+} from "@stateful-mcp/macro-protocol";
+import type { MacroDiagnostic } from "../../contracts/input";
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import { extractTokenChipsFromProjections } from "../editor/chips";
 import type { EditorKernel } from "../editor/editor-kernel";
+import { messageDescriptor } from "../i18n/translation";
 import {
 	createEmptyProjectedLine,
 	type ProjectedMacroLine,
 	synthesizeProjectedLine,
 } from "./live-projection";
+
+/**
+ * Message keys for the diagnostics and failures this session synthesizes
+ * itself. The session never produces prose or raw `Error.message` text: every
+ * user-visible string is resolved from these keys by the presentation layer.
+ */
+const SCRATCHPAD_MESSAGE_KEYS = {
+	parseFailed: "editor.diagnostics.parseFailed",
+	parseError: "editor.diagnostics.parseError",
+	executionFailed: "editor.execution.failed",
+} as const;
 
 export interface ScratchpadExecutionReceipt {
 	readonly lineNumber: number;
@@ -15,7 +31,12 @@ export interface ScratchpadExecutionReceipt {
 	readonly invokedAs?: string;
 	readonly success: boolean;
 	readonly result?: unknown;
-	readonly error?: string;
+	/**
+	 * Structured failure descriptor. Hosts localize `messageKey`; the raw
+	 * thrown error stays on the developer console and never crosses this
+	 * boundary.
+	 */
+	readonly error?: MessageDescriptor;
 	readonly executedAt: number;
 	readonly identity?: {
 		readonly documentId: string;
@@ -381,10 +402,11 @@ export class ScratchpadSession {
 								diagnostics:
 									draft?.diagnostics ??
 									([
-										{
-											code: "NO_MATCH",
-											message: `Failed to parse arguments for macro '${macroName}'`,
-										},
+										scratchpadDiagnostic(
+											SCRATCHPAD_MESSAGE_KEYS.parseFailed,
+											macroName,
+											lineText,
+										),
 									] as const),
 							};
 						}
@@ -403,6 +425,10 @@ export class ScratchpadSession {
 							"explicit",
 						);
 					} catch (error) {
+						console.error(
+							`Parse failed for scratchpad line ${index + 1}:`,
+							error,
+						);
 						return {
 							lineNumber: index + 1,
 							rawText: lineText,
@@ -415,13 +441,11 @@ export class ScratchpadSession {
 							projections: [],
 							chips: [],
 							diagnostics: [
-								{
-									code: "NO_MATCH" as const,
-									message:
-										error instanceof Error ? error.message : String(error),
-									severity: "error" as const,
-									span: { start: 0, end: lineText.length },
-								},
+								scratchpadDiagnostic(
+									SCRATCHPAD_MESSAGE_KEYS.parseError,
+									macroName,
+									lineText,
+								),
 							],
 						};
 					}
@@ -467,12 +491,11 @@ export class ScratchpadSession {
 								undefined,
 								undefined,
 								[
-									{
-										code: "NO_MATCH",
-										message: `Failed to parse arguments for macro '${macroName}'`,
-										start: 0,
-										end: lineText.length,
-									},
+									scratchpadDiagnostic(
+										SCRATCHPAD_MESSAGE_KEYS.parseFailed,
+										macroName,
+										lineText,
+									),
 								] as const,
 								[],
 								defaultId ?? undefined,
@@ -495,6 +518,10 @@ export class ScratchpadSession {
 							"default",
 						);
 					} catch (error) {
+						console.error(
+							`Parse failed for scratchpad line ${index + 1}:`,
+							error,
+						);
 						return {
 							lineNumber: index + 1,
 							rawText: lineText,
@@ -506,13 +533,11 @@ export class ScratchpadSession {
 							projections: [],
 							chips: [],
 							diagnostics: [
-								{
-									code: "NO_MATCH" as const,
-									message:
-										error instanceof Error ? error.message : String(error),
-									severity: "error" as const,
-									span: { start: 0, end: lineText.length },
-								},
+								scratchpadDiagnostic(
+									SCRATCHPAD_MESSAGE_KEYS.parseError,
+									macroName,
+									lineText,
+								),
 							],
 						};
 					}
@@ -581,8 +606,6 @@ export class ScratchpadSession {
 				executedAt: Date.now(),
 			};
 		} catch (error) {
-			const errorMessage =
-				error instanceof Error ? error.message : String(error);
 			console.error(
 				`Execution failed for scratchpad line ${line.lineNumber}:`,
 				error,
@@ -593,7 +616,7 @@ export class ScratchpadSession {
 				macroId: line.adapterId,
 				invokedAs,
 				success: false,
-				error: errorMessage,
+				error: messageDescriptor(SCRATCHPAD_MESSAGE_KEYS.executionFailed),
 				executedAt: Date.now(),
 			};
 		}
@@ -697,6 +720,27 @@ export class ScratchpadSession {
 		)
 			throw new ScratchpadExecutionPolicyError("EDITOR_RANGE_INVALID");
 	}
+}
+
+/**
+ * Builds a structured diagnostic for a line the session could not project.
+ * `messageKey`/`messageParams` are the canonical payload; `message` repeats the
+ * key so no untranslated prose reaches a surface that has not yet migrated off
+ * `DiagnosticDto.message`.
+ */
+function scratchpadDiagnostic(
+	messageKey: string,
+	macroName: string,
+	rawText: string,
+): MacroDiagnostic {
+	return {
+		code: "NO_MATCH",
+		message: messageKey,
+		messageKey,
+		messageParams: { macroName },
+		start: 0,
+		end: rawText.length,
+	};
 }
 
 /**

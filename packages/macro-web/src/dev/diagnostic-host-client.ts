@@ -134,7 +134,7 @@ export function createDiagnosticHostClient(): HostClient {
 		applySettingsBundle: async (): Promise<SettingsBundleResult> => ({
 			status: "unsupported",
 			code: "FIXTURE_ONLY",
-			message: "Settings bundles are unavailable in the diagnostic fixture",
+			messageKey: "common.error",
 		}),
 		applyEditorOperation: async (
 			operation: EditorOperation,
@@ -143,7 +143,7 @@ export function createDiagnosticHostClient(): HostClient {
 			requestId: operation.requestId,
 			status: "rejected",
 			code: "FIXTURE_ONLY",
-			message: "Editor transport is unavailable in the diagnostic fixture",
+			messageKey: "common.error",
 			snapshot: snapshot.editor,
 			workspaceSnapshot: snapshot,
 			workspaceRevision: snapshot.revision,
