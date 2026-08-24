@@ -633,10 +633,14 @@ export function EditorSurfaceView({
 			}),
 		);
 		lastRenderedText.current = sourceKey;
-		if (activeCellIndex !== undefined) {
+		if (
+			activeCellIndex !== undefined &&
+			focusedRef.current &&
+			vimMode !== "INSERT"
+		) {
 			setLineAndCol(root, activeCellIndex, 0);
 		}
-	}, [sourceLines, filePath, title, activeCellIndex]);
+	}, [sourceLines, filePath, title, activeCellIndex, vimMode]);
 
 	useEffect(() => {
 		if (activeCellIndex !== undefined) {
