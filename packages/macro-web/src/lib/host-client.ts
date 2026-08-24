@@ -93,8 +93,6 @@ export interface HostClient {
 		parentPath: string,
 		name: string,
 	): Promise<{ readonly path: string }>;
-	renamePath?(source: string, destination: string): Promise<void>;
-	deletePath?(path: string): Promise<void>;
 	openProject(path: string): Promise<HostWorkspaceSnapshot>;
 	initProject(
 		path: string,
@@ -381,22 +379,6 @@ export class BrowserHostClient implements HostClient {
 			type: "project.createFile",
 			sessionId: this.requireSession(),
 			payload: { parentPath, name },
-		});
-	}
-
-	async renamePath(source: string, destination: string): Promise<void> {
-		await this.request("/api/project/rename", {
-			type: "project.rename",
-			sessionId: this.requireSession(),
-			payload: { source, destination },
-		});
-	}
-
-	async deletePath(path: string): Promise<void> {
-		await this.request("/api/project/delete", {
-			type: "project.delete",
-			sessionId: this.requireSession(),
-			payload: { path },
 		});
 	}
 

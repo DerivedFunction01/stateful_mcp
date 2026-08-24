@@ -1,6 +1,7 @@
 import type { ActiveExtension } from "../../extensions/contracts";
 import type { ExtensionRuntimeSnapshot } from "../../extensions/runtime-snapshot";
 import type { CommandRegistry } from "./command-registry";
+import type { ResourceRegistry } from "./resource-registry";
 import type { SettingsContributionRegistry } from "./settings-registry";
 import { validateSurfaceKeybindings } from "./surface-keybindings";
 import type { TabRegistry } from "./tab-registry";
@@ -15,6 +16,7 @@ export class ExtensionContributionManager {
 		private readonly tabs: TabRegistry,
 		private readonly commands: CommandRegistry,
 		private readonly settings?: SettingsContributionRegistry,
+		private readonly resources?: ResourceRegistry,
 	) {}
 
 	install(active: readonly ActiveExtension[]): void {
@@ -31,6 +33,7 @@ export class ExtensionContributionManager {
 			tabs: [],
 			commands: [],
 			settings: [],
+			resources: [],
 		};
 		try {
 			const surfaceBindings = [
@@ -96,6 +99,15 @@ export class ExtensionContributionManager {
 				this.commands.registerCommand(command, handler, extension.manifest.id);
 				owned.commands.push(command.command);
 			}
+			for (const resource of manifest?.resourceProviders ?? []) {
+				const provider = activation?.resources?.[resource.id];
+				if (!provider)
+					throw new Error(
+						`Resource provider '${resource.id}' has no activation provider`,
+					);
+				this.resources?.register(resource, provider, extension.manifest.id);
+				owned.resources.push(resource.kind);
+			}
 			this.owned.set(extension.manifest.id, owned);
 			this.active.set(extension.manifest.id, {
 				id: extension.manifest.id,
@@ -115,6 +127,10 @@ export class ExtensionContributionManager {
 					settings:
 						extension.manifest.contributes?.settings?.map(
 							(item) => item.namespace,
+						) ?? [],
+					resources:
+						extension.manifest.contributes?.resourceProviders?.map(
+							(item) => item.kind,
 						) ?? [],
 				},
 				diagnostics: [],
@@ -151,6 +167,7 @@ export class ExtensionContributionManager {
 		for (const id of owned.views) this.views.unregisterView(id);
 		for (const id of owned.containers) this.views.unregisterContainer(id);
 		for (const id of owned.settings) this.settings?.unregister(id);
+		for (const kind of owned.resources) this.resources?.unregister(kind);
 	}
 }
 
@@ -160,4 +177,5 @@ interface OwnedContributions {
 	tabs: string[];
 	commands: string[];
 	settings: string[];
+	resources: string[];
 }

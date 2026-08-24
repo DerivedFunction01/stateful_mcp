@@ -1,11 +1,6 @@
-import { useMemo, useState } from "react";
 import type { EditorOutputEntryDto } from "@stateful-mcp/macro-protocol";
-import type {
-	DensityMode,
-	SortDirection,
-	StatusFilter,
-	TimeFilter,
-} from "./journal-types";
+import { useMemo, useState } from "react";
+import type { SortDirection, StatusFilter, TimeFilter } from "./journal-types";
 
 export type JournalFilterState = {
 	readonly searchQuery: string;
@@ -40,7 +35,10 @@ export function filterJournalEntries(
 	return entries
 		.filter((entry) => {
 			if (filters.statusFilter !== "all") {
-				if (filters.statusFilter === "committed" && entry.status !== "committed")
+				if (
+					filters.statusFilter === "committed" &&
+					entry.status !== "committed"
+				)
 					return false;
 				if (filters.statusFilter === "reversed" && entry.status !== "reversed")
 					return false;

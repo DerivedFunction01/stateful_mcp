@@ -1,3 +1,8 @@
+import type {
+	EditorOutputEntryDto,
+	GatedActionDescriptorDto,
+	MacroArtifactDescriptorDto,
+} from "@stateful-mcp/macro-protocol";
 import {
 	AlertCircle,
 	Check,
@@ -9,21 +14,16 @@ import {
 	RotateCcw,
 	XCircle,
 } from "lucide-react";
-import type {
-	EditorOutputEntryDto,
-	GatedActionDescriptorDto,
-	MacroArtifactDescriptorDto,
-} from "@stateful-mcp/macro-protocol";
+import { JournalArtifactList } from "./JournalArtifactList";
+import { JournalFacetStack } from "./JournalFacetStack";
+import { JournalGatedActionList } from "./JournalGatedActionList";
+import type { DensityMode, I18nFn } from "./journal-types";
 import {
 	getArtifacts,
 	getFacets,
 	getGatedActions,
 	getJournalPayload,
 } from "./journal-utils";
-import type { DensityMode, I18nFn } from "./journal-types";
-import { JournalFacetStack } from "./JournalFacetStack";
-import { JournalArtifactList } from "./JournalArtifactList";
-import { JournalGatedActionList } from "./JournalGatedActionList";
 
 export type JournalEntryCardProps = {
 	readonly entry: EditorOutputEntryDto;

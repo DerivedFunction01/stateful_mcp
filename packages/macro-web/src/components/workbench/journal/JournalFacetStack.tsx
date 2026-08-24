@@ -1,5 +1,5 @@
-import { Check, Copy, CornerDownLeft } from "lucide-react";
 import type { MacroDisplayFacetsDto } from "@stateful-mcp/macro-protocol";
+import { Check, Copy, CornerDownLeft } from "lucide-react";
 import type { I18nFn } from "./journal-types";
 
 export type JournalFacetStackProps = {

@@ -7,6 +7,7 @@ import type {
 	ExtensionTabProvider,
 	ExtensionViewProvider,
 	MacroExtensionUIContributions,
+	ResourceProvider,
 } from "../workspace/contributions/types";
 
 export interface ExtensionLocaleBundle {
@@ -37,6 +38,7 @@ export interface ExtensionActivation {
 		readonly commands?: Readonly<Record<string, CommandHandler>>;
 		readonly projectMigrationParticipants?: readonly ProjectMigrationParticipant[];
 		readonly projectSettings?: readonly import("../workspace/contributions/types").ProjectSettingsContribution[];
+		readonly resources?: Readonly<Record<string, ResourceProvider>>;
 	};
 	dispose?(): Promise<void> | void;
 }

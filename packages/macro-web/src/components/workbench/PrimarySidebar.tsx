@@ -77,6 +77,7 @@ export function PrimarySidebar(props: PrimarySidebarProps) {
 	const { t } = useI18n();
 	const [openEditorsCollapsed, setOpenEditorsCollapsed] = useState(false);
 	const [workspaceCollapsed, setWorkspaceCollapsed] = useState(false);
+	const [resourcesCollapsed, setResourcesCollapsed] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [searchReplace, setSearchReplace] = useState("");
 	const [matchCase, setMatchCase] = useState(false);
@@ -109,6 +110,8 @@ export function PrimarySidebar(props: PrimarySidebarProps) {
 		setOpenEditorsCollapsed,
 		workspaceCollapsed,
 		setWorkspaceCollapsed,
+		resourcesCollapsed,
+		setResourcesCollapsed,
 		searchQuery,
 		setSearchQuery,
 		searchReplace,

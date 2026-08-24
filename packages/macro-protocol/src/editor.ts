@@ -51,6 +51,10 @@ export interface MacroArtifactDescriptorDto {
 	readonly targetPath?: string;
 	readonly downloadUrl?: string;
 	readonly previewSnippet?: string;
+	readonly artifactToken?: string;
+	readonly lifecycle?: "ephemeral" | "project" | "extension" | "external";
+	readonly scope?: "project" | "global" | "content" | "cache" | "external";
+	readonly capabilities?: readonly ("download" | "save" | "open")[];
 }
 
 export interface GatedActionDescriptorDto {
@@ -403,6 +407,26 @@ export type EditorOperation =
 	| (EditorRequestBase & {
 			readonly operation: "editor.openScratchpad";
 			readonly scratchpadId: string;
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.openResource";
+			readonly resourceKind: string;
+			readonly resourceId: string;
+			readonly groupId?: string;
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.resourceAction";
+			readonly resourceKind: string;
+			readonly resourceId: string;
+			readonly action: string;
+			readonly args?: readonly EditorJsonValue[];
+			readonly expectedWorkspaceRevision?: number;
+	  })
+	| (EditorRequestBase & {
+			readonly operation: "editor.saveArtifact";
+			readonly artifactToken: string;
 			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {

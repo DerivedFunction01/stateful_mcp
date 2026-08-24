@@ -8,6 +8,7 @@ import { WorkspaceSettingsService } from "./config/settings-service";
 import { SettingsUiModel } from "./config/settings-ui-model";
 import { CommandRegistry } from "./contributions/command-registry";
 import { ExtensionContributionManager } from "./contributions/extension-contribution-manager";
+import { ResourceRegistry } from "./contributions/resource-registry";
 import { SettingsContributionRegistry } from "./contributions/settings-registry";
 import { TabRegistry } from "./contributions/tab-registry";
 import { ViewRegistry } from "./contributions/view-registry";
@@ -48,6 +49,7 @@ export * from "./config/storage-driver";
 export * from "./config/value-semantic-providers";
 export * from "./contributions/command-registry";
 export * from "./contributions/extension-contribution-manager";
+export * from "./contributions/resource-registry";
 export * from "./contributions/settings-registry";
 export * from "./contributions/tab-registry";
 export * from "./contributions/types";
@@ -105,6 +107,7 @@ export interface MacroWorkspace {
 	readonly settingsContributions: SettingsContributionRegistry;
 	readonly settingsNavigation: SettingsNavigationState;
 	readonly settingsUiModel: SettingsUiModel;
+	readonly resources: ResourceRegistry;
 	dispose(): Promise<void>;
 }
 
@@ -119,6 +122,7 @@ export function createMacroWorkspace(
 	const views = new ViewRegistry();
 	const commands = new CommandRegistry();
 	const settingsContributions = new SettingsContributionRegistry();
+	const resources = new ResourceRegistry();
 	const settingsNavigation = new SettingsNavigationState();
 	const journal = new WorkspaceJournal(options?.journal);
 	const runtime =
@@ -696,6 +700,7 @@ export function createMacroWorkspace(
 		tabs,
 		commands,
 		settingsContributions,
+		resources,
 	);
 	const refreshSettings = () =>
 		options?.settings?.reconfigure({
@@ -727,6 +732,7 @@ export function createMacroWorkspace(
 		runtime,
 		contributions,
 		settingsContributions,
+		resources,
 		settingsNavigation,
 		settingsUiModel,
 		dispose: async () => {

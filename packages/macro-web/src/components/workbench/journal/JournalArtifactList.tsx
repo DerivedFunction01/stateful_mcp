@@ -1,3 +1,4 @@
+import type { MacroArtifactDescriptorDto } from "@stateful-mcp/macro-protocol";
 import {
 	Download,
 	FileCode2,
@@ -5,9 +6,8 @@ import {
 	FileText,
 	FolderPlus,
 } from "lucide-react";
-import type { MacroArtifactDescriptorDto } from "@stateful-mcp/macro-protocol";
-import { formatBytes } from "./journal-utils";
 import type { I18nFn } from "./journal-types";
+import { formatBytes } from "./journal-utils";
 
 export type JournalArtifactListProps = {
 	readonly artifacts: readonly MacroArtifactDescriptorDto[];

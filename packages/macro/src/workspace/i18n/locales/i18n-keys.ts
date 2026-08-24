@@ -750,6 +750,7 @@ export const I18N_KEYS = [
 	"workbench.resizeInspector",
 	"workbench.resizeOutputDrawer",
 	"workbench.resizeSidebar",
+	"workbench.resources",
 	"workbench.reverseAll",
 	"workbench.search",
 	"workbench.searchPlaceholder",

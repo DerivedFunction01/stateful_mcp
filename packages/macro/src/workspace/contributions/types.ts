@@ -143,6 +143,53 @@ export interface MacroExtensionUIContributions {
 	readonly settings?: readonly ExtensionSettingsContribution[];
 	/** Project-shared configuration is opt-in; ordinary extension settings remain user/workspace scoped. */
 	readonly projectSettings?: readonly ProjectSettingsContribution[];
+	/** Project resource kinds that may be projected into the host resource explorer. */
+	readonly resourceProviders?: readonly ResourceProviderContribution[];
+}
+
+export interface ResourceProviderContribution {
+	readonly id: string;
+	readonly kind: string;
+	readonly title: string;
+	readonly icon?: string;
+	readonly order?: number;
+	readonly scopes?: readonly (
+		| "project"
+		| "global"
+		| "content"
+		| "cache"
+		| "external"
+	)[];
+	readonly capabilities?: readonly (
+		| "open"
+		| "inspect"
+		| "refresh"
+		| "download"
+		| "save"
+		| "delete"
+		| "invoke"
+	)[];
+}
+
+export interface ResourceProvider {
+	listProjectResources?():
+		| Promise<
+				readonly {
+					readonly resourceId: string;
+					readonly label: string;
+					readonly metadata?: Readonly<Record<string, unknown>>;
+				}[]
+		  >
+		| readonly {
+				readonly resourceId: string;
+				readonly label: string;
+				readonly metadata?: Readonly<Record<string, unknown>>;
+		  }[];
+	executeAction?(
+		action: string,
+		resourceId: string,
+		args: readonly unknown[],
+	): Promise<unknown> | unknown;
 }
 
 export interface ProjectSettingsContribution {

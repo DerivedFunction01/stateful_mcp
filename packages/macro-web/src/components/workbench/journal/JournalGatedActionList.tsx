@@ -1,5 +1,5 @@
-import { Download, ExternalLink, Play } from "lucide-react";
 import type { GatedActionDescriptorDto } from "@stateful-mcp/macro-protocol";
+import { Download, ExternalLink, Play } from "lucide-react";
 import type { I18nFn } from "./journal-types";
 
 export type JournalGatedActionListProps = {

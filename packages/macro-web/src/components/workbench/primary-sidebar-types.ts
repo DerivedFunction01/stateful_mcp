@@ -18,7 +18,9 @@ export interface PrimarySidebarProps {
 	readonly onOpenFolderModal?: (mode: "open" | "init" | "saveAs") => void;
 	readonly onCommand?: (command: string, args?: readonly unknown[]) => void;
 	readonly projectFileTree?: readonly import("@stateful-mcp/macro-protocol").FileTreeItemDto[];
+	readonly resourceTree?: readonly import("@stateful-mcp/macro-protocol").ProjectResourceTreeNodeDto[];
 	readonly onOpenFile?: (path: string) => void;
+	readonly onOpenResource?: (resourceKind: string, resourceId: string) => void;
 	readonly onRefreshFileTree?: () => void;
 	readonly onCreateFile?: (parent: string, name: string) => void;
 	readonly onCreateFolder?: (parent: string, name: string) => void;
@@ -47,6 +49,8 @@ export interface SidebarPaneHelpers {
 	>;
 	readonly workspaceCollapsed: boolean;
 	readonly setWorkspaceCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
+	readonly resourcesCollapsed: boolean;
+	readonly setResourcesCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
 	readonly searchQuery: string;
 	readonly setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
 	readonly searchReplace: string;

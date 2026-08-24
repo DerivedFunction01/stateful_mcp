@@ -498,6 +498,7 @@ class MacroProjectHandle implements MacroProject {
 		const reference: MacroProjectResourceReference = {
 			resourceId: scratchpadId,
 			kind: "scratchpad",
+			metadata: { title: resource.title },
 		};
 		const scratchpadResources = [
 			...(this.currentManifest.scratchpadResources ?? []).filter(
@@ -545,7 +546,13 @@ class MacroProjectHandle implements MacroProject {
 		const scratchpadResources = (
 			this.currentManifest.scratchpadResources ?? []
 		).map((item) =>
-			item.resourceId === resource.scratchpadId ? { ...item, revision } : item,
+			item.resourceId === resource.scratchpadId
+				? {
+						...item,
+						revision,
+						metadata: { ...(item.metadata ?? {}), title: resource.title },
+					}
+				: item,
 		);
 		if (
 			!scratchpadResources.some(
@@ -556,6 +563,7 @@ class MacroProjectHandle implements MacroProject {
 				resourceId: resource.scratchpadId,
 				kind: "scratchpad",
 				revision,
+				metadata: { title: resource.title },
 			});
 		}
 		await this.saveManifest(

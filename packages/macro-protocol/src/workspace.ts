@@ -684,6 +684,40 @@ export interface ProjectResourceReferenceDto {
 	readonly metadata?: Readonly<Record<string, unknown>>;
 }
 
+export type ProjectResourceNodeCategory = "resource" | "external" | "link";
+export type ProjectResourceStorageScope =
+	| "project"
+	| "global"
+	| "content"
+	| "cache"
+	| "ephemeral"
+	| "external";
+
+export type ProjectResourceCapability =
+	| "open"
+	| "inspect"
+	| "refresh"
+	| "download"
+	| "save"
+	| "delete"
+	| "invoke";
+
+export interface ProjectResourceTreeNodeDto {
+	readonly nodeId: string;
+	readonly nodeType: "folder" | "resource";
+	readonly label: string;
+	readonly icon?: string;
+	readonly category?: ProjectResourceNodeCategory;
+	readonly scope?: ProjectResourceStorageScope;
+	readonly resourceKind?: string;
+	readonly resourceId?: string;
+	readonly capabilities?: readonly ProjectResourceCapability[];
+	readonly disabled?: boolean;
+	readonly disabledReason?: string;
+	readonly metadata?: Readonly<Record<string, unknown>>;
+	readonly children?: readonly ProjectResourceTreeNodeDto[];
+}
+
 export interface ProjectDescriptorDto {
 	readonly projectId: string;
 	readonly displayName: string;
@@ -692,6 +726,7 @@ export interface ProjectDescriptorDto {
 	readonly revision: string;
 	readonly resources: readonly ProjectResourceReferenceDto[];
 	readonly historyResources: readonly ProjectResourceReferenceDto[];
+	readonly resourceTree?: readonly ProjectResourceTreeNodeDto[];
 	readonly ephemeral?: boolean;
 }
 

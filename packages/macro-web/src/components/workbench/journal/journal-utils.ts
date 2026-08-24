@@ -17,9 +17,7 @@ export function formatBytes(bytes: number): string {
 	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function getJournalPayload(
-	entry: EditorOutputEntryDto,
-): JournalPayload {
+export function getJournalPayload(entry: EditorOutputEntryDto): JournalPayload {
 	const { result } = entry;
 	if (result && typeof result === "object" && "data" in result) {
 		return (result as { data: MacroExecutionPayloadDto }).data;

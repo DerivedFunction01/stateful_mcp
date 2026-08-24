@@ -483,6 +483,15 @@ export function WorkbenchShell({
 							}
 						}}
 						onCloseDocument={handleCloseDocumentGlobal}
+						onOpenResource={(resourceKind, resourceId) => {
+							emitEditorOperation({
+								operation: "editor.openResource",
+								requestId: requestId(),
+								resourceKind,
+								resourceId,
+								groupId: activeGroup?.groupId,
+							});
+						}}
 						onNewScratchpad={() =>
 							emitEditorOperation({
 								operation: "editor.newScratchpad",
@@ -521,6 +530,7 @@ export function WorkbenchShell({
 						onOpenFolderModal={onOpenFolderModal}
 						onCommand={onCommand}
 						projectFileTree={projectFileTree}
+						resourceTree={snapshot.project?.resourceTree}
 						onOpenFile={onOpenFile}
 						onRefreshFileTree={onRefreshFileTree}
 						onCreateFile={onCreateFile}

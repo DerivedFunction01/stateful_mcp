@@ -75,6 +75,7 @@ export const EN_WORKBENCH: Record<string, string> = {
 	"workbench.search": "Search",
 	"workbench.journalHistory": "Journal History",
 	"workbench.openEditors": "Open Editors",
+	"workbench.resources": "Resources",
 	"workbench.noFolderOpened": "No Folder Opened",
 	"workbench.noFolderDescription":
 		"You have not yet opened a folder or project workspace.",

@@ -337,6 +337,17 @@ export function App() {
 			}
 			return;
 		}
+		if (command === "editor.saveArtifact") {
+			const artifactToken = args?.[0];
+			if (typeof artifactToken === "string") {
+				await store.applyEditorOperation({
+					operation: "editor.saveArtifact",
+					requestId: crypto.randomUUID(),
+					artifactToken,
+				});
+			}
+			return;
+		}
 		if (command === "editor.saveAll") {
 			const documents = snapshot?.editor.documents ?? [];
 			for (const doc of documents) {

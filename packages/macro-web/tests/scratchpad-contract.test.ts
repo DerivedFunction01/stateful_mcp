@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createDiagnosticHostClient } from "../src/dev/diagnostic-host-client";
-import { toScratchpadDiagnosticDto } from "../src/server/host-session-manager";
+import { toScratchpadDiagnosticDto } from "../src/server/editor/editor-projections";
 
 describe("host-owned scratchpad projection", () => {
 	test("exposes revisioned logical lines and projected diagnostics", async () => {

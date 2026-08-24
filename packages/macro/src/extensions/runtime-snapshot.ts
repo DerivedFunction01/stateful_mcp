@@ -13,6 +13,7 @@ export interface ExtensionRuntimeSnapshot {
 		readonly commands: readonly string[];
 		readonly localizations: readonly string[];
 		readonly settings?: readonly string[];
+		readonly resources?: readonly string[];
 	};
 	readonly diagnostics: readonly string[];
 }

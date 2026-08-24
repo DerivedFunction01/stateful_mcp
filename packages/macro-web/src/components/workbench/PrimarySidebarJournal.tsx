@@ -4,12 +4,12 @@ import type {
 	MacroArtifactDescriptorDto,
 } from "@stateful-mcp/macro-protocol";
 import { useState } from "react";
-import type { SidebarPaneProps } from "./primary-sidebar-types";
-import { JournalToolbar } from "./journal/JournalToolbar";
-import { JournalEntryCard } from "./journal/JournalEntryCard";
 import { JournalEmptyState } from "./journal/JournalEmptyState";
-import { useJournalFilters } from "./journal/useJournalFilters";
+import { JournalEntryCard } from "./journal/JournalEntryCard";
+import { JournalToolbar } from "./journal/JournalToolbar";
 import type { DensityMode } from "./journal/journal-types";
+import { useJournalFilters } from "./journal/useJournalFilters";
+import type { SidebarPaneProps } from "./primary-sidebar-types";
 
 export function JournalPaneBody({ props, helpers }: SidebarPaneProps) {
 	const { t } = helpers;
@@ -63,7 +63,8 @@ export function JournalPaneBody({ props, helpers }: SidebarPaneProps) {
 
 	const handleSaveArtifact = (artifact: MacroArtifactDescriptorDto) => {
 		if (onCommand) {
-			onCommand("workbench.saveArtifact", [artifact.id, artifact.name]);
+			if (artifact.artifactToken && artifact.capabilities?.includes("save"))
+				onCommand("editor.saveArtifact", [artifact.artifactToken]);
 		}
 	};
 

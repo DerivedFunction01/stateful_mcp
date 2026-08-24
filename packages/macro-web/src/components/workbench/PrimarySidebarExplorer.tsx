@@ -1,4 +1,12 @@
-import { ChevronDown, ChevronRight, FileText, X } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronRight,
+	FileText,
+	Folder,
+	FolderOpen,
+	X,
+} from "lucide-react";
+import { useState } from "react";
 import { FileTreeView } from "./FileTreeView";
 import type { SidebarPaneProps } from "./primary-sidebar-types";
 
@@ -16,6 +24,8 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 		setOpenEditorsCollapsed,
 		workspaceCollapsed,
 		setWorkspaceCollapsed,
+		resourcesCollapsed,
+		setResourcesCollapsed,
 		t,
 	} = helpers;
 
@@ -73,6 +83,32 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 							);
 						})}
 					</div>
+				)}
+			</div>
+
+			<div className="sidebar-accordion-section sidebar-resource-section">
+				<button
+					type="button"
+					className="sidebar-section-header"
+					onClick={() => setResourcesCollapsed((prev) => !prev)}
+					aria-expanded={!resourcesCollapsed}
+				>
+					<span className="section-chevron">
+						{resourcesCollapsed ? (
+							<ChevronRight size={13} />
+						) : (
+							<ChevronDown size={13} />
+						)}
+					</span>
+					<span className="section-title">
+						{t("workbench.resources").toUpperCase()}
+					</span>
+				</button>
+				{!resourcesCollapsed && (
+					<ResourceTreeView
+						tree={props.resourceTree ?? []}
+						onOpenResource={props.onOpenResource}
+					/>
 				)}
 			</div>
 
@@ -153,5 +189,98 @@ export function ExplorerPaneBody({ props, helpers }: SidebarPaneProps) {
 				)}
 			</div>
 		</>
+	);
+}
+
+function ResourceTreeView({
+	tree,
+	onOpenResource,
+}: {
+	readonly tree: readonly import("@stateful-mcp/macro-protocol").ProjectResourceTreeNodeDto[];
+	readonly onOpenResource?: (resourceKind: string, resourceId: string) => void;
+}) {
+	if (tree.length === 0) return null;
+	return (
+		<div className="resource-tree-view" aria-label="Project resources">
+			{tree.map((node) => (
+				<ResourceTreeNode
+					key={node.nodeId}
+					node={node}
+					depth={0}
+					onOpenResource={onOpenResource}
+				/>
+			))}
+		</div>
+	);
+}
+
+function ResourceTreeNode({
+	node,
+	depth,
+	onOpenResource,
+}: {
+	readonly node: import("@stateful-mcp/macro-protocol").ProjectResourceTreeNodeDto;
+	readonly depth: number;
+	readonly onOpenResource?: (resourceKind: string, resourceId: string) => void;
+}) {
+	const [expanded, setExpanded] = useState(depth === 0);
+	const isFolder = node.nodeType === "folder";
+	const canOpen =
+		!node.disabled &&
+		node.resourceKind !== undefined &&
+		node.resourceId !== undefined &&
+		node.capabilities?.includes("open");
+	return (
+		<div>
+			<div
+				className={`resource-tree-row ${node.disabled ? "disabled" : ""}`}
+				style={{ paddingLeft: 8 + depth * 12 }}
+			>
+				{isFolder ? (
+					<button
+						type="button"
+						className="resource-tree-chevron"
+						onClick={() => setExpanded((value) => !value)}
+						aria-label={expanded ? "Collapse" : "Expand"}
+					>
+						{expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+					</button>
+				) : (
+					<span className="resource-tree-chevron" />
+				)}
+				<button
+					type="button"
+					className="resource-tree-entry"
+					disabled={!isFolder && !canOpen}
+					title={node.disabledReason}
+					onClick={() => {
+						if (isFolder) setExpanded((value) => !value);
+						else if (canOpen)
+							onOpenResource?.(node.resourceKind!, node.resourceId!);
+					}}
+				>
+					{isFolder ? (
+						expanded ? (
+							<FolderOpen size={15} />
+						) : (
+							<Folder size={15} />
+						)
+					) : (
+						<FileText size={15} />
+					)}
+					<span>{node.label}</span>
+				</button>
+			</div>
+			{isFolder &&
+				expanded &&
+				node.children?.map((child) => (
+					<ResourceTreeNode
+						key={child.nodeId}
+						node={child}
+						depth={depth + 1}
+						onOpenResource={onOpenResource}
+					/>
+				))}
+		</div>
 	);
 }

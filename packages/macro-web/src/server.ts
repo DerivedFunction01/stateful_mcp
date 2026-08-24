@@ -363,6 +363,21 @@ const server = Bun.serve<SocketData>({
 				await sessions.deletePath(envelope.sessionId, payload.path);
 				return { deleted: true };
 			});
+		const artifactMatch = url.pathname.match(
+			/^\/api\/sessions\/([^/]+)\/artifacts\/([^/]+)$/,
+		);
+		if (artifactMatch && request.method === "GET") {
+			const artifact = sessions.getArtifact(
+				decodeURIComponent(artifactMatch[2]!),
+			);
+			if (!artifact) return new Response("Artifact not found", { status: 404 });
+			return new Response(new Blob([artifact.data as BlobPart]), {
+				headers: {
+					"Content-Type": artifact.mimeType,
+					"Content-Disposition": `attachment; filename="${artifact.name.replace(/["\\\r\n]/g, "_")}"`,
+				},
+			});
+		}
 		const sessionMatch = url.pathname.match(
 			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor|project))?$/,
 		);
