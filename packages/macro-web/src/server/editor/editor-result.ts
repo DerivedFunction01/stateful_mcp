@@ -1,34 +1,40 @@
 import type {
 	EditorOperation,
 	EditorOperationResult,
-	MessageParam,
+	EditorRejection,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
+export interface EditorResultSnapshotProvider {
+	readonly editorSnapshot: (
+		session: Session,
+	) => EditorOperationResult["snapshot"];
+	readonly workspaceSnapshot: (
+		session: Session,
+	) => EditorOperationResult["workspaceSnapshot"];
+}
+
+/**
+ * Builds the canonical rejected editor result from a single structured error.
+ * Snapshot construction is injected so the router callback can supply the
+ * manager's live snapshot providers; the error contract stays separate from
+ * routing context.
+ */
 export function rejectedEditorResult(
 	session: Session,
 	operation: EditorOperation,
-	code: string,
-	options: {
-		readonly editorSnapshot: () => unknown;
-		readonly workspaceSnapshot: () => unknown;
-		readonly messageKey: (code: string) => string;
-		readonly messageParams?: (
-			code: string,
-		) => Readonly<Record<string, MessageParam>> | undefined;
-	},
+	error: EditorRejection,
+	deps: EditorResultSnapshotProvider,
 ): EditorOperationResult {
-	const messageParams = options.messageParams?.(code);
 	return {
 		operation: operation.operation,
 		requestId: operation.requestId,
 		status: "rejected",
-		code,
-		messageKey: options.messageKey(code),
-		...(messageParams ? { messageParams } : {}),
-		snapshot: options.editorSnapshot() as EditorOperationResult["snapshot"],
-		workspaceSnapshot:
-			options.workspaceSnapshot() as EditorOperationResult["workspaceSnapshot"],
+		code: error.code,
+		messageKey: error.messageKey,
+		...(error.messageParams ? { messageParams: error.messageParams } : {}),
+		snapshot: deps.editorSnapshot(session),
+		workspaceSnapshot: deps.workspaceSnapshot(session),
 		workspaceRevision: session.revision,
 		...("documentId" in operation ? { documentId: operation.documentId } : {}),
 	};

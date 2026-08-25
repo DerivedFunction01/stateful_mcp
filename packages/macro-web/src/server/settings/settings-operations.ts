@@ -10,6 +10,10 @@ import type {
 	SettingsUiSnapshotDto,
 } from "@stateful-mcp/macro-protocol";
 import {
+	type StructuredError,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
+import {
 	toSettingsDiagnosticDto,
 	toSettingsPreviewDto,
 } from "./settings-projections";
@@ -36,6 +40,15 @@ export class SettingsServiceError extends Error {
 		this.messageKey = options.messageKey;
 		this.messageParams = options.messageParams;
 		this.retryable = options.retryable ?? false;
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			code: this.code,
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			retryable: this.retryable,
+		});
 	}
 }
 

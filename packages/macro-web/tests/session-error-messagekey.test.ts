@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
 import { createMacroHost, createMacroProject } from "@stateful-mcp/macro-host";
+import type { SettingsUiOperation } from "@stateful-mcp/macro-protocol";
 import { HostSessionManager } from "../src/server/host-session-manager";
 import { SessionError } from "../src/server/session-error";
 
@@ -51,26 +52,35 @@ describe("session error message keys", () => {
 		expect(error.messageKey).not.toMatch(/name must be a single path segment/i);
 	});
 
-	test("maps known SettingsServiceError codes to semantic keys", () => {
-		const manager = sessions as unknown as {
-			settingsServiceMessageKey(code: string): string;
-		};
-		expect(manager.settingsServiceMessageKey("SETTINGS_UNAVAILABLE")).toBe(
-			"settings.unavailable",
-		);
-		expect(
-			manager.settingsServiceMessageKey("SETTINGS_OPERATION_UNKNOWN"),
-		).toBe("settings.operation.unknown");
-		expect(manager.settingsServiceMessageKey("SOMETHING_ELSE")).toBe(
-			"settings.error",
-		);
+	test("propagates a settings error with its canonical semantic key", async () => {
+		let caught: unknown;
+		try {
+			await sessions.settingsUi(sessionId, {
+				operation: "settings.ui.unknown",
+			} as unknown as SettingsUiOperation);
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(SessionError);
+		const error = caught as SessionError;
+		expect(error.code).toBe("SETTINGS_OPERATION_UNKNOWN");
+		expect(error.messageKey).toBe("settings.operation.unknown");
 	});
 
-	test("does not expose raw exception text in settings error mapping", () => {
-		const manager = sessions as unknown as {
-			settingsServiceMessageKey(code: string): string;
-		};
-		const key = manager.settingsServiceMessageKey("SETTINGS_UNAVAILABLE");
-		expect(key).not.toMatch(/settings are unavailable/i);
+	test("does not expose raw exception text at the settings boundary", async () => {
+		let caught: unknown;
+		try {
+			await sessions.settingsUi(sessionId, {
+				operation: "settings.ui.unknown",
+			} as unknown as SettingsUiOperation);
+		} catch (error) {
+			caught = error;
+		}
+		expect(caught).toBeInstanceOf(SessionError);
+		const error = caught as SessionError;
+		expect(error.message).toBe("settings.operation.unknown");
+		expect(error.message).not.toMatch(
+			/settings are unavailable|unknown operation/i,
+		);
 	});
 });

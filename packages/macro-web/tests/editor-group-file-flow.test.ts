@@ -163,7 +163,9 @@ describe("editor group file flow", () => {
 			});
 
 			expect(result.status).toBe("rejected");
-			expect(result.code).toBe("EDITOR_OPERATION_FAILED");
+			// DocumentManagerError is a key-only descriptor: the canonical
+			// rejection carries the structured messageKey with no artificial code.
+			expect(result.code).toBeUndefined();
 			expect(result.messageKey).toBe("editor.group.notFound");
 			// The operation result carries only the structured key, never a
 			// human-readable message or the raw Error.message.

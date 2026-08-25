@@ -2,10 +2,12 @@ import type {
 	ScratchpadExecutionBatchResult,
 	ScratchpadExecutionReceipt,
 } from "@stateful-mcp/macro";
-import type {
-	EditorOperation,
-	EditorOperationResult,
-	ScratchpadExecutionReceiptDto,
+import {
+	type EditorOperation,
+	type EditorOperationResult,
+	type EditorRejection,
+	type ScratchpadExecutionReceiptDto,
+	structuredError,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
@@ -91,7 +93,7 @@ export async function executeExecutionOperation(
 			expected: number,
 			actual: number,
 		) => EditorOperationResult;
-		readonly reject: (code: string, message: string) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly receipt: (
 			receipt: ScratchpadExecutionReceipt,
 			operation: ExecutionOperation,
@@ -111,8 +113,10 @@ export async function executeExecutionOperation(
 	const document = workspace.documents.get(operation.documentId);
 	if (!document)
 		return context.reject(
-			"EDITOR_DOCUMENT_NOT_FOUND",
-			"editor.document.notFound",
+			structuredError({
+				code: "EDITOR_DOCUMENT_NOT_FOUND",
+				messageKey: "editor.document.notFound",
+			}),
 		);
 	if (document.textRevision !== operation.expectedTextRevision)
 		return context.conflict(
@@ -126,8 +130,10 @@ export async function executeExecutionOperation(
 			document.session.getLineStatusByNumber(operation.lineNumber) !== "valid"
 		)
 			return context.reject(
-				"EDITOR_LINE_NOT_EXECUTABLE",
-				"editor.line.notExecutable",
+				structuredError({
+					code: "EDITOR_LINE_NOT_EXECUTABLE",
+					messageKey: "editor.line.notExecutable",
+				}),
 			);
 		const receipt =
 			await workspace.commands.executeCommand<ScratchpadExecutionReceipt | null>(
@@ -136,8 +142,10 @@ export async function executeExecutionOperation(
 			);
 		if (!receipt)
 			return context.reject(
-				"EDITOR_LINE_NOT_EXECUTABLE",
-				"editor.execution.failed",
+				structuredError({
+					code: "EDITOR_LINE_NOT_EXECUTABLE",
+					messageKey: "editor.execution.failed",
+				}),
 			);
 		await workspace.journal.recordExecution(
 			context.identity(receipt, operation, document),
@@ -178,10 +186,13 @@ export async function executeExecutionOperation(
 		} as unknown as EditorOperationResult;
 	} catch (error) {
 		return context.reject(
-			(error as { code?: string }).code ?? "EDITOR_RANGE_INVALID",
-			(error as { code?: string }).code === "EDITOR_LINE_NOT_EXECUTABLE"
-				? "editor.line.notExecutable"
-				: "editor.range.invalid",
+			structuredError({
+				code: (error as { code?: string }).code ?? "EDITOR_RANGE_INVALID",
+				messageKey:
+					(error as { code?: string }).code === "EDITOR_LINE_NOT_EXECUTABLE"
+						? "editor.line.notExecutable"
+						: "editor.range.invalid",
+			}),
 		);
 	}
 }

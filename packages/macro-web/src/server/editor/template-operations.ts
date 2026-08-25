@@ -4,7 +4,9 @@ import type { MacroDocumentTemplate } from "@stateful-mcp/macro";
 import type {
 	EditorOperation,
 	EditorOperationResult,
+	EditorRejection,
 } from "@stateful-mcp/macro-protocol";
+import { structuredError } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
 type TemplateOperation = Extract<
@@ -35,7 +37,7 @@ export async function executeTemplateOperation(
 	operation: TemplateOperation,
 	context: {
 		readonly base: () => Record<string, unknown>;
-		readonly reject: (code: string, message: string) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly emit: () => void;
 		readonly userRoot: string;
 	},
@@ -65,8 +67,10 @@ export async function executeTemplateOperation(
 			.find((item) => item.templateId === operation.templateId);
 		if (existing?.source === "extension" || existing?.isReadonly)
 			return context.reject(
-				"EDITOR_TEMPLATE_READONLY",
-				"editor.template.readOnly",
+				structuredError({
+					code: "EDITOR_TEMPLATE_READONLY",
+					messageKey: "editor.template.readOnly",
+				}),
 			);
 		await persistTemplates(
 			session,
@@ -98,8 +102,10 @@ export async function executeTemplateOperation(
 			operation.template.isReadonly
 		)
 			return context.reject(
-				"EDITOR_TEMPLATE_READONLY",
-				"editor.template.readOnly",
+				structuredError({
+					code: "EDITOR_TEMPLATE_READONLY",
+					messageKey: "editor.template.readOnly",
+				}),
 			);
 		const template: MacroDocumentTemplate = {
 			...operation.template,
@@ -125,13 +131,17 @@ export async function executeTemplateOperation(
 	}
 	if (!existing)
 		return context.reject(
-			"EDITOR_TEMPLATE_NOT_FOUND",
-			"editor.template.notFound",
+			structuredError({
+				code: "EDITOR_TEMPLATE_NOT_FOUND",
+				messageKey: "editor.template.notFound",
+			}),
 		);
 	if (existing.source === "extension" || existing.isReadonly)
 		return context.reject(
-			"EDITOR_TEMPLATE_READONLY",
-			"editor.template.readOnly",
+			structuredError({
+				code: "EDITOR_TEMPLATE_READONLY",
+				messageKey: "editor.template.readOnly",
+			}),
 		);
 	const template = { ...existing, templateLiteralArgs: operation.literalArgs };
 	await persistTemplates(

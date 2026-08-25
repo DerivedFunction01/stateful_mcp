@@ -3,10 +3,11 @@ import {
 	DocumentManagerError,
 	DocumentRevisionError,
 } from "@stateful-mcp/macro";
-import type {
-	EditorOperation,
-	EditorOperationResult,
-	MessageParam,
+import {
+	type EditorOperation,
+	type EditorOperationResult,
+	type EditorRejection,
+	structuredError,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 import { isPersistenceOperation } from "./document-persistence-operations";
@@ -35,9 +36,7 @@ export interface EditorOperationRouterContext {
 	readonly reject: (
 		session: Session,
 		operation: EditorOperation,
-		code: string,
-		messageKey: string,
-		messageParams?: Readonly<Record<string, MessageParam>>,
+		error: EditorRejection,
 	) => EditorOperationResult;
 	readonly emit: (
 		session: Session,
@@ -71,11 +70,7 @@ export interface EditorOperationRouterContext {
 		context: {
 			readonly base: () => Record<string, unknown>;
 			readonly workspaceConflict: (expected: number) => EditorOperationResult;
-			readonly reject: (
-				code: string,
-				messageKey: string,
-				messageParams?: Readonly<Record<string, MessageParam>>,
-			) => EditorOperationResult;
+			readonly reject: (error: EditorRejection) => EditorOperationResult;
 			readonly emit: () => void;
 			readonly getArtifact: (
 				token: string,
@@ -111,11 +106,7 @@ export interface EditorOperationRouterContext {
 		>,
 		context: {
 			readonly base: () => Record<string, unknown>;
-			readonly reject: (
-				code: string,
-				messageKey: string,
-				messageParams?: Readonly<Record<string, MessageParam>>,
-			) => EditorOperationResult;
+			readonly reject: (error: EditorRejection) => EditorOperationResult;
 			readonly emit: () => void;
 			readonly userRoot: string;
 		},
@@ -133,11 +124,7 @@ export interface EditorOperationRouterContext {
 				expected: number,
 				actual: number,
 			) => EditorOperationResult;
-			readonly reject: (
-				code: string,
-				messageKey: string,
-				messageParams?: Readonly<Record<string, MessageParam>>,
-			) => EditorOperationResult;
+			readonly reject: (error: EditorRejection) => EditorOperationResult;
 			readonly emit: (fileTree?: boolean) => void;
 			readonly projectRoot: () => string;
 			readonly resolvePath: (root: string, path: string) => string;
@@ -162,11 +149,7 @@ export interface EditorOperationRouterContext {
 				expected: number,
 				actual: number,
 			) => EditorOperationResult;
-			readonly reject: (
-				code: string,
-				messageKey: string,
-				messageParams?: Readonly<Record<string, MessageParam>>,
-			) => EditorOperationResult;
+			readonly reject: (error: EditorRejection) => EditorOperationResult;
 			readonly receipt: (
 				receipt: ScratchpadExecutionReceipt,
 				operation: any,
@@ -334,11 +317,7 @@ export async function executeTextOperation(
 			expected: number,
 			actual: number,
 		) => EditorOperationResult;
-		readonly reject: (
-			code: string,
-			messageKey: string,
-			messageParams?: Readonly<Record<string, MessageParam>>,
-		) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly emit: () => void;
 	},
 ): Promise<EditorOperationResult> {
@@ -346,8 +325,10 @@ export async function executeTextOperation(
 	const document = documents.get(operation.documentId);
 	if (!document)
 		return context.reject(
-			"EDITOR_DOCUMENT_NOT_FOUND",
-			"editor.document.notFound",
+			structuredError({
+				code: "EDITOR_DOCUMENT_NOT_FOUND",
+				messageKey: "editor.document.notFound",
+			}),
 		);
 	if (
 		"expectedTextRevision" in operation &&
@@ -438,11 +419,7 @@ export async function executeDocumentLifecycleOperation(
 			expected: number,
 			actual: number,
 		) => EditorOperationResult;
-		readonly reject: (
-			code: string,
-			messageKey: string,
-			messageParams?: Readonly<Record<string, MessageParam>>,
-		) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly emit: () => void;
 	},
 ): Promise<EditorOperationResult> {
@@ -498,8 +475,10 @@ export async function executeDocumentLifecycleOperation(
 			const document = documents.get(operation.documentId);
 			if (!document)
 				return context.reject(
-					"EDITOR_DOCUMENT_NOT_FOUND",
-					"editor.document.notFound",
+					structuredError({
+						code: "EDITOR_DOCUMENT_NOT_FOUND",
+						messageKey: "editor.document.notFound",
+					}),
 				);
 			if (
 				operation.expectedTextRevision !== undefined &&
@@ -522,8 +501,10 @@ export async function executeDocumentLifecycleOperation(
 			const document = documents.get(operation.documentId);
 			if (!document)
 				return context.reject(
-					"EDITOR_DOCUMENT_NOT_FOUND",
-					"editor.document.notFound",
+					structuredError({
+						code: "EDITOR_DOCUMENT_NOT_FOUND",
+						messageKey: "editor.document.notFound",
+					}),
 				);
 			if (
 				operation.expectedTextRevision !== undefined &&
@@ -557,8 +538,10 @@ export async function executeDocumentLifecycleOperation(
 		case "editor.duplicateDocument": {
 			if (!documents.get(operation.documentId))
 				return context.reject(
-					"EDITOR_DOCUMENT_NOT_FOUND",
-					"editor.document.notFound",
+					structuredError({
+						code: "EDITOR_DOCUMENT_NOT_FOUND",
+						messageKey: "editor.document.notFound",
+					}),
 				);
 			const duplicated = documents.duplicateDocument(
 				operation.documentId,
@@ -593,11 +576,7 @@ export async function executePreviewOperation(
 			expected: number,
 			actual: number,
 		) => EditorOperationResult;
-		readonly reject: (
-			code: string,
-			messageKey: string,
-			messageParams?: Readonly<Record<string, MessageParam>>,
-		) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly lines: (
 			document: import("@stateful-mcp/macro").MacroDocument,
 			operation: Extract<
@@ -615,8 +594,10 @@ export async function executePreviewOperation(
 	const document = session.loaded.workspace.documents.get(operation.documentId);
 	if (!document)
 		return context.reject(
-			"EDITOR_DOCUMENT_NOT_FOUND",
-			"editor.document.notFound",
+			structuredError({
+				code: "EDITOR_DOCUMENT_NOT_FOUND",
+				messageKey: "editor.document.notFound",
+			}),
 		);
 	if (document.textRevision !== operation.expectedTextRevision)
 		return context.conflict(
@@ -634,7 +615,12 @@ export async function executePreviewOperation(
 				operation.endLine < operation.startLine ||
 				operation.endLine > total))
 	)
-		return context.reject("EDITOR_RANGE_INVALID", "editor.range.invalid");
+		return context.reject(
+			structuredError({
+				code: "EDITOR_RANGE_INVALID",
+				messageKey: "editor.range.invalid",
+			}),
+		);
 	return {
 		...context.base(),
 		status: "preview",
@@ -665,11 +651,8 @@ export function createEditorOperationRouter(
 			) => context.conflict(session, operation, documentId, expected, actual);
 			const workspaceConflict = (expected: number) =>
 				context.workspaceConflict(session, operation, expected);
-			const reject = (
-				code: string,
-				messageKey: string,
-				messageParams?: Readonly<Record<string, MessageParam>>,
-			) => context.reject(session, operation, code, messageKey, messageParams);
+			const reject = (error: EditorRejection) =>
+				context.reject(session, operation, error);
 			try {
 				if (isGroupOperation(operation))
 					return await executeGroupOperation(session, operation as any, {
@@ -748,8 +731,10 @@ export function createEditorOperationRouter(
 						userRoot: context.userRoot(session),
 					});
 				return reject(
-					"EDITOR_OPERATION_UNSUPPORTED",
-					"Editor operation is not supported",
+					structuredError({
+						code: "EDITOR_OPERATION_UNSUPPORTED",
+						messageKey: "editor.operation.unsupported",
+					}),
 				);
 			} catch (error) {
 				if (error instanceof DocumentRevisionError)
@@ -758,13 +743,15 @@ export function createEditorOperationRouter(
 						error.expectedRevision,
 						error.actualRevision,
 					);
-				if (error instanceof DocumentManagerError)
-					return reject(
-						"EDITOR_OPERATION_FAILED",
-						error.messageKey,
-						error.messageParams,
-					);
-				return reject("EDITOR_OPERATION_FAILED", "editor.operation.failed");
+				if (error instanceof DocumentManagerError) {
+					return reject(error.toHostError());
+				}
+				return reject(
+					structuredError({
+						code: "EDITOR_OPERATION_FAILED",
+						messageKey: "editor.operation.failed",
+					}),
+				);
 			}
 		},
 	};

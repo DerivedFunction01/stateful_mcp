@@ -3,7 +3,9 @@ import { relative, sep } from "node:path";
 import type {
 	EditorOperation,
 	EditorOperationResult,
+	EditorRejection,
 } from "@stateful-mcp/macro-protocol";
+import { structuredError } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
 type PersistenceOperation = Extract<
@@ -28,7 +30,7 @@ export async function executePersistenceOperation(
 			expected: number,
 			actual: number,
 		) => EditorOperationResult;
-		readonly reject: (code: string, message: string) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly emit: (fileTree?: boolean) => void;
 		readonly projectRoot: () => string;
 		readonly resolvePath: (root: string, path: string) => string;
@@ -65,8 +67,10 @@ export async function executePersistenceOperation(
 	const document = documents.get(operation.documentId);
 	if (!document)
 		return context.reject(
-			"EDITOR_DOCUMENT_NOT_FOUND",
-			"editor.document.notFound",
+			structuredError({
+				code: "EDITOR_DOCUMENT_NOT_FOUND",
+				messageKey: "editor.document.notFound",
+			}),
 		);
 	if (
 		operation.expectedTextRevision !== undefined &&
@@ -114,7 +118,12 @@ export async function executePersistenceOperation(
 		} as unknown as EditorOperationResult;
 	}
 	if (document.providerId !== "file" || !document.filePath)
-		return context.reject("FILE_NOT_EDITABLE_AS_TEXT", "editor.file.notBacked");
+		return context.reject(
+			structuredError({
+				code: "FILE_NOT_EDITABLE_AS_TEXT",
+				messageKey: "editor.file.notBacked",
+			}),
+		);
 	const root = context.projectRoot();
 	const path = context.resolvePath(
 		root,

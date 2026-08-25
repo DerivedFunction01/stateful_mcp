@@ -1,6 +1,8 @@
-import type {
-	EditorOperation,
-	EditorOperationResult,
+import {
+	type EditorOperation,
+	type EditorOperationResult,
+	type EditorRejection,
+	structuredError,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
@@ -34,7 +36,7 @@ export async function executeResourceOperation(
 	context: {
 		readonly base: () => Record<string, unknown>;
 		readonly workspaceConflict: (expected: number) => EditorOperationResult;
-		readonly reject: (code: string, message: string) => EditorOperationResult;
+		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly emit: (type?: "workspace.changed") => void;
 		readonly openScratchpad: (
 			id: string,
@@ -55,15 +57,32 @@ export async function executeResourceOperation(
 	if (operation.operation === "editor.saveArtifact") {
 		const artifact = context.getArtifact(operation.artifactToken);
 		if (!artifact)
-			return context.reject("ARTIFACT_NOT_FOUND", "artifact.unavailable");
+			return context.reject(
+				structuredError({
+					code: "ARTIFACT_NOT_FOUND",
+					messageKey: "artifact.unavailable",
+				}),
+			);
 		if (artifact.owner !== undefined && artifact.owner !== context.sessionOwner)
-			return context.reject("ARTIFACT_UNAUTHORIZED", "artifact.unauthorized");
+			return context.reject(
+				structuredError({
+					code: "ARTIFACT_UNAUTHORIZED",
+					messageKey: "artifact.unauthorized",
+				}),
+			);
 		if (artifact.lifecycle !== "project")
-			return context.reject("ARTIFACT_NOT_SAVEABLE", "artifact.notSaveable");
+			return context.reject(
+				structuredError({
+					code: "ARTIFACT_NOT_SAVEABLE",
+					messageKey: "artifact.notSaveable",
+				}),
+			);
 		if (!context.materializeArtifact)
 			return context.reject(
-				"ARTIFACT_MATERIALIZATION_UNAVAILABLE",
-				"artifact.materializationUnavailable",
+				structuredError({
+					code: "ARTIFACT_MATERIALIZATION_UNAVAILABLE",
+					messageKey: "artifact.materializationUnavailable",
+				}),
 			);
 		const saved = await context.materializeArtifact(operation.artifactToken);
 		context.emit();
@@ -82,7 +101,12 @@ export async function executeResourceOperation(
 		if (
 			!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
 		)
-			return context.reject("RESOURCE_NOT_FOUND", "resource.notExposed");
+			return context.reject(
+				structuredError({
+					code: "RESOURCE_NOT_FOUND",
+					messageKey: "resource.notExposed",
+				}),
+			);
 		const provider = session.loaded.workspace.resources.get(
 			operation.resourceKind,
 		);
@@ -91,8 +115,10 @@ export async function executeResourceOperation(
 			!provider.capabilities?.includes("invoke")
 		)
 			return context.reject(
-				"RESOURCE_ACTION_UNSUPPORTED",
-				"resource.actionUnsupported",
+				structuredError({
+					code: "RESOURCE_ACTION_UNSUPPORTED",
+					messageKey: "resource.actionUnsupported",
+				}),
 			);
 		await provider.provider.executeAction(
 			operation.action,
@@ -122,19 +148,32 @@ export async function executeResourceOperation(
 		operation.resourceKind !== "scratchpad"
 	)
 		return context.reject(
-			"RESOURCE_KIND_UNSUPPORTED",
-			"resource.kindUnsupported",
+			structuredError({
+				code: "RESOURCE_KIND_UNSUPPORTED",
+				messageKey: "resource.kindUnsupported",
+			}),
 		);
 	if (
 		operation.operation === "editor.openResource" &&
 		!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
 	)
-		return context.reject("RESOURCE_NOT_FOUND", "resource.notExposed");
+		return context.reject(
+			structuredError({
+				code: "RESOURCE_NOT_FOUND",
+				messageKey: "resource.notExposed",
+			}),
+		);
 	const opened = await context.openScratchpad(
 		id,
 		"groupId" in operation ? operation.groupId : undefined,
 	);
-	if (!opened) return context.reject("RESOURCE_NOT_FOUND", "resource.notFound");
+	if (!opened)
+		return context.reject(
+			structuredError({
+				code: "RESOURCE_NOT_FOUND",
+				messageKey: "resource.notFound",
+			}),
+		);
 	context.emit();
 	return {
 		...context.base(),

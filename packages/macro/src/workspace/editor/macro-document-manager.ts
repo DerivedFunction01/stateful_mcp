@@ -1,4 +1,9 @@
-import type { MessageParam } from "@stateful-mcp/macro-protocol";
+import {
+	errorDescriptor,
+	type MessageParam,
+	type StructuredError,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import {
 	ScratchpadSession,
@@ -612,20 +617,45 @@ export class DocumentManagerError extends Error {
 
 	constructor(options: DocumentManagerErrorOptions);
 	constructor(options: DocumentManagerErrorOptions) {
+		const descriptor = errorDescriptor(
+			options.messageKey,
+			options.messageParams,
+		);
 		super(options.messageKey);
-		this.messageKey = options.messageKey;
-		this.messageParams = options.messageParams;
+		this.descriptor = descriptor;
+		this.messageKey = descriptor.messageKey;
+		this.messageParams = descriptor.messageParams;
 		this.name = "DocumentManagerError";
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+		});
 	}
 }
 
 export class DocumentRevisionError extends DocumentManagerError {
-	constructor(
-		readonly expectedRevision: number,
-		readonly actualRevision: number,
-	) {
+	readonly expectedRevision: number;
+	readonly actualRevision: number;
+
+	constructor(expectedRevision: number, actualRevision: number) {
 		super({ messageKey: "editor.revision.stale" });
 		this.name = "DocumentRevisionError";
+		this.expectedRevision = expectedRevision;
+		this.actualRevision = actualRevision;
+	}
+
+	override toHostError(): StructuredError {
+		return structuredError({
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			safeDetails: {
+				expectedRevision: this.expectedRevision,
+				actualRevision: this.actualRevision,
+			},
+		});
 	}
 }
 

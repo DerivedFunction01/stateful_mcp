@@ -1,5 +1,9 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
-import type { MessageParam } from "@stateful-mcp/macro-protocol";
+import {
+	type MessageParam,
+	type StructuredError,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
 
 /**
  * Pure project file/path utilities.
@@ -49,6 +53,15 @@ export class ProjectPathError extends Error {
 		super(messageKey);
 		this.messageKey = messageKey;
 		this.messageParams = messageParams;
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			code: this.code,
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			retryable: this.retryable,
+		});
 	}
 }
 

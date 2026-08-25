@@ -178,16 +178,17 @@ function errorResponse(id: string, error: unknown): Response {
 		error instanceof SessionError
 			? error.toHostError()
 			: hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
+	const code = hostErrorValue.code;
 	const status =
-		hostErrorValue.code === "SESSION_NOT_FOUND" ||
-		hostErrorValue.code === "COMMAND_NOT_FOUND" ||
-		hostErrorValue.code.endsWith("_NOT_FOUND")
+		code === "SESSION_NOT_FOUND" ||
+		code === "COMMAND_NOT_FOUND" ||
+		code?.endsWith("_NOT_FOUND")
 			? 404
-			: hostErrorValue.code === "PROJECT_NOT_CONFIGURED"
+			: code === "PROJECT_NOT_CONFIGURED"
 				? 503
-				: hostErrorValue.code === "STALE_REVISION"
+				: code === "STALE_REVISION"
 					? 409
-					: hostErrorValue.code === "INVALID_REQUEST"
+					: code === "INVALID_REQUEST"
 						? 400
 						: 500;
 	return Response.json(failure(id, hostErrorValue), { status });

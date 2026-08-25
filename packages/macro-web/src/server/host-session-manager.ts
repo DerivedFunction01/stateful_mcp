@@ -28,7 +28,6 @@ import {
 	type KeymapBindingContextDto,
 	type KeymapBindingResolutionDto,
 	MACRO_PROTOCOL_VERSION,
-	type MessageParam,
 	type ProjectConfigurationDto,
 	type ProjectExtensionGroupDraft,
 	type ProjectExtensionGroupOperationResult,
@@ -51,6 +50,7 @@ import { ArtifactService } from "./artifacts/artifact-service";
 import { executePersistenceOperation } from "./editor/document-persistence-operations";
 import { createEditorOperationRouter } from "./editor/editor-operation-service";
 import { toEditorPayload } from "./editor/editor-projections";
+import { rejectedEditorResult } from "./editor/editor-result";
 import {
 	editorLinesForOperation as extractedEditorLinesForOperation,
 	editorSnapshot as extractedEditorSnapshot,
@@ -156,14 +156,11 @@ export class HostSessionManager {
 			expectedWorkspaceRevision: expected,
 			actualWorkspaceRevision: session.revision,
 		}),
-		reject: (session, operation, code, messageKey, messageParams) =>
-			this.rejectedEditorResult(
-				session,
-				operation,
-				code,
-				messageKey,
-				messageParams,
-			),
+		reject: (session, operation, error) =>
+			rejectedEditorResult(session, operation, error, {
+				editorSnapshot: (current) => this.editorSnapshot(current),
+				workspaceSnapshot: (current) => this.snapshot(current),
+			}),
 		emit: (session, type) => this.emit(session, type),
 		lines: extractedEditorLinesForOperation,
 		executeExecution: executeExecutionOperation,
@@ -920,13 +917,15 @@ export class HostSessionManager {
 				operation,
 			);
 		} catch (error) {
-			if (error instanceof SettingsServiceError)
+			if (error instanceof SettingsServiceError) {
+				const mapped = error.toHostError();
 				throw new SessionError(
 					error.code,
-					error.messageKey,
-					error.retryable,
-					error.messageParams,
+					mapped.messageKey,
+					mapped.retryable,
+					mapped.messageParams,
 				);
+			}
 			throw error;
 		}
 	}
@@ -943,13 +942,15 @@ export class HostSessionManager {
 				operation,
 			);
 		} catch (error) {
-			if (error instanceof SettingsServiceError)
+			if (error instanceof SettingsServiceError) {
+				const mapped = error.toHostError();
 				throw new SessionError(
 					error.code,
-					error.messageKey,
-					error.retryable,
-					error.messageParams,
+					mapped.messageKey,
+					mapped.retryable,
+					mapped.messageParams,
 				);
+			}
 			throw error;
 		}
 	}
@@ -966,13 +967,15 @@ export class HostSessionManager {
 				operation,
 			);
 		} catch (error) {
-			if (error instanceof SettingsServiceError)
+			if (error instanceof SettingsServiceError) {
+				const mapped = error.toHostError();
 				throw new SessionError(
 					error.code,
-					error.messageKey,
-					error.retryable,
-					error.messageParams,
+					mapped.messageKey,
+					mapped.retryable,
+					mapped.messageParams,
 				);
+			}
 			throw error;
 		}
 	}
@@ -1030,62 +1033,6 @@ export class HostSessionManager {
 
 	async dispose(sessionId: string): Promise<boolean> {
 		return this.registry.dispose(sessionId);
-	}
-
-	private rejectedEditorResult(
-		session: Session,
-		operation: EditorOperation,
-		code: string,
-		messageKey?: string,
-		messageParams?: Readonly<Record<string, MessageParam>>,
-	): EditorOperationResult {
-		return {
-			operation: operation.operation,
-			requestId: operation.requestId,
-			status: "rejected",
-			code,
-			messageKey: messageKey ?? this.editorMessageKey(code),
-			...(messageParams ? { messageParams } : {}),
-			snapshot: this.editorSnapshot(session),
-			workspaceSnapshot: this.snapshot(session),
-			workspaceRevision: session.revision,
-			...("documentId" in operation
-				? { documentId: operation.documentId }
-				: {}),
-		};
-	}
-
-	private editorMessageKey(code: string): string {
-		switch (code) {
-			case "EDITOR_DOCUMENT_NOT_FOUND":
-				return "editor.document.notFound";
-			case "EDITOR_GROUP_NOT_FOUND":
-				return "editor.group.notFound";
-			case "EDITOR_LAST_GROUP":
-				return "editor.group.last";
-			case "EDITOR_DOCUMENT_DIRTY":
-				return "editor.document.closeDirty";
-			case "EDITOR_LAST_DOCUMENT":
-				return "editor.document.last";
-			case "EDITOR_TITLE_REQUIRED":
-				return "editor.document.titleRequired";
-			case "EDITOR_TEMPLATE_NOT_FOUND":
-				return "editor.template.notFound";
-			case "EDITOR_TEMPLATE_SEED_UNAVAILABLE":
-				return "editor.template.seedUnavailable";
-			case "EDITOR_TEMPLATE_READONLY":
-				return "editor.template.readOnly";
-			case "EDITOR_OPERATION_FAILED":
-				return "editor.operation.failed";
-			case "EDITOR_LINE_NOT_EXECUTABLE":
-				return "editor.line.notExecutable";
-			case "EDITOR_RANGE_INVALID":
-				return "editor.range.invalid";
-			case "RESOURCE_NOT_FOUND":
-				return "editor.resource.notFound";
-			default:
-				return code;
-		}
 	}
 
 	private editorSnapshot(session: Session): EditorWorkspaceSnapshotDto {

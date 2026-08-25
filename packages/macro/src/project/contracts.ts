@@ -131,23 +131,38 @@ export class MacroProjectConflictError extends Error {
 	}
 }
 
+import {
+	type ErrorDescriptor,
+	errorDescriptor,
+	type MessageParam,
+	type StructuredError,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
+
 export class MacroProjectFormatError extends Error {
 	readonly messageKey: string;
-	readonly messageParams?: Readonly<
-		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
-	>;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 
 	constructor(options: {
 		readonly messageKey: string;
-		readonly messageParams?: Readonly<
-			Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
-		>;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
 		readonly cause?: unknown;
 	}) {
 		super(options.messageKey, { cause: options.cause });
-		this.messageKey = options.messageKey;
-		this.messageParams = options.messageParams;
+		const descriptor: ErrorDescriptor = errorDescriptor(
+			options.messageKey,
+			options.messageParams,
+		);
+		this.messageKey = descriptor.messageKey;
+		this.messageParams = descriptor.messageParams;
 		this.name = "MacroProjectFormatError";
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+		});
 	}
 }
 
