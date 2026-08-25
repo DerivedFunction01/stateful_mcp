@@ -42,11 +42,12 @@ export class ExtensionLoader {
 			} catch (error) {
 				if (error instanceof ExtensionError) throw error;
 				throw new ExtensionError(
-					`Failed to import extension file '${sourceFile}': ${error instanceof Error ? error.message : String(error)}`,
-					"EXTENSION_IMPORT_FAILED",
-					undefined,
-					sourceFile,
-					error,
+					{
+						messageKey: "extensions.errors.importFailed",
+						messageParams: { sourceFile },
+						sourceFile,
+						cause: error,
+					},
 				);
 			}
 		}
@@ -77,18 +78,20 @@ export function validateExtensionExport(
 		typeof extension.activate !== "function"
 	) {
 		throw new ExtensionError(
-			`Extension file '${sourceFile ?? "unknown"}' must default-export an extension`,
-			"EXTENSION_EXPORT_MISSING",
-			undefined,
-			sourceFile,
+			{
+				messageKey: "extensions.errors.exportMissing",
+				messageParams: { sourceFile: sourceFile ?? "unknown" },
+				sourceFile,
+			},
 		);
 	}
 	if (!extension.manifest.id || !extension.manifest.version) {
 		throw new ExtensionError(
-			`Extension file '${sourceFile ?? "unknown"}' has an invalid manifest`,
-			"EXTENSION_MANIFEST_INVALID",
-			undefined,
-			sourceFile,
+			{
+				messageKey: "extensions.errors.manifestInvalid",
+				messageParams: { sourceFile: sourceFile ?? "unknown" },
+				sourceFile,
+			},
 		);
 	}
 }

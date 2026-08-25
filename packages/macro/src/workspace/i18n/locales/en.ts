@@ -2,6 +2,7 @@ import type { WorkspaceLocaleDictionary } from "../types";
 import { EN_COMMON } from "./en/common";
 import { EN_EDITOR } from "./en/editor";
 import { EN_ERRORS } from "./en/errors";
+import { EN_EXTENSIONS } from "./en/extensions";
 import { EN_HOST } from "./en/host";
 import { EN_JOURNAL } from "./en/journal";
 import { EN_KEYMAP } from "./en/keymap";
@@ -28,5 +29,6 @@ export const EN_LOCALE: WorkspaceLocaleDictionary = {
 	...EN_HOST,
 	...EN_KEYMAP,
 	...EN_ERRORS,
+	...EN_EXTENSIONS,
 	...EN_COMMON,
 };

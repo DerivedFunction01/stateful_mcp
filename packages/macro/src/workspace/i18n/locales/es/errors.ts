@@ -77,23 +77,6 @@ export const ES_ERRORS: Record<string, string> = {
 		"Se requieren el ID de la relación y ambos extremos del concepto",
 	"errors.resourceSeedExpressionRequired":
 		"Se requieren el ID de la expresión y el término",
-	"errors.extensionDependencyUnavailable":
-		"La extensión '{extensionId}' no puede activarse porque faltan dependencias: {missing}",
-	"errors.extensionActivationFailed":
-		"La extensión '{extensionId}' no pudo activarse",
-	"errors.extensionImportFailed":
-		"No se pudo importar el archivo de extensión '{sourceFile}'",
-	"errors.extensionExportMissing":
-		"El archivo de extensión '{sourceFile}' debe exportar por defecto una extensión",
-	"errors.extensionManifestInvalid":
-		"El archivo de extensión '{sourceFile}' tiene un manifiesto no válido",
-	"errors.duplicateExtensionId":
-		"El ID de extensión '{extensionId}' está duplicado",
-	"errors.missingExtensionDependency":
-		"La extensión '{extensionId}' requiere la dependencia faltante '{dependency}'",
-	"errors.extensionDependencyCycle":
-		"El ciclo de dependencias de extensiones incluye '{extensionId}'",
-	"errors.extensionError": "Error de extensión '{code}'",
 
 	// ----------------------------------------------------------------------
 	// Diagnósticos de gramática de valores (quantity, currency, frequency,

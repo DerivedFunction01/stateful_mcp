@@ -470,10 +470,11 @@ async function loadManifestExtensions(
 	)) {
 		if (!listedPaths.has(discovered)) {
 			throw new ExtensionError(
-				`Extension module '${discovered}' is discovered but not listed in the workspace manifest`,
-				"WORKSPACE_EXTENSION_UNLISTED",
-				undefined,
-				discovered,
+				{
+					messageKey: "host.workspace.extensionUnlisted",
+					messageParams: { sourceFile: discovered },
+					sourceFile: discovered,
+				},
 			);
 		}
 	}
@@ -485,18 +486,22 @@ async function loadManifestExtensions(
 		const expected = byId.get(item.extension.manifest.id);
 		if (!expected) {
 			throw new ExtensionError(
-				`Extension '${item.extension.manifest.id}' is not listed in the workspace manifest`,
-				"WORKSPACE_EXTENSION_UNLISTED",
-				item.extension.manifest.id,
-				item.sourceFile,
+				{
+					messageKey: "host.workspace.extensionUnlisted",
+					messageParams: { extensionId: item.extension.manifest.id },
+					extensionId: item.extension.manifest.id,
+					sourceFile: item.sourceFile,
+				},
 			);
 		}
 		if (expected.version !== item.extension.manifest.version) {
 			throw new ExtensionError(
-				`Extension '${expected.id}' version mismatch: expected ${expected.version}, found ${item.extension.manifest.version}`,
-				"WORKSPACE_EXTENSION_VERSION_MISMATCH",
-				expected.id,
-				item.sourceFile,
+				{
+					messageKey: "host.workspace.extensionVersionMismatch",
+					messageParams: { extensionId: expected.id, expected: expected.version, actual: item.extension.manifest.version },
+					extensionId: expected.id,
+					sourceFile: item.sourceFile,
+				},
 			);
 		}
 	}
@@ -505,10 +510,12 @@ async function loadManifestExtensions(
 		for (const dependency of item.extension.manifest.requires ?? []) {
 			if (!listed.has(dependency)) {
 				throw new ExtensionError(
-					`Extension '${item.extension.manifest.id}' requires unlisted dependency '${dependency}'`,
-					"WORKSPACE_DEPENDENCY_UNLISTED",
-					item.extension.manifest.id,
-					item.sourceFile,
+					{
+						messageKey: "host.workspace.dependencyUnlisted",
+						messageParams: { extensionId: item.extension.manifest.id, dependency },
+						extensionId: item.extension.manifest.id,
+						sourceFile: item.sourceFile,
+					},
 				);
 			}
 		}

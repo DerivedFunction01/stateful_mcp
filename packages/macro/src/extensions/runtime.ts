@@ -47,7 +47,6 @@ import type {
 	MacroExtension,
 } from "./contracts";
 import {
-	defaultExtensionMessage,
 	type ExtensionDiagnostic,
 	ExtensionError,
 	extensionDiagnostic,
@@ -134,13 +133,8 @@ export class ExtensionRuntime {
 					missing: missing.join(", "),
 				};
 				const diagnostic: ExtensionDiagnostic = {
-					code: "EXTENSION_DEPENDENCY_UNAVAILABLE",
-					messageKey: "errors.extensionDependencyUnavailable",
+					messageKey: "extensions.errors.dependencyUnavailable",
 					messageParams,
-					message: defaultExtensionMessage(
-						"errors.extensionDependencyUnavailable",
-						messageParams,
-					),
 					extensionId: id,
 					sourceFile: item.sourceFile,
 				};
@@ -155,7 +149,7 @@ export class ExtensionRuntime {
 					sourceFile: item.sourceFile,
 				});
 				diagnostics.push(diagnostic);
-				this.options.logger.error(diagnostic.message, diagnostic);
+				this.options.logger.error(diagnostic.messageKey, diagnostic);
 			}
 		}
 		return { active: this.extensions.list(), diagnostics };
@@ -267,13 +261,13 @@ export class ExtensionRuntime {
 			this.contexts.delete(manifest.id);
 			await scope.close();
 			throw new ExtensionError(
-				`Activation failed for extension '${manifest.id}' from '${sourceFile}'`,
-				"EXTENSION_ACTIVATION_FAILED",
-				manifest.id,
-				sourceFile,
-				error,
-				"errors.extensionActivationFailed",
-				{ extensionId: manifest.id, sourceFile },
+				{
+					messageKey: "extensions.errors.activationFailed",
+					messageParams: { extensionId: manifest.id, sourceFile },
+					extensionId: manifest.id,
+					sourceFile,
+					cause: error,
+				},
 			);
 		}
 	}
@@ -511,10 +505,11 @@ function validateManifests(loaded: readonly LoadedExtension[]): void {
 		const id = item.extension.manifest.id;
 		if (ids.has(id))
 			throw new ExtensionError(
-				`Duplicate extension ID '${id}'`,
-				"DUPLICATE_EXTENSION_ID",
-				id,
-				item.sourceFile,
+				{
+					messageKey: "extensions.errors.duplicateId",
+					messageParams: { id },
+					sourceFile: item.sourceFile,
+				},
 			);
 		ids.add(id);
 	}
@@ -522,10 +517,11 @@ function validateManifests(loaded: readonly LoadedExtension[]): void {
 		for (const dependency of item.extension.manifest.requires ?? []) {
 			if (!ids.has(dependency))
 				throw new ExtensionError(
-					`Extension '${item.extension.manifest.id}' requires missing dependency '${dependency}'`,
-					"MISSING_EXTENSION_DEPENDENCY",
-					item.extension.manifest.id,
-					item.sourceFile,
+					{
+						messageKey: "extensions.errors.missingDependency",
+						messageParams: { extensionId: item.extension.manifest.id, dependency },
+						sourceFile: item.sourceFile,
+					},
 				);
 		}
 	}
@@ -542,9 +538,10 @@ function topologicalOrder(loaded: readonly LoadedExtension[]): string[] {
 		if (state.get(id) === "visited") return;
 		if (state.get(id) === "visiting")
 			throw new ExtensionError(
-				`Extension dependency cycle includes '${id}'`,
-				"EXTENSION_DEPENDENCY_CYCLE",
-				id,
+				{
+					messageKey: "extensions.errors.dependencyCycle",
+					messageParams: { id },
+				},
 			);
 		state.set(id, "visiting");
 		for (const dependency of [

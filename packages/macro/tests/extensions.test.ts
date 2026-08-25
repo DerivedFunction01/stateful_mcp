@@ -80,14 +80,13 @@ describe("extension runtime", () => {
 		});
 		const result = await runtime.activate([loaded(broken, "/tmp/broken.ts")]);
 		expect(result.diagnostics[0]).toMatchObject({
-			code: "EXTENSION_ACTIVATION_FAILED",
 			extensionId: "broken",
 			sourceFile: "/tmp/broken.ts",
-			messageKey: "errors.extensionActivationFailed",
+			messageKey: "extensions.errors.activationFailed",
 			messageParams: { extensionId: "broken", sourceFile: "/tmp/broken.ts" },
 		});
-		expect(result.diagnostics[0]!.message).toContain("broken");
-		expect(result.diagnostics[0]!.message).not.toContain("boom");
+		expect(result.diagnostics[0]!.messageKey).toBe("extensions.errors.activationFailed");
+		expect(result.diagnostics[0]!.messageParams).toMatchObject({ extensionId: "broken" });
 		expect(runtime.macros.get("broken")).toBeUndefined();
 		expect(closed).toBe(true);
 	});
@@ -100,7 +99,7 @@ describe("extension runtime", () => {
 		});
 		await expect(
 			new ExtensionRuntime().activate([loaded(one), loaded(one, "/other.ts")]),
-		).rejects.toThrow("Duplicate extension ID");
+		).rejects.toMatchObject({ messageKey: "extensions.errors.duplicateId" });
 		const missing = defineExtension({
 			id: "missing-user",
 			version: "1",
@@ -109,7 +108,7 @@ describe("extension runtime", () => {
 		});
 		await expect(
 			new ExtensionRuntime().activate([loaded(missing)]),
-		).rejects.toThrow("missing dependency");
+		).rejects.toMatchObject({ messageKey: "extensions.errors.missingDependency" });
 		const a = defineExtension({
 			id: "a",
 			version: "1",
@@ -124,7 +123,7 @@ describe("extension runtime", () => {
 		});
 		await expect(
 			new ExtensionRuntime().activate([loaded(a), loaded(b)]),
-		).rejects.toThrow("cycle");
+		).rejects.toMatchObject({ messageKey: "extensions.errors.dependencyCycle" });
 	});
 
 	test("loads TypeScript and JavaScript files in lexical order and reloads registrations", async () => {
@@ -291,7 +290,10 @@ describe("extension runtime", () => {
 			).resolves.toMatchObject({
 				active: [],
 				diagnostics: [
-					{ code: "EXTENSION_ACTIVATION_FAILED", extensionId: "bad-seed" },
+					{
+						messageKey: "extensions.errors.activationFailed",
+						extensionId: "bad-seed",
+					},
 				],
 			});
 		} finally {
@@ -522,7 +524,7 @@ describe("extension runtime", () => {
 
 		expect(result.active).toHaveLength(0);
 		expect(result.diagnostics).toHaveLength(1);
-		expect(result.diagnostics[0]?.code).toBe("EXTENSION_ACTIVATION_FAILED");
+		expect(result.diagnostics[0]?.messageKey).toBe("extensions.errors.activationFailed");
 
 		// Everything must be rolled back:
 		expect(runtime.macros.get("fail-macro")).toBeUndefined();

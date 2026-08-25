@@ -69,22 +69,6 @@ export const EN_ERRORS: Record<string, string> = {
 		"Relation ID and both concept endpoints are required",
 	"errors.resourceSeedExpressionRequired":
 		"Expression ID and term are required",
-	"errors.extensionDependencyUnavailable":
-		"Extension '{extensionId}' cannot activate because dependencies are unavailable: {missing}",
-	"errors.extensionActivationFailed":
-		"Extension '{extensionId}' failed to activate",
-	"errors.extensionImportFailed":
-		"Failed to import extension file '{sourceFile}'",
-	"errors.extensionExportMissing":
-		"Extension file '{sourceFile}' must default-export an extension",
-	"errors.extensionManifestInvalid":
-		"Extension file '{sourceFile}' has an invalid manifest",
-	"errors.duplicateExtensionId": "Duplicate extension ID '{extensionId}'",
-	"errors.missingExtensionDependency":
-		"Extension '{extensionId}' requires missing dependency '{dependency}'",
-	"errors.extensionDependencyCycle":
-		"Extension dependency cycle includes '{extensionId}'",
-	"errors.extensionError": "Extension error '{code}'",
 
 	// ----------------------------------------------------------------------
 	// Value grammar diagnostics (quantity, currency, frequency, rates, numeric,
