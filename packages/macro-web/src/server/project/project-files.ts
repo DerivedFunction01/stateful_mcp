@@ -1,4 +1,5 @@
 import { isAbsolute, relative, resolve, sep } from "node:path";
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 
 /**
  * Pure project file/path utilities.
@@ -37,12 +38,17 @@ export const WATCH_IGNORED_SEGMENTS = [
 ] as const;
 
 export class ProjectPathError extends Error {
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	constructor(
 		readonly code: string,
-		message: string,
+		messageKey: string,
 		readonly retryable = false,
+		messageParams?: Readonly<Record<string, MessageParam>>,
 	) {
-		super(message);
+		super(messageKey);
+		this.messageKey = messageKey;
+		this.messageParams = messageParams;
 	}
 }
 
@@ -89,7 +95,7 @@ export function validatePathSegment(name: string): void {
 	)
 		throw new ProjectPathError(
 			"INVALID_REQUEST",
-			"Name must be a single path segment",
+			"project.path.segmentInvalid",
 			false,
 		);
 }
@@ -111,7 +117,7 @@ export function resolveProjectRelativePath(
 	if (isAbsolute(child))
 		throw new ProjectPathError(
 			"INVALID_REQUEST",
-			"Paths must be project-relative",
+			"project.path.relativeRequired",
 			false,
 		);
 	const segments = splitProjectSegments(child);
@@ -122,7 +128,7 @@ export function resolveProjectRelativePath(
 	)
 		throw new ProjectPathError(
 			"INVALID_REQUEST",
-			"Path is outside the editable project area",
+			"project.path.outsideEditableArea",
 			false,
 		);
 	const result = resolve(resolvedRoot, normalizeToPosix(child));
@@ -132,7 +138,7 @@ export function resolveProjectRelativePath(
 	)
 		throw new ProjectPathError(
 			"INVALID_REQUEST",
-			"Path escapes the project root",
+			"project.path.escapesRoot",
 			false,
 		);
 	return result;
@@ -156,7 +162,7 @@ export function resolveProjectAbsolutePath(
 	)
 		throw new ProjectPathError(
 			"INVALID_REQUEST",
-			"Path escapes the project root",
+			"project.path.escapesRoot",
 			false,
 		);
 	return result;

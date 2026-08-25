@@ -172,6 +172,11 @@ export const EN_PROJECT: Record<string, string> = {
 		"A project display name is required.",
 	"project.configuration.validationFailed":
 		"The configuration is invalid: {details}.",
+	"project.path.segmentInvalid": "The name must be a single path segment.",
+	"project.path.relativeRequired": "Paths must be relative to the project.",
+	"project.path.outsideEditableArea":
+		"The path is outside the editable project area.",
+	"project.path.escapesRoot": "The path escapes the project root.",
 	"project.configuration.stale": "Project configuration is stale.",
 	"project.extensionGroup.changeRejected":
 		"The extension group change could not be applied.",
@@ -187,6 +192,41 @@ export const EN_PROJECT: Record<string, string> = {
 		"The target backend must differ from the current backend.",
 	"project.migration.participantUnavailable":
 		"A project migration participant is unavailable.",
+	"project.manifest.openFailed":
+		"Unable to open the project manifest at {manifestPath}.",
+	"project.backend.pathEscapesRoot":
+		"The project backend path escapes the project root.",
+	"project.manifest.invalidObject": "The project manifest must be an object.",
+	"project.manifest.unsupportedVersion":
+		"The project format version {version} is not supported.",
+	"project.manifest.identityRequired":
+		"The project manifest requires identity metadata.",
+	"project.manifest.backendInvalid":
+		"The project manifest has an invalid backend.",
+	"project.manifest.resourcesInvalid":
+		"The project manifest has invalid resource data.",
+	"project.manifest.historyRequired":
+		"The project manifest requires history resources.",
+	"project.manifest.extensionGroupsInvalid":
+		"The project manifest has invalid extension activation groups ({count}).",
+	"project.migration.targetPathSame":
+		"The migration target must use a different backend path.",
+	"project.migration.unexpectedHistory":
+		"The migration target contains unexpected history resource '{historyId}'.",
+	"project.migration.unexpectedScratchpad":
+		"The migration target contains unexpected scratchpad resource '{scratchpadId}'.",
+	"project.migration.historyMissing":
+		"Migrated history resource '{historyId}' is missing from the target backend.",
+	"project.migration.historyChecksumFailed":
+		"Migrated history resource '{historyId}' failed checksum verification.",
+	"project.migration.scratchpadMissing":
+		"Migrated scratchpad resource '{scratchpadId}' is missing from the target backend.",
+	"project.migration.scratchpadChecksumFailed":
+		"Migrated scratchpad resource '{scratchpadId}' failed checksum verification.",
+	"project.migration.participantCycle":
+		"Migration participant dependency cycle at '{id}'.",
+	"project.migration.participantMissing":
+		"Migration participant '{id}' is missing.",
 	"project.migration.participant.missing":
 		"Migration participant {participantId} from extension {extensionId} is missing required resources.",
 	"project.migration.participant.incompatible":

@@ -77,6 +77,17 @@ export const ES_ERRORS: Record<string, string> = {
 		"Se requieren el ID de la relación y ambos extremos del concepto",
 	"errors.resourceSeedExpressionRequired":
 		"Se requieren el ID de la expresión y el término",
+	"artifact.unavailable": "El artefacto no está disponible o ha caducado.",
+	"artifact.unauthorized":
+		"Este artefacto no está disponible para la sesión actual.",
+	"artifact.notSaveable": "Este artefacto no se puede guardar en el proyecto.",
+	"artifact.materializationUnavailable":
+		"La materialización del artefacto del proyecto no está disponible.",
+	"resource.notExposed": "El recurso no está expuesto por el proyecto.",
+	"resource.actionUnsupported": "Esta acción de recurso no está disponible.",
+	"resource.kindUnsupported":
+		"Este tipo de recurso no se puede abrir en el editor.",
+	"resource.notFound": "No se encontró el recurso guardado.",
 
 	// ----------------------------------------------------------------------
 	// Diagnósticos de gramática de valores (quantity, currency, frequency,

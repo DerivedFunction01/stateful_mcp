@@ -132,7 +132,23 @@ export class MacroProjectConflictError extends Error {
 }
 
 export class MacroProjectFormatError extends Error {
-	readonly code = "MACRO_PROJECT_FORMAT_INVALID";
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<
+		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+	>;
+
+	constructor(options: {
+		readonly messageKey: string;
+		readonly messageParams?: Readonly<
+			Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+		>;
+		readonly cause?: unknown;
+	}) {
+		super(options.messageKey, { cause: options.cause });
+		this.messageKey = options.messageKey;
+		this.messageParams = options.messageParams;
+		this.name = "MacroProjectFormatError";
+	}
 }
 
 export interface ExtensionStorageScope {

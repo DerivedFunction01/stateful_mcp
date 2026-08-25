@@ -2,6 +2,7 @@ import type { MacroWorkspace } from "@stateful-mcp/macro";
 import type { SettingsDiagnostic } from "@stateful-mcp/macro/workspace/config/settings-service";
 import type { LoadedMacroWorkspace } from "@stateful-mcp/macro-host";
 import type {
+	MessageParam,
 	SettingsApplyResult,
 	SettingsOperation,
 	SettingsScope,
@@ -22,10 +23,19 @@ import {
 export class SettingsServiceError extends Error {
 	readonly code: string;
 	readonly retryable: boolean;
-	constructor(code: string, message: string, retryable = false) {
-		super(message);
-		this.code = code;
-		this.retryable = retryable;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	constructor(options: {
+		readonly code: string;
+		readonly messageKey: string;
+		readonly retryable?: boolean;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	}) {
+		super(options.messageKey);
+		this.code = options.code;
+		this.messageKey = options.messageKey;
+		this.messageParams = options.messageParams;
+		this.retryable = options.retryable ?? false;
 	}
 }
 
@@ -153,11 +163,10 @@ export async function applySettingsOperation(
 	const uiModel = workspace.settingsUiModel;
 	const settings = workspace.settings;
 	if (!uiModel || !settings)
-		throw new SettingsServiceError(
-			"SETTINGS_UNAVAILABLE",
-			"Settings are unavailable",
-			false,
-		);
+		throw new SettingsServiceError({
+			code: "SETTINGS_UNAVAILABLE",
+			messageKey: "settings.unavailable",
+		});
 
 	if (operation.operation === "preview") {
 		const preview = await settings.preview({
@@ -230,11 +239,10 @@ export async function applySettingsUiOperation(
 	const workspace = session.loaded.workspace;
 	const uiModel = workspace.settingsUiModel;
 	if (!uiModel)
-		throw new SettingsServiceError(
-			"SETTINGS_UNAVAILABLE",
-			"Settings are unavailable",
-			false,
-		);
+		throw new SettingsServiceError({
+			code: "SETTINGS_UNAVAILABLE",
+			messageKey: "settings.unavailable",
+		});
 
 	switch (operation.operation) {
 		case "settings.ui.scope.set": {
@@ -258,11 +266,10 @@ export async function applySettingsUiOperation(
 			uiModel.setActiveSection(operation.sectionId);
 			break;
 		default:
-			throw new SettingsServiceError(
-				"SETTINGS_OPERATION_UNKNOWN",
-				"Unknown settings UI operation",
-				false,
-			);
+			throw new SettingsServiceError({
+				code: "SETTINGS_OPERATION_UNKNOWN",
+				messageKey: "settings.operation.unknown",
+			});
 	}
 
 	return buildSnapshotResult(host, workspace);

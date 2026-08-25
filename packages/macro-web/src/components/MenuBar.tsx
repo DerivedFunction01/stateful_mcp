@@ -26,6 +26,7 @@ import {
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { formatChord, getBrowserShortcutPlatform } from "../lib/bindings";
 import { getEffectiveCommandShortcut } from "../lib/browser-workbench-defaults";
+import type { WebI18nKey } from "../lib/macro-i18n-provider";
 import { useI18n } from "../lib/macro-i18n-provider";
 import { useTheme, WEB_THEME_IDS } from "../lib/theme";
 import type { AppRoute } from "./ActivityRail";
@@ -548,7 +549,7 @@ export function MenuBar({
 					title={t("workspace.tab.settings")}
 				>
 					<Badge tone={theme.mode === "dark" ? "info" : "success"}>
-						{theme.label}
+						{t(`theme.${theme.id}` as WebI18nKey)}
 					</Badge>
 				</button>
 				<Button

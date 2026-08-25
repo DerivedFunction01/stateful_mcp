@@ -110,7 +110,10 @@ export async function executeExecutionOperation(
 	const workspace = session.loaded.workspace;
 	const document = workspace.documents.get(operation.documentId);
 	if (!document)
-		return context.reject("EDITOR_DOCUMENT_NOT_FOUND", "Document not found");
+		return context.reject(
+			"EDITOR_DOCUMENT_NOT_FOUND",
+			"editor.document.notFound",
+		);
 	if (document.textRevision !== operation.expectedTextRevision)
 		return context.conflict(
 			operation.documentId,
@@ -124,7 +127,7 @@ export async function executeExecutionOperation(
 		)
 			return context.reject(
 				"EDITOR_LINE_NOT_EXECUTABLE",
-				"Line is not executable",
+				"editor.line.notExecutable",
 			);
 		const receipt =
 			await workspace.commands.executeCommand<ScratchpadExecutionReceipt | null>(
@@ -132,7 +135,10 @@ export async function executeExecutionOperation(
 				operation,
 			);
 		if (!receipt)
-			return context.reject("EDITOR_LINE_NOT_EXECUTABLE", "Execution failed");
+			return context.reject(
+				"EDITOR_LINE_NOT_EXECUTABLE",
+				"editor.execution.failed",
+			);
 		await workspace.journal.recordExecution(
 			context.identity(receipt, operation, document),
 		);
@@ -174,8 +180,8 @@ export async function executeExecutionOperation(
 		return context.reject(
 			(error as { code?: string }).code ?? "EDITOR_RANGE_INVALID",
 			(error as { code?: string }).code === "EDITOR_LINE_NOT_EXECUTABLE"
-				? "Line is not executable"
-				: "Execution range is invalid",
+				? "editor.line.notExecutable"
+				: "editor.range.invalid",
 		);
 	}
 }

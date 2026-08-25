@@ -147,4 +147,32 @@ describe("editor group file flow", () => {
 			await host.dispose();
 		}
 	});
+
+	test("rejects an unknown source group with a structured messageKey", async () => {
+		const host = await createMacroHost({ defaults: {} });
+		const sessions = new HostSessionManager(host, 60_000);
+		try {
+			const initial = await sessions.create();
+			const sessionId = initial.sessionId;
+
+			const result = await sessions.editor(sessionId, {
+				operation: "editor.createSplitGroup",
+				requestId: "r-bad-group",
+				sourceGroupId: "does-not-exist",
+				behavior: "empty",
+			});
+
+			expect(result.status).toBe("rejected");
+			expect(result.code).toBe("EDITOR_OPERATION_FAILED");
+			expect(result.messageKey).toBe("editor.group.notFound");
+			// The operation result carries only the structured key, never a
+			// human-readable message or the raw Error.message.
+			expect(
+				(result as unknown as { message?: unknown }).message,
+			).toBeUndefined();
+		} finally {
+			await sessions.disposeAll();
+			await host.dispose();
+		}
+	});
 });

@@ -69,6 +69,17 @@ export const EN_ERRORS: Record<string, string> = {
 		"Relation ID and both concept endpoints are required",
 	"errors.resourceSeedExpressionRequired":
 		"Expression ID and term are required",
+	"artifact.unavailable": "The artifact is unavailable or expired.",
+	"artifact.unauthorized":
+		"This artifact is not available to the current session.",
+	"artifact.notSaveable": "This artifact cannot be saved to the project.",
+	"artifact.materializationUnavailable":
+		"Project artifact materialization is unavailable.",
+	"resource.notExposed": "The resource is not exposed by the project.",
+	"resource.actionUnsupported": "This resource action is not available.",
+	"resource.kindUnsupported":
+		"This resource kind cannot be opened by the editor.",
+	"resource.notFound": "The saved resource was not found.",
 
 	// ----------------------------------------------------------------------
 	// Value grammar diagnostics (quantity, currency, frequency, rates, numeric,

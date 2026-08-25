@@ -176,6 +176,12 @@ export const ES_PROJECT: Record<string, string> = {
 		"Se requiere un nombre para el proyecto.",
 	"project.configuration.validationFailed":
 		"La configuración no es válida: {details}.",
+	"project.path.segmentInvalid":
+		"El nombre debe ser un único segmento de ruta.",
+	"project.path.relativeRequired": "Las rutas deben ser relativas al proyecto.",
+	"project.path.outsideEditableArea":
+		"La ruta está fuera del área editable del proyecto.",
+	"project.path.escapesRoot": "La ruta sale de la raíz del proyecto.",
 	"project.configuration.stale":
 		"La configuración del proyecto está desactualizada.",
 	"project.extensionGroup.changeRejected":
@@ -192,6 +198,42 @@ export const ES_PROJECT: Record<string, string> = {
 		"El backend de destino debe ser distinto del backend actual.",
 	"project.migration.participantUnavailable":
 		"Un participante de la migración del proyecto no está disponible.",
+	"project.manifest.openFailed":
+		"No se pudo abrir el manifiesto del proyecto en {manifestPath}.",
+	"project.backend.pathEscapesRoot":
+		"La ruta del backend del proyecto sale de la raíz del proyecto.",
+	"project.manifest.invalidObject":
+		"El manifiesto del proyecto debe ser un objeto.",
+	"project.manifest.unsupportedVersion":
+		"La versión de formato del proyecto {version} no es compatible.",
+	"project.manifest.identityRequired":
+		"El manifiesto del proyecto requiere metadatos de identidad.",
+	"project.manifest.backendInvalid":
+		"El manifiesto del proyecto tiene un backend no válido.",
+	"project.manifest.resourcesInvalid":
+		"El manifiesto del proyecto tiene datos de recursos no válidos.",
+	"project.manifest.historyRequired":
+		"El manifiesto del proyecto requiere recursos de historial.",
+	"project.manifest.extensionGroupsInvalid":
+		"El manifiesto del proyecto tiene grupos de activación de extensiones no válidos ({count}).",
+	"project.migration.targetPathSame":
+		"El destino de migración debe usar una ruta de backend diferente.",
+	"project.migration.unexpectedHistory":
+		"El destino de migración contiene el recurso de historial inesperado '{historyId}'.",
+	"project.migration.unexpectedScratchpad":
+		"El destino de migración contiene el recurso de bloc inesperado '{scratchpadId}'.",
+	"project.migration.historyMissing":
+		"Falta el recurso de historial migrado '{historyId}' en el backend de destino.",
+	"project.migration.historyChecksumFailed":
+		"El recurso de historial migrado '{historyId}' no superó la verificación de suma de comprobación.",
+	"project.migration.scratchpadMissing":
+		"Falta el recurso de bloc migrado '{scratchpadId}' en el backend de destino.",
+	"project.migration.scratchpadChecksumFailed":
+		"El recurso de bloc migrado '{scratchpadId}' no superó la verificación de suma de comprobación.",
+	"project.migration.participantCycle":
+		"Ciclo de dependencias del participante de migración en '{id}'.",
+	"project.migration.participantMissing":
+		"Falta el participante de migración '{id}'.",
 	"project.migration.participant.missing":
 		"Al participante de migración {participantId} de la extensión {extensionId} le faltan recursos requeridos.",
 	"project.migration.participant.incompatible":

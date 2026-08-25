@@ -66,11 +66,10 @@ export async function applySettingsBundleOperation(
 	const workspace = session.loaded.workspace;
 	const settings = workspace.settings;
 	if (!settings)
-		throw new SettingsServiceError(
-			"SETTINGS_UNAVAILABLE",
-			"Settings are unavailable",
-			false,
-		);
+		throw new SettingsServiceError({
+			code: "SETTINGS_UNAVAILABLE",
+			messageKey: "settings.unavailable",
+		});
 
 	if (operation.operation === "export") {
 		if (!host.supportedScopes(workspace).includes(operation.scope))

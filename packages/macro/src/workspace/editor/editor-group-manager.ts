@@ -77,10 +77,9 @@ export class MacroEditorGroupManager {
 	create(options: CreateEditorGroupOptions = {}): EditorGroup {
 		const source = this.groups.get(options.sourceGroupId ?? this.activeGroupId);
 		if (!source)
-			throw new DocumentManagerError(
-				"EDITOR_GROUP_NOT_FOUND",
-				"Editor group not found",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.group.notFound",
+			});
 		const documentId = options.documentId ?? source.activeDocumentId;
 		if (documentId) this.requireDocument(documentId);
 		if (
@@ -129,10 +128,7 @@ export class MacroEditorGroupManager {
 	close(groupId: string): EditorGroup {
 		const group = this.requireGroup(groupId);
 		if (this.groups.size <= 1)
-			throw new DocumentManagerError(
-				"EDITOR_LAST_GROUP",
-				"At least one editor group must remain open",
-			);
+			throw new DocumentManagerError({ messageKey: "editor.group.last" });
 		let targetId = nearestSibling(this.layoutRoot, groupId);
 		if (!targetId) {
 			for (const other of this.groups.keys()) {
@@ -144,10 +140,7 @@ export class MacroEditorGroupManager {
 		}
 		const target = targetId ? this.groups.get(targetId) : undefined;
 		if (!target)
-			throw new DocumentManagerError(
-				"EDITOR_LAST_GROUP",
-				"At least one editor group must remain open",
-			);
+			throw new DocumentManagerError({ messageKey: "editor.group.last" });
 		let nextTarget = target;
 		for (const documentId of group.documentIds)
 			nextTarget = this.withDocument(
@@ -159,10 +152,7 @@ export class MacroEditorGroupManager {
 		this.groups.delete(groupId);
 		const nextLayout = removeGroup(this.layoutRoot, groupId);
 		if (!nextLayout)
-			throw new DocumentManagerError(
-				"EDITOR_LAST_GROUP",
-				"At least one editor group must remain open",
-			);
+			throw new DocumentManagerError({ messageKey: "editor.group.last" });
 		this.layoutRoot = nextLayout;
 		if (this.activeGroupId === groupId) {
 			this.activeGroupId = nextTarget.groupId;
@@ -229,10 +219,9 @@ export class MacroEditorGroupManager {
 	closeDocumentInGroup(groupId: string, documentId: string): EditorGroup {
 		const group = this.requireGroup(groupId);
 		if (!group.documentIds.includes(documentId))
-			throw new DocumentManagerError(
-				"EDITOR_DOCUMENT_NOT_FOUND",
-				"The editor document is not open in this group",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.document.notOpenInGroup",
+			});
 		const documentIds = group.documentIds.filter((id) => id !== documentId);
 		const updated: EditorGroup = {
 			...group,
@@ -325,20 +314,18 @@ export class MacroEditorGroupManager {
 	private requireGroup(groupId: string): EditorGroup {
 		const group = this.groups.get(groupId);
 		if (!group)
-			throw new DocumentManagerError(
-				"EDITOR_GROUP_NOT_FOUND",
-				"Editor group not found",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.group.notFound",
+			});
 		return group;
 	}
 
 	private requireDocument(documentId: string): MacroDocument {
 		const document = this.documents.get(documentId);
 		if (!document)
-			throw new DocumentManagerError(
-				"EDITOR_DOCUMENT_NOT_FOUND",
-				"The editor document is unavailable",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.document.notFound",
+			});
 		return document;
 	}
 

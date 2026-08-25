@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { MacroEditorGroupManager } from "../../src/workspace/editor/editor-group-manager";
+import { DocumentManagerError } from "../../src/workspace/editor/macro-document-manager";
 
 function documents() {
 	const listeners = new Set<() => void>();
@@ -178,5 +179,51 @@ describe("MacroEditorGroupManager shared documents", () => {
 		expect(updated.documentIds).toEqual(["doc-1"]);
 		expect(updated.activeDocumentId).toBe("doc-1");
 		expect(updated.documentIds).not.toContain("doc-2");
+	});
+});
+
+describe("MacroEditorGroupManager structured errors", () => {
+	test("create rejects an unknown source group with a key-only error", () => {
+		const manager = new MacroEditorGroupManager(documents() as never);
+		const root = manager.list()[0]!;
+
+		expect(() => manager.create({ sourceGroupId: "missing-group" })).toThrow(
+			DocumentManagerError,
+		);
+
+		try {
+			manager.create({ sourceGroupId: root.groupId });
+			manager.create({ sourceGroupId: "missing-group" });
+			throw new Error("expected rejection");
+		} catch (error) {
+			expect(error).toBeInstanceOf(DocumentManagerError);
+			const documentError = error as DocumentManagerError;
+			expect(documentError.messageKey).toBe("editor.group.notFound");
+			expect(documentError.messageParams).toBeUndefined();
+			// The redundant English message is gone; only the stable key remains.
+			expect(documentError.message).toBe("editor.group.notFound");
+			expect(documentError.message).not.toMatch(/editor group not found/i);
+		}
+	});
+
+	test("requireGroup rejects an unknown group with the same key-only error", () => {
+		const manager = new MacroEditorGroupManager(documents() as never);
+
+		expect(() => manager.get("missing-group")).not.toThrow();
+		expect(
+			() => (manager as never as { focus: (id: string) => void }).focus,
+		).toBeDefined();
+
+		try {
+			// `focus` internally calls requireGroup, which throws on a missing group.
+			(manager as unknown as { focus: (id: string) => never }).focus(
+				"missing-group",
+			);
+			throw new Error("expected rejection");
+		} catch (error) {
+			expect(error).toBeInstanceOf(DocumentManagerError);
+			const documentError = error as DocumentManagerError;
+			expect(documentError.messageKey).toBe("editor.group.notFound");
+		}
 	});
 });

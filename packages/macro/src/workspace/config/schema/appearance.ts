@@ -20,7 +20,7 @@ export function createAppearanceSchema(
 			enumValues: [...WEB_THEME_IDS],
 			enumOptions: WEB_THEMES.map((th) => ({
 				id: th.id,
-				label: t(th.labelKey),
+				label: t(`theme.${th.id}`),
 			})),
 		},
 		{

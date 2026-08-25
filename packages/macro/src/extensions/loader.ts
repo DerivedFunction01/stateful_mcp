@@ -41,14 +41,12 @@ export class ExtensionLoader {
 				loaded.push({ extension: extension!, sourceFile: resolve(sourceFile) });
 			} catch (error) {
 				if (error instanceof ExtensionError) throw error;
-				throw new ExtensionError(
-					{
-						messageKey: "extensions.errors.importFailed",
-						messageParams: { sourceFile },
-						sourceFile,
-						cause: error,
-					},
-				);
+				throw new ExtensionError({
+					messageKey: "extensions.errors.importFailed",
+					messageParams: { sourceFile },
+					sourceFile,
+					cause: error,
+				});
 			}
 		}
 		return loaded;
@@ -77,22 +75,18 @@ export function validateExtensionExport(
 		!extension.manifest ||
 		typeof extension.activate !== "function"
 	) {
-		throw new ExtensionError(
-			{
-				messageKey: "extensions.errors.exportMissing",
-				messageParams: { sourceFile: sourceFile ?? "unknown" },
-				sourceFile,
-			},
-		);
+		throw new ExtensionError({
+			messageKey: "extensions.errors.exportMissing",
+			messageParams: { sourceFile: sourceFile ?? "unknown" },
+			sourceFile,
+		});
 	}
 	if (!extension.manifest.id || !extension.manifest.version) {
-		throw new ExtensionError(
-			{
-				messageKey: "extensions.errors.manifestInvalid",
-				messageParams: { sourceFile: sourceFile ?? "unknown" },
-				sourceFile,
-			},
-		);
+		throw new ExtensionError({
+			messageKey: "extensions.errors.manifestInvalid",
+			messageParams: { sourceFile: sourceFile ?? "unknown" },
+			sourceFile,
+		});
 	}
 }
 

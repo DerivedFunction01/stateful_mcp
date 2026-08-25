@@ -156,8 +156,14 @@ export class HostSessionManager {
 			expectedWorkspaceRevision: expected,
 			actualWorkspaceRevision: session.revision,
 		}),
-		reject: (session, operation, code, _message) =>
-			this.rejectedEditorResult(session, operation, code),
+		reject: (session, operation, code, messageKey, messageParams) =>
+			this.rejectedEditorResult(
+				session,
+				operation,
+				code,
+				messageKey,
+				messageParams,
+			),
 		emit: (session, type) => this.emit(session, type),
 		lines: extractedEditorLinesForOperation,
 		executeExecution: executeExecutionOperation,
@@ -510,8 +516,9 @@ export class HostSessionManager {
 			if (error instanceof ProjectPathError)
 				throw new SessionError(
 					error.code,
-					"project.path.invalid",
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -524,8 +531,9 @@ export class HostSessionManager {
 			if (error instanceof ProjectPathError)
 				throw new SessionError(
 					error.code,
-					"project.path.invalid",
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -538,8 +546,9 @@ export class HostSessionManager {
 			if (error instanceof ProjectPathError)
 				throw new SessionError(
 					error.code,
-					"project.path.segmentInvalid",
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -914,8 +923,9 @@ export class HostSessionManager {
 			if (error instanceof SettingsServiceError)
 				throw new SessionError(
 					error.code,
-					this.settingsServiceMessageKey(error.code),
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -936,8 +946,9 @@ export class HostSessionManager {
 			if (error instanceof SettingsServiceError)
 				throw new SessionError(
 					error.code,
-					this.settingsServiceMessageKey(error.code),
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -958,8 +969,9 @@ export class HostSessionManager {
 			if (error instanceof SettingsServiceError)
 				throw new SessionError(
 					error.code,
-					this.settingsServiceMessageKey(error.code),
+					error.messageKey,
 					error.retryable,
+					error.messageParams,
 				);
 			throw error;
 		}
@@ -1024,6 +1036,7 @@ export class HostSessionManager {
 		session: Session,
 		operation: EditorOperation,
 		code: string,
+		messageKey?: string,
 		messageParams?: Readonly<Record<string, MessageParam>>,
 	): EditorOperationResult {
 		return {
@@ -1031,7 +1044,7 @@ export class HostSessionManager {
 			requestId: operation.requestId,
 			status: "rejected",
 			code,
-			messageKey: this.editorMessageKey(code),
+			messageKey: messageKey ?? this.editorMessageKey(code),
 			...(messageParams ? { messageParams } : {}),
 			snapshot: this.editorSnapshot(session),
 			workspaceSnapshot: this.snapshot(session),
@@ -1165,17 +1178,6 @@ export class HostSessionManager {
 		params?: Readonly<Record<string, string | number>>,
 	): string {
 		return translate(session.loaded.workspace.i18n, key, params) || key;
-	}
-
-	private settingsServiceMessageKey(code: string): string {
-		switch (code) {
-			case "SETTINGS_UNAVAILABLE":
-				return "settings.unavailable";
-			case "SETTINGS_OPERATION_UNKNOWN":
-				return "settings.operation.unknown";
-			default:
-				return "settings.error";
-		}
 	}
 
 	private settingsSnapshot(session: Session): SettingsUiSnapshotDto {

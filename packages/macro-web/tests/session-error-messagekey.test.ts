@@ -35,8 +35,7 @@ describe("session error message keys", () => {
 		}
 		expect(caught).toBeInstanceOf(SessionError);
 		const error = caught as SessionError;
-		expect(error.messageKey).toBe("project.path.invalid");
-		expect(error.messageKey).not.toMatch(/escape|relative|project area/i);
+		expect(error.messageKey).toBe("project.path.outsideEditableArea");
 	});
 
 	test("maps ProjectPathError from segment validation to a semantic key", async () => {

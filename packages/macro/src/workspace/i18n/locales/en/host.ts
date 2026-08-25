@@ -12,7 +12,10 @@ export const EN_HOST: Record<string, string> = {
 	"host.description": "Inspect the host-connected snapshot and event boundary.",
 	"host.fixtureNote":
 		"Open the component gallery for the fixture-backed snapshot while the Bun server endpoints are being wired.",
-	"host.workspace.extensionUnlisted": "Extension '{extensionId}' is not listed in the workspace manifest.",
-	"host.workspace.extensionVersionMismatch": "Extension '{extensionId}' has version {actual}; expected {expected}.",
-	"host.workspace.dependencyUnlisted": "Extension '{extensionId}' requires unlisted dependency '{dependency}'.",
+	"host.workspace.extensionUnlisted":
+		"Extension '{extensionId}' is not listed in the workspace manifest.",
+	"host.workspace.extensionVersionMismatch":
+		"Extension '{extensionId}' has version {actual}; expected {expected}.",
+	"host.workspace.dependencyUnlisted":
+		"Extension '{extensionId}' requires unlisted dependency '{dependency}'.",
 };

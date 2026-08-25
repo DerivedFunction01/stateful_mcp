@@ -55,24 +55,15 @@ export async function executeResourceOperation(
 	if (operation.operation === "editor.saveArtifact") {
 		const artifact = context.getArtifact(operation.artifactToken);
 		if (!artifact)
-			return context.reject(
-				"ARTIFACT_NOT_FOUND",
-				"Artifact is unavailable or expired",
-			);
+			return context.reject("ARTIFACT_NOT_FOUND", "artifact.unavailable");
 		if (artifact.owner !== undefined && artifact.owner !== context.sessionOwner)
-			return context.reject(
-				"ARTIFACT_UNAUTHORIZED",
-				"This artifact is not available to the current session",
-			);
+			return context.reject("ARTIFACT_UNAUTHORIZED", "artifact.unauthorized");
 		if (artifact.lifecycle !== "project")
-			return context.reject(
-				"ARTIFACT_NOT_SAVEABLE",
-				"This artifact cannot be saved to the project",
-			);
+			return context.reject("ARTIFACT_NOT_SAVEABLE", "artifact.notSaveable");
 		if (!context.materializeArtifact)
 			return context.reject(
 				"ARTIFACT_MATERIALIZATION_UNAVAILABLE",
-				"Project artifact materialization is unavailable",
+				"artifact.materializationUnavailable",
 			);
 		const saved = await context.materializeArtifact(operation.artifactToken);
 		context.emit();
@@ -91,10 +82,7 @@ export async function executeResourceOperation(
 		if (
 			!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
 		)
-			return context.reject(
-				"RESOURCE_NOT_FOUND",
-				"Resource is not exposed by the project",
-			);
+			return context.reject("RESOURCE_NOT_FOUND", "resource.notExposed");
 		const provider = session.loaded.workspace.resources.get(
 			operation.resourceKind,
 		);
@@ -104,7 +92,7 @@ export async function executeResourceOperation(
 		)
 			return context.reject(
 				"RESOURCE_ACTION_UNSUPPORTED",
-				"This resource action is not available",
+				"resource.actionUnsupported",
 			);
 		await provider.provider.executeAction(
 			operation.action,
@@ -135,22 +123,18 @@ export async function executeResourceOperation(
 	)
 		return context.reject(
 			"RESOURCE_KIND_UNSUPPORTED",
-			"This resource kind cannot be opened by the editor",
+			"resource.kindUnsupported",
 		);
 	if (
 		operation.operation === "editor.openResource" &&
 		!context.isResourceExposed?.(operation.resourceKind, operation.resourceId)
 	)
-		return context.reject(
-			"RESOURCE_NOT_FOUND",
-			"Resource is not exposed by the project",
-		);
+		return context.reject("RESOURCE_NOT_FOUND", "resource.notExposed");
 	const opened = await context.openScratchpad(
 		id,
 		"groupId" in operation ? operation.groupId : undefined,
 	);
-	if (!opened)
-		return context.reject("RESOURCE_NOT_FOUND", "Saved resource not found");
+	if (!opened) return context.reject("RESOURCE_NOT_FOUND", "resource.notFound");
 	context.emit();
 	return {
 		...context.base(),

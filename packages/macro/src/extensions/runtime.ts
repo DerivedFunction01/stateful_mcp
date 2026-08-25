@@ -260,15 +260,13 @@ export class ExtensionRuntime {
 			this.listeners.delete(manifest.id);
 			this.contexts.delete(manifest.id);
 			await scope.close();
-			throw new ExtensionError(
-				{
-					messageKey: "extensions.errors.activationFailed",
-					messageParams: { extensionId: manifest.id, sourceFile },
-					extensionId: manifest.id,
-					sourceFile,
-					cause: error,
-				},
-			);
+			throw new ExtensionError({
+				messageKey: "extensions.errors.activationFailed",
+				messageParams: { extensionId: manifest.id, sourceFile },
+				extensionId: manifest.id,
+				sourceFile,
+				cause: error,
+			});
 		}
 	}
 
@@ -504,25 +502,24 @@ function validateManifests(loaded: readonly LoadedExtension[]): void {
 	for (const item of loaded) {
 		const id = item.extension.manifest.id;
 		if (ids.has(id))
-			throw new ExtensionError(
-				{
-					messageKey: "extensions.errors.duplicateId",
-					messageParams: { id },
-					sourceFile: item.sourceFile,
-				},
-			);
+			throw new ExtensionError({
+				messageKey: "extensions.errors.duplicateId",
+				messageParams: { id },
+				sourceFile: item.sourceFile,
+			});
 		ids.add(id);
 	}
 	for (const item of loaded) {
 		for (const dependency of item.extension.manifest.requires ?? []) {
 			if (!ids.has(dependency))
-				throw new ExtensionError(
-					{
-						messageKey: "extensions.errors.missingDependency",
-						messageParams: { extensionId: item.extension.manifest.id, dependency },
-						sourceFile: item.sourceFile,
+				throw new ExtensionError({
+					messageKey: "extensions.errors.missingDependency",
+					messageParams: {
+						extensionId: item.extension.manifest.id,
+						dependency,
 					},
-				);
+					sourceFile: item.sourceFile,
+				});
 		}
 	}
 	topologicalOrder(loaded);
@@ -537,12 +534,10 @@ function topologicalOrder(loaded: readonly LoadedExtension[]): string[] {
 	const visit = (id: string): void => {
 		if (state.get(id) === "visited") return;
 		if (state.get(id) === "visiting")
-			throw new ExtensionError(
-				{
-					messageKey: "extensions.errors.dependencyCycle",
-					messageParams: { id },
-				},
-			);
+			throw new ExtensionError({
+				messageKey: "extensions.errors.dependencyCycle",
+				messageParams: { id },
+			});
 		state.set(id, "visiting");
 		for (const dependency of [
 			...(byId.get(id)?.manifest.requires ?? []),

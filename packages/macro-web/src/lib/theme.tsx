@@ -16,14 +16,10 @@ import { useOptionalI18n } from "./macro-i18n-provider";
 
 export { WEB_THEME_IDS, WEB_THEMES, type WebThemeDefinition, type WebThemeId };
 
-export interface ActiveWebTheme extends WebThemeDefinition {
-	readonly label: string;
-}
-
 interface ThemeContextValue {
 	themeId: WebThemeId;
 	setThemeId: (themeId: WebThemeId) => void;
-	theme: ActiveWebTheme;
+	theme: WebThemeDefinition;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -35,13 +31,7 @@ export function ThemeProvider({ children }: { readonly children: ReactNode }) {
 	const baseTheme =
 		WEB_THEMES.find((item) => item.id === themeId) ?? WEB_THEMES[0]!;
 
-	const theme: ActiveWebTheme = useMemo(
-		() => ({
-			...baseTheme,
-			label: t(baseTheme.labelKey as any) || baseTheme.id,
-		}),
-		[baseTheme, t],
-	);
+	const theme = useMemo(() => baseTheme, [baseTheme]);
 
 	useEffect(() => {
 		document.documentElement.dataset.theme = theme.id;

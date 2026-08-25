@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import {
 	ScratchpadSession,
@@ -195,10 +196,9 @@ export class MacroDocumentManager {
 						item.adapter.definition.name === cd.defaultMacroId,
 				);
 			if (!available)
-				throw new DocumentManagerError(
-					"EDITOR_TEMPLATE_SEED_UNAVAILABLE",
-					"A configured template macro is unavailable",
-				);
+				throw new DocumentManagerError({
+					messageKey: "editor.template.seedUnavailable",
+				});
 			cellDefaults.set(idx, cd.defaultMacroId);
 		}
 		return { lines, cellDefaults };
@@ -213,10 +213,9 @@ export class MacroDocumentManager {
 			(item) => item.templateId === templateId,
 		);
 		if (!template)
-			throw new DocumentManagerError(
-				"EDITOR_TEMPLATE_NOT_FOUND",
-				"The selected document template is unavailable",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.template.notFound",
+			});
 		const liveTemplate = this.list().find(
 			(item) =>
 				item.providerId === MACRO_TEMPLATE_PROVIDER &&
@@ -257,10 +256,9 @@ export class MacroDocumentManager {
 			(item) => item.templateId === templateId,
 		);
 		if (!template)
-			throw new DocumentManagerError(
-				"EDITOR_TEMPLATE_NOT_FOUND",
-				"The selected template is unavailable",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.template.notFound",
+			});
 
 		// Reuse an existing open editor session for this template.
 		const existing = this.list().find(
@@ -290,10 +288,7 @@ export class MacroDocumentManager {
 	close(documentId: string, force = false): MacroDocument | null {
 		const document = this.require(documentId);
 		if (document.dirty && !force)
-			throw new DocumentManagerError(
-				"EDITOR_DOCUMENT_DIRTY",
-				"The document has unsaved changes",
-			);
+			throw new DocumentManagerError({ messageKey: "editor.document.dirty" });
 
 		this.documents.delete(documentId);
 		this.documentUnsubs.get(documentId)?.();
@@ -309,10 +304,9 @@ export class MacroDocumentManager {
 		const document = this.require(documentId);
 		const normalized = title.trim();
 		if (!normalized)
-			throw new DocumentManagerError(
-				"EDITOR_TITLE_REQUIRED",
-				"Document title is required",
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.document.titleRequired",
+			});
 		if (document.title !== normalized) {
 			document.title = normalized;
 			this.notify();
@@ -588,10 +582,10 @@ export class MacroDocumentManager {
 	private require(documentId: string): MacroDocument {
 		const document = this.documents.get(documentId);
 		if (!document)
-			throw new DocumentManagerError(
-				"EDITOR_DOCUMENT_NOT_FOUND",
-				`Document '${documentId}' was not found`,
-			);
+			throw new DocumentManagerError({
+				messageKey: "editor.document.notFound",
+				messageParams: { documentId },
+			});
 		return document;
 	}
 
@@ -607,12 +601,20 @@ function sameLines(left: readonly string[], right: readonly string[]): boolean {
 	);
 }
 
+export interface DocumentManagerErrorOptions {
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+}
+
 export class DocumentManagerError extends Error {
-	constructor(
-		readonly code: string,
-		message: string,
-	) {
-		super(message);
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+
+	constructor(options: DocumentManagerErrorOptions);
+	constructor(options: DocumentManagerErrorOptions) {
+		super(options.messageKey);
+		this.messageKey = options.messageKey;
+		this.messageParams = options.messageParams;
 		this.name = "DocumentManagerError";
 	}
 }
@@ -622,7 +624,7 @@ export class DocumentRevisionError extends DocumentManagerError {
 		readonly expectedRevision: number,
 		readonly actualRevision: number,
 	) {
-		super("EDITOR_REVISION_STALE", "The document revision is stale");
+		super({ messageKey: "editor.revision.stale" });
 		this.name = "DocumentRevisionError";
 	}
 }

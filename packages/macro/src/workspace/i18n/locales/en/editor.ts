@@ -21,6 +21,13 @@ export const EN_EDITOR: Record<string, string> = {
 	"editor.input.stale": "The editor document revision is stale.",
 	"editor.input.rejected": "The editor operation was rejected.",
 	"editor.document.notFound": "The editor document is no longer available.",
+	"editor.document.notOpenInGroup":
+		"The editor document is not open in this group.",
+	"editor.document.dirty": "The document has unsaved changes.",
+	"editor.revision.stale": "The document revision is stale.",
+	"editor.file.notBacked": "The document is not backed by a file.",
+	"editor.line.notExecutable": "This line is not executable.",
+	"editor.range.invalid": "The selected editor range is invalid.",
 	"editor.document.closeDirty":
 		"Save or discard this document before closing it.",
 	"editor.document.last": "At least one editor document must remain open.",

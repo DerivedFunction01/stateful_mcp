@@ -60,7 +60,9 @@ function scanDir(dir: string): Map<string, { file: string; line: number }[]> {
 			const lineOf = lineIndex(content);
 			KEY_RE.lastIndex = 0;
 			let m: RegExpExecArray | null;
-			while ((m = KEY_RE.exec(content))) {
+			while (true) {
+				m = KEY_RE.exec(content);
+				if (!m) break;
 				const key = m[1] ?? m[2];
 				if (!key) continue;
 				const loc = { file, line: lineOf(m.index) };

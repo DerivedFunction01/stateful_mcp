@@ -149,7 +149,7 @@ describe("Phase 7 editor transport", () => {
 			templateId: "seeded-template",
 		});
 		expect(result.status).toBe("rejected");
-		expect(result.code).toBe("EDITOR_TEMPLATE_SEED_UNAVAILABLE");
+		expect(result.messageKey).toBe("editor.template.seedUnavailable");
 		expect(result.snapshot.documents).toHaveLength(1);
 
 		await sessions.disposeAll();

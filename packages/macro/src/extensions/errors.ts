@@ -40,7 +40,9 @@ export function extensionDiagnostic(
 	if (error instanceof ExtensionError) {
 		return {
 			messageKey: error.messageKey,
-			...(error.messageParams === undefined ? {} : { messageParams: error.messageParams }),
+			...(error.messageParams === undefined
+				? {}
+				: { messageParams: error.messageParams }),
 			extensionId: error.extensionId ?? context.extensionId,
 			sourceFile: error.sourceFile ?? context.sourceFile,
 			cause: error.cause,

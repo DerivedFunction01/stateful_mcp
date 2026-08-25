@@ -255,16 +255,18 @@ export async function openMacroProject(
 			await readFile(manifestPath, "utf8"),
 		) as MacroProjectManifest;
 	} catch (error) {
-		throw new MacroProjectFormatError(
-			`Unable to open Macro project manifest at ${manifestPath}: ${String(error)}`,
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.openFailed",
+			messageParams: { manifestPath },
+			cause: error,
+		});
 	}
 	validateMacroProjectManifest(manifest);
 	const expectedPath = resolve(rootPath, manifest.backend.path);
 	if (!isWithin(rootPath, expectedPath)) {
-		throw new MacroProjectFormatError(
-			"Project backend path escapes project root",
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.backend.pathEscapesRoot",
+		});
 	}
 	// Guarded: never fail an open because of a leftover migration journal, and
 	// never remove data the manifest still points at.
@@ -294,31 +296,34 @@ export function validateMacroProjectManifest(
 	manifest: MacroProjectManifest,
 ): void {
 	if (!manifest || typeof manifest !== "object")
-		throw new MacroProjectFormatError("Project manifest must be an object");
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.invalidObject",
+		});
 	if (manifest.formatVersion !== MACRO_PROJECT_FORMAT_VERSION)
-		throw new MacroProjectFormatError(
-			`Unsupported Macro project format version '${String(manifest.formatVersion)}'`,
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.unsupportedVersion",
+			messageParams: { version: String(manifest.formatVersion) },
+		});
 	if (!manifest.projectId || !manifest.displayName)
-		throw new MacroProjectFormatError(
-			"Project manifest requires identity metadata",
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.identityRequired",
+		});
 	if (
 		!manifest.backend ||
 		!["jsonl", "sqlite"].includes(manifest.backend.kind) ||
 		!manifest.backend.path
 	)
-		throw new MacroProjectFormatError(
-			"Project manifest has an invalid backend",
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.backendInvalid",
+		});
 	if (!Array.isArray(manifest.extensions) || !Array.isArray(manifest.resources))
-		throw new MacroProjectFormatError(
-			"Project manifest has invalid resource data",
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.resourcesInvalid",
+		});
 	if (!Array.isArray(manifest.historyResources))
-		throw new MacroProjectFormatError(
-			"Project manifest requires history resources",
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.historyRequired",
+		});
 	const groupDiagnostics = validateProjectExtensionGroups({
 		extensions: manifest.extensions,
 		...(manifest.extensionGroups ? { groups: manifest.extensionGroups } : {}),
@@ -327,11 +332,10 @@ export function validateMacroProjectManifest(
 			: { activeGroupId: manifest.activeExtensionGroupId }),
 	}).filter((diagnostic) => diagnostic.severity === "error");
 	if (groupDiagnostics.length > 0)
-		throw new MacroProjectFormatError(
-			`Project manifest has invalid extension activation groups: ${groupDiagnostics
-				.map((diagnostic) => diagnostic.messageKey)
-				.join("; ")}`,
-		);
+		throw new MacroProjectFormatError({
+			messageKey: "project.manifest.extensionGroupsInvalid",
+			messageParams: { count: groupDiagnostics.length },
+		});
 }
 
 class MacroProjectHandle implements MacroProject {
@@ -631,18 +635,18 @@ class MacroProjectHandle implements MacroProject {
 		this.assertOpen();
 		const targetPath = resolve(this.rootPath, target.path);
 		if (!isWithin(this.rootPath, targetPath) || targetPath === this.rootPath)
-			throw new MacroProjectFormatError(
-				"Project backend path escapes project root",
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.backend.pathEscapesRoot",
+			});
 		if (
 			target.kind === this.currentManifest.backend.kind &&
 			target.path === this.currentManifest.backend.path
 		)
 			return { project: this, copiedHistory: 0, copiedScratchpads: 0 };
 		if (target.path === this.currentManifest.backend.path)
-			throw new MacroProjectFormatError(
-				"Migration target must use a different backend path",
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.targetPathSame",
+			});
 		const lockPath = migrationLockPath(this.rootPath);
 		// Guarded stale-lock handling: an abandoned journal is recovered (its
 		// partial target discarded) so a retry to the same path can proceed, while
@@ -1041,35 +1045,41 @@ export async function verifyMigratedResources(
 	);
 	for (const historyId of historyIds)
 		if (!expectedHistory.has(historyId))
-			throw new MacroProjectFormatError(
-				`Migration target contains unexpected history resource '${historyId}'`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.unexpectedHistory",
+				messageParams: { historyId },
+			});
 	for (const scratchpadId of scratchpadIds)
 		if (!expectedScratchpads.has(scratchpadId))
-			throw new MacroProjectFormatError(
-				`Migration target contains unexpected scratchpad resource '${scratchpadId}'`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.unexpectedScratchpad",
+				messageParams: { scratchpadId },
+			});
 	for (const [historyId, checksum] of expectedHistory) {
 		const copy = await target.history.open(historyId);
 		if (!copy)
-			throw new MacroProjectFormatError(
-				`Migrated history resource '${historyId}' is missing from the target backend`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.historyMissing",
+				messageParams: { historyId },
+			});
 		if (historyResourceChecksum(copy) !== checksum)
-			throw new MacroProjectFormatError(
-				`Migrated history resource '${historyId}' failed checksum verification`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.historyChecksumFailed",
+				messageParams: { historyId },
+			});
 	}
 	for (const [scratchpadId, checksum] of expectedScratchpads) {
 		const copy = await target.scratchpads.open(scratchpadId);
 		if (!copy)
-			throw new MacroProjectFormatError(
-				`Migrated scratchpad resource '${scratchpadId}' is missing from the target backend`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.scratchpadMissing",
+				messageParams: { scratchpadId },
+			});
 		if (scratchpadResourceChecksum(copy) !== checksum)
-			throw new MacroProjectFormatError(
-				`Migrated scratchpad resource '${scratchpadId}' failed checksum verification`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.scratchpadChecksumFailed",
+				messageParams: { scratchpadId },
+			});
 	}
 }
 
@@ -1358,14 +1368,16 @@ function orderParticipants(
 	const visit = (id: string): void => {
 		if (visited.has(id)) return;
 		if (visiting.has(id))
-			throw new MacroProjectFormatError(
-				`Migration participant dependency cycle at '${id}'`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.participantCycle",
+				messageParams: { id },
+			});
 		const participant = byId.get(id);
 		if (!participant)
-			throw new MacroProjectFormatError(
-				`Missing migration participant '${id}'`,
-			);
+			throw new MacroProjectFormatError({
+				messageKey: "project.migration.participantMissing",
+				messageParams: { id },
+			});
 		visiting.add(id);
 		for (const dependency of participant.dependsOn ?? []) visit(dependency);
 		visiting.delete(id);

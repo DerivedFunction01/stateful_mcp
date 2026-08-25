@@ -229,7 +229,9 @@ describe("project migration journal", () => {
 				{ kind: "sqlite", path: ".macro/spoofed.sqlite" },
 				project.descriptor.revision,
 			),
-		).rejects.toThrow("unexpected history resource 'spoofed'");
+		).rejects.toMatchObject({
+			messageKey: "project.migration.unexpectedHistory",
+		});
 		store.open = originalOpen;
 		expect(project.manifest.backend.kind).toBe("jsonl");
 		expect(await fileExists(join(root, ".macro", "spoofed.sqlite"))).toBe(
@@ -560,7 +562,9 @@ describe("migrated resource verification", () => {
 			verifyMigratedResources(stores, [
 				{ resourceId: "h1", kind: "history", checksum },
 			]),
-		).rejects.toThrow("failed checksum verification");
+		).rejects.toMatchObject({
+			messageKey: "project.migration.historyChecksumFailed",
+		});
 	});
 
 	test("rejects a scratchpad copy whose content drifted", async () => {
@@ -573,7 +577,9 @@ describe("migrated resource verification", () => {
 			verifyMigratedResources(stores, [
 				{ resourceId: "s1", kind: "scratchpad", checksum },
 			]),
-		).rejects.toThrow("failed checksum verification");
+		).rejects.toMatchObject({
+			messageKey: "project.migration.scratchpadChecksumFailed",
+		});
 	});
 
 	test("rejects a missing reference", async () => {
@@ -582,7 +588,7 @@ describe("migrated resource verification", () => {
 			verifyMigratedResources(stores, [
 				{ resourceId: "h1", kind: "history", checksum: "fnv1a:0" },
 			]),
-		).rejects.toThrow("is missing from the target backend");
+		).rejects.toMatchObject({ messageKey: "project.migration.historyMissing" });
 	});
 
 	test("rejects resources the migration did not copy", async () => {
@@ -597,7 +603,9 @@ describe("migrated resource verification", () => {
 					checksum: historyResourceChecksum(history),
 				},
 			]),
-		).rejects.toThrow("unexpected history resource 'stowaway'");
+		).rejects.toMatchObject({
+			messageKey: "project.migration.unexpectedHistory",
+		});
 	});
 });
 

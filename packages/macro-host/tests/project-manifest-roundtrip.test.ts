@@ -196,7 +196,9 @@ describe("project manifest through the workspace resolver", () => {
 		// membership is rejected at save time rather than at load time.
 		await expect(
 			project.saveManifest(updated, project.descriptor.revision),
-		).rejects.toThrow(/project\.extensionGroup\.unknownExtension/u);
+		).rejects.toMatchObject({
+			messageKey: "project.manifest.extensionGroupsInvalid",
+		});
 		await project.close();
 	});
 });
@@ -217,42 +219,72 @@ describe("validateMacroProjectManifest diagnostics", () => {
 	});
 
 	test("rejects an unsupported format version", () => {
-		expect(() =>
-			validateMacroProjectManifest({ ...base, formatVersion: 3 }),
-		).toThrow(/Unsupported Macro project format version/u);
+		let error: unknown;
+		try {
+			validateMacroProjectManifest({ ...base, formatVersion: 3 });
+		} catch (value) {
+			error = value;
+		}
+		expect(error).toMatchObject({
+			messageKey: "project.manifest.unsupportedVersion",
+		});
 	});
 
 	test("rejects a missing identity", () => {
-		expect(() =>
+		let error: unknown;
+		try {
 			validateMacroProjectManifest({
 				...base,
 				projectId: "",
 				displayName: "",
-			}),
-		).toThrow("Project manifest requires identity metadata");
+			});
+		} catch (value) {
+			error = value;
+		}
+		expect(error).toMatchObject({
+			messageKey: "project.manifest.identityRequired",
+		});
 	});
 
 	test("rejects an invalid backend", () => {
-		expect(() =>
+		let error: unknown;
+		try {
 			validateMacroProjectManifest({
 				...base,
 				backend: { kind: "tape" as never, path: "" },
-			}),
-		).toThrow("Project manifest has an invalid backend");
+			});
+		} catch (value) {
+			error = value;
+		}
+		expect(error).toMatchObject({
+			messageKey: "project.manifest.backendInvalid",
+		});
 	});
 
 	test("rejects missing resource arrays", () => {
-		expect(() =>
+		let error: unknown;
+		try {
 			validateMacroProjectManifest({
 				...base,
 				extensions: undefined as never,
-			}),
-		).toThrow("Project manifest has invalid resource data");
-		expect(() =>
+			});
+		} catch (value) {
+			error = value;
+		}
+		expect(error).toMatchObject({
+			messageKey: "project.manifest.resourcesInvalid",
+		});
+		error = undefined;
+		try {
 			validateMacroProjectManifest({
 				...base,
 				historyResources: undefined as never,
-			}),
-		).toThrow("Project manifest requires history resources");
+			});
+		} catch (value) {
+			error = value;
+		}
+		expect(error).toMatchObject({
+			messageKey: "project.manifest.historyRequired",
+		});
 	});
 });

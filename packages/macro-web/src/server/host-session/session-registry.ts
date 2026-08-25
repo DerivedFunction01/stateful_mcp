@@ -45,7 +45,7 @@ export class SessionRegistry implements SessionRegistryLike {
 	getOrError(sessionId: string): Session {
 		const session = this.get(sessionId);
 		if (!session)
-			throw new SessionError("SESSION_NOT_FOUND", "Session not found", false);
+			throw new SessionError("SESSION_NOT_FOUND", "session.notFound", false);
 		return session;
 	}
 

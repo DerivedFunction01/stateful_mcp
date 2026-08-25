@@ -1,8 +1,10 @@
 export const ES_EXTENSIONS: Record<string, string> = {
 	"extensions.errors.dependencyUnavailable":
 		"La extensión '{extensionId}' no puede activarse porque faltan dependencias: {missing}",
-	"extensions.errors.activationFailed": "La extensión '{extensionId}' no pudo activarse",
-	"extensions.errors.importFailed": "No se pudo importar el archivo de extensión '{sourceFile}'",
+	"extensions.errors.activationFailed":
+		"La extensión '{extensionId}' no pudo activarse",
+	"extensions.errors.importFailed":
+		"No se pudo importar el archivo de extensión '{sourceFile}'",
 	"extensions.errors.exportMissing":
 		"El archivo de extensión '{sourceFile}' debe exportar por defecto una extensión",
 	"extensions.errors.manifestInvalid":

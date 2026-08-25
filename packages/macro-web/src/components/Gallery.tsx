@@ -91,7 +91,7 @@ export function Gallery() {
 						value={themeId}
 						options={WEB_THEMES.map((item) => ({
 							id: item.id,
-							label: t(item.labelKey),
+							label: t(`theme.${item.id}`),
 						}))}
 						onChange={(value) => setThemeId(value as typeof themeId)}
 					/>

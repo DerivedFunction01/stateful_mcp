@@ -85,8 +85,12 @@ describe("extension runtime", () => {
 			messageKey: "extensions.errors.activationFailed",
 			messageParams: { extensionId: "broken", sourceFile: "/tmp/broken.ts" },
 		});
-		expect(result.diagnostics[0]!.messageKey).toBe("extensions.errors.activationFailed");
-		expect(result.diagnostics[0]!.messageParams).toMatchObject({ extensionId: "broken" });
+		expect(result.diagnostics[0]!.messageKey).toBe(
+			"extensions.errors.activationFailed",
+		);
+		expect(result.diagnostics[0]!.messageParams).toMatchObject({
+			extensionId: "broken",
+		});
 		expect(runtime.macros.get("broken")).toBeUndefined();
 		expect(closed).toBe(true);
 	});
@@ -108,7 +112,9 @@ describe("extension runtime", () => {
 		});
 		await expect(
 			new ExtensionRuntime().activate([loaded(missing)]),
-		).rejects.toMatchObject({ messageKey: "extensions.errors.missingDependency" });
+		).rejects.toMatchObject({
+			messageKey: "extensions.errors.missingDependency",
+		});
 		const a = defineExtension({
 			id: "a",
 			version: "1",
@@ -123,7 +129,9 @@ describe("extension runtime", () => {
 		});
 		await expect(
 			new ExtensionRuntime().activate([loaded(a), loaded(b)]),
-		).rejects.toMatchObject({ messageKey: "extensions.errors.dependencyCycle" });
+		).rejects.toMatchObject({
+			messageKey: "extensions.errors.dependencyCycle",
+		});
 	});
 
 	test("loads TypeScript and JavaScript files in lexical order and reloads registrations", async () => {
@@ -524,7 +532,9 @@ describe("extension runtime", () => {
 
 		expect(result.active).toHaveLength(0);
 		expect(result.diagnostics).toHaveLength(1);
-		expect(result.diagnostics[0]?.messageKey).toBe("extensions.errors.activationFailed");
+		expect(result.diagnostics[0]?.messageKey).toBe(
+			"extensions.errors.activationFailed",
+		);
 
 		// Everything must be rolled back:
 		expect(runtime.macros.get("fail-macro")).toBeUndefined();

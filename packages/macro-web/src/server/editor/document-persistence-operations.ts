@@ -64,7 +64,10 @@ export async function executePersistenceOperation(
 	}
 	const document = documents.get(operation.documentId);
 	if (!document)
-		return context.reject("EDITOR_DOCUMENT_NOT_FOUND", "Document not found");
+		return context.reject(
+			"EDITOR_DOCUMENT_NOT_FOUND",
+			"editor.document.notFound",
+		);
 	if (
 		operation.expectedTextRevision !== undefined &&
 		operation.expectedTextRevision !== document.textRevision
@@ -111,10 +114,7 @@ export async function executePersistenceOperation(
 		} as unknown as EditorOperationResult;
 	}
 	if (document.providerId !== "file" || !document.filePath)
-		return context.reject(
-			"FILE_NOT_EDITABLE_AS_TEXT",
-			"Document is not file-backed",
-		);
+		return context.reject("FILE_NOT_EDITABLE_AS_TEXT", "editor.file.notBacked");
 	const root = context.projectRoot();
 	const path = context.resolvePath(
 		root,

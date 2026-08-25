@@ -469,13 +469,11 @@ async function loadManifestExtensions(
 		resolve(manifestDirectory, "extensions"),
 	)) {
 		if (!listedPaths.has(discovered)) {
-			throw new ExtensionError(
-				{
-					messageKey: "host.workspace.extensionUnlisted",
-					messageParams: { sourceFile: discovered },
-					sourceFile: discovered,
-				},
-			);
+			throw new ExtensionError({
+				messageKey: "host.workspace.extensionUnlisted",
+				messageParams: { sourceFile: discovered },
+				sourceFile: discovered,
+			});
 		}
 	}
 	const loaded = await new MacroExtensionLoader({
@@ -485,38 +483,39 @@ async function loadManifestExtensions(
 	for (const item of loaded) {
 		const expected = byId.get(item.extension.manifest.id);
 		if (!expected) {
-			throw new ExtensionError(
-				{
-					messageKey: "host.workspace.extensionUnlisted",
-					messageParams: { extensionId: item.extension.manifest.id },
-					extensionId: item.extension.manifest.id,
-					sourceFile: item.sourceFile,
-				},
-			);
+			throw new ExtensionError({
+				messageKey: "host.workspace.extensionUnlisted",
+				messageParams: { extensionId: item.extension.manifest.id },
+				extensionId: item.extension.manifest.id,
+				sourceFile: item.sourceFile,
+			});
 		}
 		if (expected.version !== item.extension.manifest.version) {
-			throw new ExtensionError(
-				{
-					messageKey: "host.workspace.extensionVersionMismatch",
-					messageParams: { extensionId: expected.id, expected: expected.version, actual: item.extension.manifest.version },
+			throw new ExtensionError({
+				messageKey: "host.workspace.extensionVersionMismatch",
+				messageParams: {
 					extensionId: expected.id,
-					sourceFile: item.sourceFile,
+					expected: expected.version,
+					actual: item.extension.manifest.version,
 				},
-			);
+				extensionId: expected.id,
+				sourceFile: item.sourceFile,
+			});
 		}
 	}
 	const listed = new Set(manifest.extensions.map((entry) => entry.id));
 	for (const item of loaded) {
 		for (const dependency of item.extension.manifest.requires ?? []) {
 			if (!listed.has(dependency)) {
-				throw new ExtensionError(
-					{
-						messageKey: "host.workspace.dependencyUnlisted",
-						messageParams: { extensionId: item.extension.manifest.id, dependency },
+				throw new ExtensionError({
+					messageKey: "host.workspace.dependencyUnlisted",
+					messageParams: {
 						extensionId: item.extension.manifest.id,
-						sourceFile: item.sourceFile,
+						dependency,
 					},
-				);
+					extensionId: item.extension.manifest.id,
+					sourceFile: item.sourceFile,
+				});
 			}
 		}
 	}

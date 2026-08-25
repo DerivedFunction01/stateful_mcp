@@ -21,6 +21,13 @@ export const ES_EDITOR: Record<string, string> = {
 	"editor.input.stale": "La revisión del documento del editor está obsoleta.",
 	"editor.input.rejected": "La operación del editor fue rechazada.",
 	"editor.document.notFound": "El documento del editor ya no está disponible.",
+	"editor.document.notOpenInGroup":
+		"El documento del editor no está abierto en este grupo.",
+	"editor.document.dirty": "El documento tiene cambios sin guardar.",
+	"editor.revision.stale": "La revisión del documento está desactualizada.",
+	"editor.file.notBacked": "El documento no está respaldado por un archivo.",
+	"editor.line.notExecutable": "Esta línea no es ejecutable.",
+	"editor.range.invalid": "El rango seleccionado del editor no es válido.",
 	"editor.document.closeDirty":
 		"Guarda o descarta este documento antes de cerrarlo.",
 	"editor.document.last": "Debe permanecer al menos un documento del editor.",

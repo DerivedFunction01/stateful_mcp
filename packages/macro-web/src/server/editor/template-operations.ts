@@ -66,7 +66,7 @@ export async function executeTemplateOperation(
 		if (existing?.source === "extension" || existing?.isReadonly)
 			return context.reject(
 				"EDITOR_TEMPLATE_READONLY",
-				"Template is read-only",
+				"editor.template.readOnly",
 			);
 		await persistTemplates(
 			session,
@@ -99,7 +99,7 @@ export async function executeTemplateOperation(
 		)
 			return context.reject(
 				"EDITOR_TEMPLATE_READONLY",
-				"Template is read-only",
+				"editor.template.readOnly",
 			);
 		const template: MacroDocumentTemplate = {
 			...operation.template,
@@ -124,9 +124,15 @@ export async function executeTemplateOperation(
 		} as unknown as EditorOperationResult;
 	}
 	if (!existing)
-		return context.reject("EDITOR_TEMPLATE_NOT_FOUND", "Template not found");
+		return context.reject(
+			"EDITOR_TEMPLATE_NOT_FOUND",
+			"editor.template.notFound",
+		);
 	if (existing.source === "extension" || existing.isReadonly)
-		return context.reject("EDITOR_TEMPLATE_READONLY", "Template is read-only");
+		return context.reject(
+			"EDITOR_TEMPLATE_READONLY",
+			"editor.template.readOnly",
+		);
 	const template = { ...existing, templateLiteralArgs: operation.literalArgs };
 	await persistTemplates(
 		session,

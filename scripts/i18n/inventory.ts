@@ -172,7 +172,9 @@ function* candidates(
 
 		ERROR_RE.lastIndex = 0;
 		let m: RegExpExecArray | null;
-		while ((m = ERROR_RE.exec(content))) {
+		while (true) {
+			m = ERROR_RE.exec(content);
+			if (!m) break;
 			const cls = m[2];
 			if (!/Error$/i.test(cls)) continue;
 			const literal = m[3] ?? m[4] ?? m[5] ?? "";
@@ -204,7 +206,9 @@ function* candidates(
 		if (includeSurface) {
 			SURFACE_RE.lastIndex = 0;
 			let sm: RegExpExecArray | null;
-			while ((sm = SURFACE_RE.exec(content))) {
+			while (true) {
+				sm = SURFACE_RE.exec(content);
+				if (!sm) break;
 				const call = sm[1];
 				if (!SURFACE_CALLS.has(call)) continue;
 				const literal = sm[2] ?? sm[3] ?? sm[4] ?? "";
