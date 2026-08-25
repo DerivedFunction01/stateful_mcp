@@ -460,18 +460,17 @@ export async function applyExtensionGroupChange(
 			applied: true,
 			snapshot,
 		};
-	} catch (error) {
+	} catch {
 		// Activation failed: restore the manifest and the previous runtime so the
-		// project never keeps a partially activated group.
-		const message =
-			error instanceof Error ? error.message : "Workspace reload failed";
+		// project never keeps a partially activated group. The raw reload error is
+		// intentionally not forwarded: messageKey stays host-authored and the
+		// failure is already captured by the restored state and the diagnostics.
 		await restoreExtensionGroups(context, project, previousManifest).catch(
 			() => undefined,
 		);
 		return {
 			status: "rejected",
 			messageKey: "project.extensionGroup.activation.rolledBack",
-			messageParams: { reason: message },
 			...(context.tryGetProject()
 				? { configuration: context.getConfiguration() }
 				: {}),

@@ -1,18 +1,18 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import {
-	ALLOCATIONS_FILE,
 	ALLOCATION_VERSION,
-	FINAL_FILE,
+	ALLOCATIONS_FILE,
 	EN_DIR,
 	ES_DIR,
+	FINAL_FILE,
 } from "./config.js";
+import { findDuplicateKeys } from "./duplicates.js";
 import {
+	enLocaleKeys,
 	type Inventory,
 	type InventorySite,
 	readInventory,
-	enLocaleKeys,
 } from "./inventory.js";
-import { findDuplicateKeys } from "./duplicates.js";
 
 export type AllocationAction = "allocate" | "exempt" | "ignore";
 
@@ -96,7 +96,10 @@ function identityMap(inv: Inventory): Map<string, string> {
 }
 
 /** The default decision for a site with no prior human decision. */
-function defaultEntry(site: InventorySite, enKeys: Set<string>): AllocationEntry {
+function defaultEntry(
+	site: InventorySite,
+	enKeys: Set<string>,
+): AllocationEntry {
 	if (site.proposedKey && enKeys.has(site.proposedKey)) {
 		return { action: "allocate", key: site.proposedKey };
 	}
@@ -104,11 +107,17 @@ function defaultEntry(site: InventorySite, enKeys: Set<string>): AllocationEntry
 }
 
 /** Build a default allocation manifest from an inventory. */
-export function scaffold(inv: Inventory, enKeys: Set<string>): AllocationManifest {
+export function scaffold(
+	inv: Inventory,
+	enKeys: Set<string>,
+): AllocationManifest {
 	const identities = identityMap(inv);
 	const sites: Record<string, AllocationEntry> = {};
 	for (const s of inv.sites) {
-		sites[s.id] = { ...defaultEntry(s, enKeys), identity: identities.get(s.id) };
+		sites[s.id] = {
+			...defaultEntry(s, enKeys),
+			identity: identities.get(s.id),
+		};
 	}
 	return {
 		version: ALLOCATION_VERSION,
@@ -280,7 +289,10 @@ export async function validate(
 }
 
 /** Modular EN/ES duplicate key detection. */
-export function detectDuplicateKeys(): { en: ReturnType<typeof findDuplicateKeys>; es: ReturnType<typeof findDuplicateKeys> } {
+export function detectDuplicateKeys(): {
+	en: ReturnType<typeof findDuplicateKeys>;
+	es: ReturnType<typeof findDuplicateKeys>;
+} {
 	return { en: findDuplicateKeys(EN_DIR), es: findDuplicateKeys(ES_DIR) };
 }
 
@@ -295,13 +307,21 @@ export interface FinalizeReport {
 }
 
 /** Validate (and optionally write) the finalized allocation manifest. */
-export async function finalize(manifest: AllocationManifest): Promise<FinalizeReport> {
+export async function finalize(
+	manifest: AllocationManifest,
+): Promise<FinalizeReport> {
 	const inv = readInventory();
 	const enKeys = await enLocaleKeys();
 	const result = await validate(inv, manifest, enKeys);
-	const allocated = Object.values(manifest.sites).filter((e) => e.action === "allocate").length;
-	const exempt = Object.values(manifest.sites).filter((e) => e.action === "exempt").length;
-	const ignored = Object.values(manifest.sites).filter((e) => e.action === "ignore").length;
+	const allocated = Object.values(manifest.sites).filter(
+		(e) => e.action === "allocate",
+	).length;
+	const exempt = Object.values(manifest.sites).filter(
+		(e) => e.action === "exempt",
+	).length;
+	const ignored = Object.values(manifest.sites).filter(
+		(e) => e.action === "ignore",
+	).length;
 	const valid = result.errors.length === 0;
 	if (valid) {
 		writeFileSync(FINAL_FILE, JSON.stringify(manifest, null, 2) + "\n", "utf8");

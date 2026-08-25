@@ -83,7 +83,11 @@ describe("extension runtime", () => {
 			code: "EXTENSION_ACTIVATION_FAILED",
 			extensionId: "broken",
 			sourceFile: "/tmp/broken.ts",
+			messageKey: "errors.extensionActivationFailed",
+			messageParams: { extensionId: "broken", sourceFile: "/tmp/broken.ts" },
 		});
+		expect(result.diagnostics[0]!.message).toContain("broken");
+		expect(result.diagnostics[0]!.message).not.toContain("boom");
 		expect(runtime.macros.get("broken")).toBeUndefined();
 		expect(closed).toBe(true);
 	});

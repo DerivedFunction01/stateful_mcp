@@ -116,4 +116,64 @@ describe("macro history replay", () => {
 		expect(result.attempt.outcome).toBe("rejected");
 		expect((await history.read("macro-executions")).events).toHaveLength(1);
 	});
+
+	test("returns a structured cursor diagnostic without an English message", async () => {
+		const history = new KvHistoryStore<MacroExecutionAttempt>(
+			new MemoryKvBackend(),
+		);
+		const service = new MacroReplayService(
+			history,
+			new MacroListenerRegistry(),
+			new MacroRendererRegistry(),
+		);
+		const result = await service.replay({
+			afterSequence: 5,
+			throughSequence: 1,
+		});
+		expect(result.diagnostics).toHaveLength(1);
+		const diagnostic = result.diagnostics[0];
+		expect(diagnostic?.code).toBe("HISTORY_CURSOR_INVALID");
+		expect(diagnostic?.messageKey).toBe("errors.historyCursorInvalid");
+		expect(diagnostic?.messageParams).toEqual({});
+		expect((diagnostic as { message?: unknown }).message).toBeUndefined();
+	});
+
+	test("propagates payload diagnostic keys/params without a code fallback", async () => {
+		const history = new KvHistoryStore<MacroExecutionAttempt>(
+			new MemoryKvBackend(),
+		);
+		await history.append(
+			"macro-executions",
+			{
+				eventId: "e1",
+				streamId: "macro-executions",
+				eventType: "macro.execution",
+				occurredAt: "2026-01-01T00:00:00.000Z",
+				payload: {
+					...attempt("e1", "run"),
+					diagnostics: [
+						{
+							code: "FIXTURE_DIAGNOSTIC",
+							messageKey: "fixture.diagnostic.key",
+							messageParams: { value: 7 },
+						},
+					],
+				},
+			},
+			1,
+		);
+		const service = new MacroReplayService(
+			history,
+			new MacroListenerRegistry(),
+			new MacroRendererRegistry(),
+		);
+		const result = await service.replay();
+		const diagnostic = result.diagnostics.find(
+			(d) => d.code === "FIXTURE_DIAGNOSTIC",
+		);
+		expect(diagnostic).toBeDefined();
+		expect(diagnostic?.messageKey).toBe("fixture.diagnostic.key");
+		expect(diagnostic?.messageParams).toEqual({ value: 7 });
+		expect((diagnostic as { message?: unknown }).message).toBeUndefined();
+	});
 });

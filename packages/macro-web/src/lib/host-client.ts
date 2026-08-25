@@ -16,12 +16,12 @@ import {
 	type ProjectMigrationJournalStatusDto,
 	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
-	safeHostError,
 	type SettingsApplyResult,
 	type SettingsBundleOperation,
 	type SettingsBundleResult,
 	type SettingsOperation,
 	type SettingsUiOperation,
+	safeHostError,
 	type UserPreferencesDto,
 	type UserPreferencesExportBundleDto,
 	type HostEvent as WireHostEvent,
@@ -778,7 +778,9 @@ export class BrowserHostClient implements HostClient {
 		});
 		const envelope = (await response.json()) as HostResponse<T>;
 		if (!response.ok || !envelope.ok) {
-			throw new HostRequestError(envelope.error ?? safeHostError(response.status));
+			throw new HostRequestError(
+				envelope.error ?? safeHostError(response.status),
+			);
 		}
 		return envelope.payload as T;
 	}

@@ -107,7 +107,7 @@ export function createDiagnosticHostClient(): HostClient {
 		diagnostics: [
 			{
 				severity: "info" as const,
-				message: "Fixture data; host transport is not connected",
+				messageKey: "host.fixtureNote",
 			},
 		],
 		revision: 0,

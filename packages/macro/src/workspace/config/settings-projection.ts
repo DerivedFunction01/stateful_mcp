@@ -253,9 +253,7 @@ function serializeDiagnostic(diagnostic: SettingsDiagnostic): {
 	readonly code?: string;
 	readonly path?: readonly string[];
 	readonly messageKey: string;
-	readonly messageParams?: Readonly<
-		Record<string, string | number | boolean>
-	>;
+	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly line?: number;
 	readonly column?: number;
 	readonly restartRequired?: boolean;

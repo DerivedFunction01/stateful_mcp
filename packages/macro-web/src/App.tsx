@@ -34,12 +34,12 @@ import {
 	EditorSurfaceRegistryContext,
 } from "./lib/editor-surface-registry";
 import { BrowserHostClient, type HostClient } from "./lib/host-client";
-import { resolveMessage, resolveThrownError } from "./lib/message-resolver";
 import {
 	GalleryI18nScope,
 	useI18n,
 	type WebI18nKey,
 } from "./lib/macro-i18n-provider";
+import { resolveMessage, resolveThrownError } from "./lib/message-resolver";
 import {
 	loadUserPreferences,
 	saveUserPreferences,
@@ -739,11 +739,11 @@ export function App() {
 								editorResult={workspaceState.editorResult}
 								pendingEditorRequests={workspaceState.pendingEditorRequests}
 								editorError={workspaceState.editorError}
-							errorMessage={
-								workspaceState.protocolError
-									? resolveMessage(i18n, workspaceState.protocolError)
-									: t("common.error")
-							}
+								errorMessage={
+									workspaceState.protocolError
+										? resolveMessage(i18n, workspaceState.protocolError)
+										: t("common.error")
+								}
 								activePrimaryTab={activePrimaryTab}
 								onOpenFolderModal={setFolderModalMode}
 								onCommand={(command, args) => {

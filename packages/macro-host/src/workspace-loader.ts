@@ -408,7 +408,7 @@ function assertNoGroupErrors(
 	if (errors.length === 0) return;
 	throw new Error(
 		`Invalid workspace extension activation group: ${errors
-			.map((diagnostic) => diagnostic.message)
+			.map((diagnostic) => diagnostic.messageKey)
 			.join("; ")}`,
 	);
 }

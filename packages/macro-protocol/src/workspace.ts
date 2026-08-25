@@ -193,7 +193,9 @@ export interface ProjectExtensionGroupDiagnosticDto {
 	readonly code: string;
 	readonly severity: ProjectExtensionGroupDiagnosticSeverityDto;
 	readonly messageKey: string;
-	readonly messageParams?: Readonly<Record<string, import("./errors").MessageParam>>;
+	readonly messageParams?: Readonly<
+		Record<string, import("./errors").MessageParam>
+	>;
 	readonly groupId?: string;
 	readonly extensionId?: string;
 	readonly dependencyId?: string;

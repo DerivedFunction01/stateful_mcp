@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import { type NumericParseOptions, parseNumericValue } from "./numeric";
 import { escapeRegex } from "./regex";
 import { flattenAndSortAliases } from "./token-matcher";
@@ -72,7 +73,8 @@ export interface StatisticalConfig {
 
 export interface StatisticalDiagnostic {
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 }
 
 export interface StatisticalQualifierResolution {
@@ -269,7 +271,8 @@ function validateStatisticalPolicy(
 	if (policy.policy === "reject_all_statistics") {
 		diagnostics.push({
 			code: "statistics_rejected",
-			message: `Statistical qualifier '${qualifier.rawText}' is not permitted for this field`,
+			messageKey: "errors.statisticsRejected",
+			messageParams: { qualifier: qualifier.rawText },
 		});
 	} else if (
 		policy.policy === "point_estimate_only" &&
@@ -277,7 +280,11 @@ function validateStatisticalPolicy(
 	) {
 		diagnostics.push({
 			code: "dispersion_error_rejected",
-			message: `Statistical metric '${qualifier.rawText}' (${qualifier.role}) cannot be assigned to a point estimate slot`,
+			messageKey: "errors.statisticsPointEstimateRejected",
+			messageParams: {
+				qualifier: qualifier.rawText,
+				role: qualifier.role,
+			},
 		});
 	} else if (
 		policy.policy === "dispersion_only" &&
@@ -285,7 +292,11 @@ function validateStatisticalPolicy(
 	) {
 		diagnostics.push({
 			code: "expected_dispersion_error",
-			message: `Slot requires a dispersion or error metric, but received '${qualifier.rawText}' (${qualifier.role})`,
+			messageKey: "errors.statisticsExpectedDispersion",
+			messageParams: {
+				qualifier: qualifier.rawText,
+				role: qualifier.role,
+			},
 		});
 	} else if (
 		policy.policy === "interval_only" &&
@@ -293,7 +304,8 @@ function validateStatisticalPolicy(
 	) {
 		diagnostics.push({
 			code: "expected_statistical_interval",
-			message: `Slot requires a statistical interval (CI/IQR), but received '${qualifier.rawText}'`,
+			messageKey: "errors.statisticsExpectedInterval",
+			messageParams: { qualifier: qualifier.rawText },
 		});
 	}
 
@@ -304,7 +316,8 @@ function validateStatisticalPolicy(
 	) {
 		diagnostics.push({
 			code: "qualifier_type_not_allowed",
-			message: `Statistical qualifier type '${qualifier.type}' is not in the allowed list`,
+			messageKey: "errors.statisticsQualifierTypeNotAllowed",
+			messageParams: { type: qualifier.type },
 		});
 	}
 
@@ -312,7 +325,8 @@ function validateStatisticalPolicy(
 	if (policy.allowedRoles && !policy.allowedRoles.includes(qualifier.role)) {
 		diagnostics.push({
 			code: "qualifier_role_not_allowed",
-			message: `Statistical role '${qualifier.role}' is not permitted for this field`,
+			messageKey: "errors.statisticsQualifierRoleNotAllowed",
+			messageParams: { role: qualifier.role },
 		});
 	}
 

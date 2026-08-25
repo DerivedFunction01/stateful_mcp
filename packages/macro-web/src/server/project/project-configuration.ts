@@ -83,17 +83,31 @@ async function update(
 			configuration: context.getConfiguration(),
 		};
 	if (!configuration.displayName.trim())
-		return { status: "rejected", messageKey: "project.configuration.displayNameRequired" };
-	const validationErrors = validateProjectConfiguration(
+		return {
+			status: "rejected",
+			messageKey: "project.configuration.displayNameRequired",
+		};
+	const validation = validateProjectConfiguration(
 		configuration,
 		context.loaded().workspace.i18n.getAvailableLocales(),
 		buildProjectSettingsContributions(context.loaded()),
 	);
-	if (validationErrors.length > 0)
+	const hasValidationErrors =
+		validation.groupDiagnostics.some((item) => item.severity === "error") ||
+		validation.diagnostics.some((item) => item.severity === "error");
+	if (hasValidationErrors)
 		return {
 			status: "rejected",
 			messageKey: "project.configuration.validationFailed",
-			messageParams: { details: validationErrors.join("; ") },
+			messageParams: {
+				groupCount: validation.groupDiagnostics.filter(
+					(item) => item.severity === "error",
+				).length,
+				settingCount: validation.diagnostics.filter(
+					(item) => item.severity === "error",
+				).length,
+			},
+			diagnostics: [...validation.groupDiagnostics, ...validation.diagnostics],
 			configuration: context.getConfiguration(),
 		};
 	if (operation.expectedRevision !== project.descriptor.revision)

@@ -112,9 +112,7 @@ export function ExtensionActivationGroupsModal({
 				const first = Object.keys(value.extensionGroups ?? {})[0] ?? "";
 				setSelectedGroupId(active || first);
 			})
-			.catch((reason: unknown) =>
-				setError(resolveThrownError(i18n, reason)),
-			);
+			.catch((reason: unknown) => setError(resolveThrownError(i18n, reason)));
 	}, [client, isOpen, t]);
 
 	const extensionsById = useMemo(

@@ -7,6 +7,7 @@ import {
 	X,
 } from "lucide-react";
 import { useState } from "react";
+import { useI18n, type WebI18nKey } from "../../lib/macro-i18n-provider";
 import { FileTreeView } from "./FileTreeView";
 import type { SidebarPaneProps } from "./primary-sidebar-types";
 
@@ -224,6 +225,7 @@ function ResourceTreeNode({
 	readonly onOpenResource?: (resourceKind: string, resourceId: string) => void;
 }) {
 	const [expanded, setExpanded] = useState(depth === 0);
+	const { t } = useI18n();
 	const isFolder = node.nodeType === "folder";
 	const canOpen =
 		!node.disabled &&
@@ -252,7 +254,11 @@ function ResourceTreeNode({
 					type="button"
 					className="resource-tree-entry"
 					disabled={!isFolder && !canOpen}
-					title={node.disabledReason}
+					title={
+						node.disabledReason
+							? t(node.disabledReason as WebI18nKey)
+							: undefined
+					}
 					onClick={() => {
 						if (isFolder) setExpanded((value) => !value);
 						else if (canOpen)

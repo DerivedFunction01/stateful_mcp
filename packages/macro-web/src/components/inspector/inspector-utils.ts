@@ -3,7 +3,8 @@ import type { WebI18nKey } from "../../lib/macro-i18n-provider";
 import type { InspectorDiagnosticItem } from "./inspector-types";
 
 /**
- * Resolves a localized message from diagnostic code, messageKey, or fallback message.
+ * Resolves a localized message from the diagnostic messageKey/messageParams,
+ * falling back to a code-derived i18n key, then a generic error key.
  */
 export function resolveDiagnosticMessage(
 	d: InspectorDiagnosticItem,
@@ -20,7 +21,7 @@ export function resolveDiagnosticMessage(
 		const translated = t(errorKey);
 		if (translated && translated !== errorKey) return translated;
 	}
-	return d.message;
+	return t("common.error");
 }
 
 /**

@@ -52,7 +52,6 @@ export interface WorkbenchInspectorProps {
 export interface InspectorDiagnosticItem {
 	readonly line: number;
 	readonly macroName?: string;
-	readonly message: string;
 	readonly messageKey?: string;
 	readonly messageParams?: Readonly<Record<string, string | number | boolean>>;
 	readonly code?: string;

@@ -329,7 +329,7 @@ export function validateMacroProjectManifest(
 	if (groupDiagnostics.length > 0)
 		throw new MacroProjectFormatError(
 			`Project manifest has invalid extension activation groups: ${groupDiagnostics
-				.map((diagnostic) => diagnostic.message)
+				.map((diagnostic) => diagnostic.messageKey)
 				.join("; ")}`,
 		);
 }
@@ -803,7 +803,7 @@ class MacroProjectHandle implements MacroProject {
 				() => undefined,
 			);
 			await writeJournal("failed", {
-				error: error instanceof Error ? error.message : String(error),
+				error: migrationErrorKey(error),
 			}).catch(() => undefined);
 			throw error;
 		}
@@ -944,6 +944,19 @@ function canonicalJson(value: unknown): unknown {
 
 function migrationLockPath(rootPath: string): string {
 	return join(rootPath, MACRO_DIRECTORY, MACRO_MIGRATION_LOCK_FILE);
+}
+
+/**
+ * Maps a migration failure cause to a stable, user-safe i18n key. The raw
+ * error message (which can leak filesystem paths or other internals) is never
+ * persisted into the journal's `error` field; callers resolve the key.
+ */
+function migrationErrorKey(error: unknown): string {
+	if (error instanceof MacroProjectConflictError)
+		return "project.migration.error.conflict";
+	if (error instanceof MacroProjectFormatError)
+		return "project.migration.error.format";
+	return "project.migration.error.unknown";
 }
 
 export function isResumableMigrationStatus(

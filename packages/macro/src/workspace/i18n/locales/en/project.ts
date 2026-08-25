@@ -178,7 +178,7 @@ export const EN_PROJECT: Record<string, string> = {
 	"project.extensionGroup.validationFailed":
 		"The extension group change failed validation.",
 	"project.extensionGroup.activation.rolledBack":
-		"Activating the extension group failed and was rolled back: {reason}.",
+		"Activating the extension group failed and was rolled back.",
 	"project.migration.resume.noJournal":
 		"No migration journal is available to resume.",
 	"project.migration.finalizingCannotResume":
@@ -187,4 +187,102 @@ export const EN_PROJECT: Record<string, string> = {
 		"The target backend must differ from the current backend.",
 	"project.migration.participantUnavailable":
 		"A project migration participant is unavailable.",
+	"project.migration.participant.missing":
+		"Migration participant {participantId} from extension {extensionId} is missing required resources.",
+	"project.migration.participant.incompatible":
+		"Migration participant {participantId} from extension {extensionId} is incompatible with the target backend.",
+	"project.resource.disabled.noProviderAvailable":
+		"No provider available for this resource type.",
+	"project.migration.error.conflict":
+		"A conflicting change was detected during migration.",
+	"project.migration.error.format":
+		"The project data is corrupt or in an unsupported format.",
+	"project.migration.error.unknown":
+		"An unknown error occurred during migration.",
+	"project.configuration.update.malformed":
+		"The configuration update request was malformed.",
+	"project.migration.preview.malformed":
+		"The migration preview request was malformed.",
+	"project.migration.apply.malformed":
+		"The migration apply request was malformed.",
+	"project.migration.journal.malformed":
+		"The migration journal request was malformed.",
+	"project.migration.discard.malformed":
+		"The migration discard request was malformed.",
+	"project.migration.resume.malformed":
+		"The migration resume request was malformed.",
+	"project.extensionGroup.preview.malformed":
+		"The extension group preview request was malformed.",
+	"project.extensionGroup.update.malformed":
+		"The extension group update request was malformed.",
+	"project.extensionGroup.create.malformed":
+		"The extension group create request was malformed.",
+	"project.extensionGroup.duplicate.malformed":
+		"The extension group duplicate request was malformed.",
+	"project.extensionGroup.delete.malformed":
+		"The extension group delete request was malformed.",
+	"project.extensionGroup.activate.malformed":
+		"The extension group activation request was malformed.",
+	"project.extensionGroup.unknownGroup":
+		"Extension activation group '{groupId}' does not exist.",
+	"project.extensionGroup.unknownActiveGroup":
+		"Active extension activation group '{groupId}' does not exist.",
+	"project.extensionGroup.unknownExtension":
+		"Extension '{extensionId}' is not declared by the project.",
+	"project.extensionGroup.missingDependency":
+		"Extension '{extensionId}' requires '{dependencyId}', which the project does not declare.",
+	"project.extensionGroup.dependencyCycle":
+		"Extension dependency cycle: {path}.",
+	"project.extensionGroup.duplicateMember":
+		"Extension '{extensionId}' is listed more than once.",
+	"project.extensionGroup.unavailableExtension":
+		"Extension '{extensionId}' is not available.",
+	"project.extensionGroup.incompatibleExtension":
+		"Extension '{extensionId}' is incompatible with this project.",
+	"project.extensionGroup.emptyGroup":
+		"Extension activation group '{groupId}' has no members.",
+	"project.extensionGroup.groupMalformed":
+		"Extension activation group '{groupId}' is malformed.",
+	"project.extensionGroup.groupIdMismatch":
+		"Extension activation group key '{groupId}' does not match its id.",
+	"project.extensionGroup.invalidGroupId":
+		"Extension activation group id '{groupId}' is not a valid identifier.",
+	"project.extensionGroup.reservedGroupId":
+		"Extension activation group id '{groupId}' is reserved by a contributed group.",
+	"project.extensionGroup.duplicateGroupId":
+		"Extension activation group id '{groupId}' is already in use.",
+	"project.extensionGroup.emptyDisplayName":
+		"Extension activation group '{groupId}' requires a display name.",
+	"project.extensionGroup.invalidSource":
+		"Extension activation group '{groupId}' has an unknown source.",
+	"project.extensionGroup.invalidMembership":
+		"Extension activation group '{groupId}' has an invalid membership list.",
+	"project.extensionGroup.unknownSourceGroup":
+		"Extension activation group '{groupId}' does not exist.",
+	"project.extensionGroup.readOnlyGroup.edit":
+		"Extension activation group '{groupId}' is read-only and must be duplicated before editing.",
+	"project.extensionGroup.readOnlyGroup.delete":
+		"Extension activation group '{groupId}' is read-only and cannot be deleted.",
+	"project.extensionGroup.activeGroupReplacementRequired":
+		"Extension activation group '{groupId}' is active: choose a replacement group or clear the active group explicitly.",
+	"project.extensionGroup.activeGroupReplacementRequired.same":
+		"The replacement group must differ from the deleted group.",
+	"project.extensionGroup.activeGroupReplacementRequired.unknown":
+		"Replacement extension activation group '{groupId}' does not exist.",
+	"project.extensionGroup.activeGroupReplacementRequired.cleared":
+		"The active extension activation group was cleared; every declared extension will activate.",
+	"project.configuration.localeUnavailable":
+		"Locale '{locale}' is not an available locale.",
+	"project.configuration.settingType.boolean":
+		"Project setting '{namespace}.{path}' must be a boolean.",
+	"project.configuration.settingType.number":
+		"Project setting '{namespace}.{path}' must be a finite number.",
+	"project.configuration.settingType.string":
+		"Project setting '{namespace}.{path}' must be a string.",
+	"project.configuration.settingType.enum":
+		"Project setting '{namespace}.{path}' must be one of: {options}.",
+	"project.configuration.settingType.array":
+		"Project setting '{namespace}.{path}' must be an array.",
+	"project.configuration.settingType.object":
+		"Project setting '{namespace}.{path}' must be an object.",
 };

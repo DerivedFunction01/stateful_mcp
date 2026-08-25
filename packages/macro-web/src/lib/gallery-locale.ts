@@ -59,6 +59,9 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.form.dateDefault": "tomorrow-ish",
 		"gallery.form.dateError": "Use a recognized date format.",
 		"gallery.form.enableSuggestions": "Enable domain suggestions",
+		"gallery.hostStatus.connected": "Connected",
+		"gallery.hostStatus.disconnected": "Disconnected",
+		"gallery.hostStatus.loading": "Loading",
 	},
 	es: {
 		"gallery.eyebrow": "SOLO DESARROLLO",
@@ -121,5 +124,8 @@ export const GALLERY_TRANSLATIONS = {
 		"gallery.form.dateDefault": "mañana-aprox",
 		"gallery.form.dateError": "Use un formato de fecha reconocido.",
 		"gallery.form.enableSuggestions": "Habilitar sugerencias de dominio",
+		"gallery.hostStatus.connected": "Conectado",
+		"gallery.hostStatus.disconnected": "Desconectado",
+		"gallery.hostStatus.loading": "Cargando",
 	},
 } as const;

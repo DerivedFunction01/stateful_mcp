@@ -1,8 +1,8 @@
 import {
 	type HostError,
+	hostError,
 	type MessageDescriptor,
 	type MessageParam,
-	hostError,
 } from "@stateful-mcp/macro-protocol";
 
 /**

@@ -122,6 +122,79 @@ describe("project-migrations equivalence with HostSessionManager", () => {
 		await h.dispose();
 	});
 
+	test("uses explicit message keys for participants, never extension prose", async () => {
+		const h = await harness();
+		const target = { kind: "sqlite" as const, path: ".macro/state.sqlite" };
+		const context = createProjectMigrationServiceContext({
+			loaded: h.loaded,
+			requireProject: h.requireProject,
+			getConfiguration: h.getConfiguration,
+			reloadProject: (rootPath) =>
+				h.sessions.openProject(h.sessionId, rootPath),
+			listParticipants: () => [
+				{
+					extensionId: "ext-a",
+					participant: {
+						id: "p1",
+						plan: async () => ({
+							participantId: "p1",
+							extensionId: "ext-a",
+							status: "missing",
+							// Extension-authored prose; must never become a key.
+							message: "boom from extension",
+						}),
+					},
+				},
+				{
+					extensionId: "ext-b",
+					participant: {
+						id: "p2",
+						plan: async () => ({
+							participantId: "p2",
+							extensionId: "ext-b",
+							status: "incompatible",
+							message: "also prose",
+						}),
+					},
+				},
+				{
+					extensionId: "ext-c",
+					participant: {
+						id: "p3",
+						plan: async () => ({
+							participantId: "p3",
+							extensionId: "ext-c",
+							status: "ready",
+						}),
+					},
+				},
+			],
+		});
+
+		const plan = await buildBackendMigrationPlan(context, target);
+
+		expect(plan.participants).toHaveLength(3);
+		const missing = plan.participants[0]!;
+		const incompatible = plan.participants[1]!;
+		const ready = plan.participants[2]!;
+		expect(missing.status).toBe("missing");
+		expect(missing.messageKey).toBe("project.migration.participant.missing");
+		expect(missing.messageParams).toEqual({
+			participantId: "p1",
+			extensionId: "ext-a",
+		});
+		expect(incompatible.status).toBe("incompatible");
+		expect(incompatible.messageKey).toBe(
+			"project.migration.participant.incompatible",
+		);
+		expect(ready.status).toBe("ready");
+		expect(ready.messageKey).toBeUndefined();
+		// Extension prose never leaks into a translation key.
+		for (const participant of plan.participants)
+			expect(participant.messageKey).not.toBe("boom from extension");
+		await h.dispose();
+	});
+
 	test("journal status matches the manager on a clean project", async () => {
 		const h = await harness();
 		expect(await h.migrations.journalStatus()).toEqual(
@@ -465,7 +538,9 @@ describe("project-extension-groups equivalence with HostSessionManager", () => {
 			expect(result.messageKey).toBe(
 				"project.extensionGroup.activation.rolledBack",
 			);
-			expect(result.messageParams).toEqual({ reason: "boom" });
+			// The raw reload error is never forwarded; only the host-authored
+			// key is reported, with no exception text in the params.
+			expect(result.messageParams).toBeUndefined();
 			// A project is still open, so the configuration is reported.
 			expect(result.configuration).toBeDefined();
 		}

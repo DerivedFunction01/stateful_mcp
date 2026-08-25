@@ -19,9 +19,9 @@ import type {
 	CellRange,
 	EditorSearchResult,
 } from "../lib/browser-vim";
-import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
-import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
 import { useI18n } from "../lib/macro-i18n-provider";
+import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
+import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
 
 export interface EditorSurfaceViewHandle {
 	readonly element: HTMLElement | null;

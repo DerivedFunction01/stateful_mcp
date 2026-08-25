@@ -10,6 +10,8 @@ import {
 	openMemoryDictionary,
 	parseMacroLine,
 } from "../src/index";
+import { createDefaultI18nKernel } from "../src/workspace/i18n/discovery";
+import { resolveMessage } from "../src/workspace/i18n/translation";
 
 const seed: DictionarySeed = {
 	namespaces: [{ code: "BOOK", isPublic: true, isExternalPrivate: false }],
@@ -248,5 +250,149 @@ describe("core-backed dictionary resources", () => {
 		} finally {
 			await rm(directory, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("resource diagnostic localization", () => {
+	test("attaches messageKey/messageParams for missing relation endpoints", async () => {
+		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
+		const report = await resource.seed({
+			relations: [
+				{
+					id: "bad",
+					conceptId: "missing",
+					linkedId: "also-missing",
+					relationshipType: "EQUIVALENT",
+				},
+			],
+		});
+		expect(report.diagnostics).toHaveLength(1);
+		const diagnostic = report.diagnostics[0]!;
+		expect(diagnostic.code).toBe("MISSING_RELATION_ENDPOINT");
+		expect(diagnostic.messageKey).toBe(
+			"errors.resourceRelationEndpointMissing",
+		);
+		expect(diagnostic.messageParams).toEqual({ relationId: "bad" });
+		await resource.close();
+	});
+
+	test("attaches messageKey/messageParams for invalid expression regex", async () => {
+		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
+		const report = await resource.seed({
+			expressions: [
+				{
+					id: "expr:bad",
+					term: "bad",
+					regexPattern: "(",
+					conceptId: undefined,
+				},
+			],
+		});
+		const diagnostic = report.diagnostics.find(
+			(item) => item.code === "INVALID_EXPRESSION_REGEX",
+		);
+		expect(diagnostic?.messageKey).toBe(
+			"errors.resourceExpressionRegexInvalid",
+		);
+		expect(diagnostic?.messageParams).toMatchObject({
+			expressionId: "expr:bad",
+		});
+		expect(typeof diagnostic?.messageParams?.detail).toBe("string");
+		await resource.close();
+	});
+
+	test("attaches messageKey/messageParams for missing expression concept", async () => {
+		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
+		const report = await resource.seed({
+			expressions: [{ id: "expr:orphan", term: "orphan", conceptId: "ghost" }],
+		});
+		const diagnostic = report.diagnostics.find(
+			(item) => item.code === "MISSING_EXPRESSION_CONCEPT",
+		);
+		expect(diagnostic?.messageKey).toBe(
+			"errors.resourceExpressionConceptMissing",
+		);
+		expect(diagnostic?.messageParams).toEqual({
+			expressionId: "expr:orphan",
+			conceptId: "ghost",
+		});
+		await resource.close();
+	});
+
+	test("attaches messageKey/messageParams for invalid seed records", async () => {
+		const resource = await openMemoryDictionary({ ownerExtensionId: "books" });
+		const report = await resource.seed({
+			concepts: [{ id: "" }],
+			namespaces: [{ code: "" }],
+		});
+		const conceptDiagnostic = report.diagnostics.find(
+			(item) => item.recordType === "concept",
+		);
+		expect(conceptDiagnostic?.code).toBe("INVALID_SEED_RECORD");
+		expect(conceptDiagnostic?.messageKey).toBe(
+			"errors.resourceSeedConceptIdRequired",
+		);
+		const namespaceDiagnostic = report.diagnostics.find(
+			(item) => item.recordType === "namespace",
+		);
+		expect(namespaceDiagnostic?.messageKey).toBe(
+			"errors.resourceSeedNamespaceCodeRequired",
+		);
+		await resource.close();
+	});
+
+	test("attaches messageKey/messageParams for ownership conflicts", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "macro-own-resource-"));
+		const path = join(directory, "books");
+		try {
+			const first = await openJsonlDictionary(path, {
+				ownerExtensionId: "books",
+			});
+			await first.seed({
+				concepts: [{ id: "book:shared", display: "Shared" }],
+			});
+			await first.close();
+
+			const second = await openJsonlDictionary(path, {
+				ownerExtensionId: "other",
+			});
+			const report = await second.seed({
+				concepts: [{ id: "book:shared", display: "Shared" }],
+			});
+			const diagnostic = report.diagnostics.find(
+				(item) => item.code === "OWNERSHIP_CONFLICT",
+			);
+			expect(diagnostic?.messageKey).toBe("errors.resourceOwnershipConflict");
+			expect(diagnostic?.messageParams).toEqual({
+				recordType: "concept",
+				recordId: "book:shared",
+			});
+			await second.close();
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
+
+	test("resolves resource diagnostics through the i18n kernel", async () => {
+		const kernel = createDefaultI18nKernel("en");
+		expect(
+			resolveMessage(kernel, {
+				messageKey: "errors.resourceRelationEndpointMissing",
+				messageParams: { relationId: "bad" },
+			}),
+		).toBe("Relation 'bad' references a missing concept endpoint");
+
+		kernel.setActiveLocale("es");
+		expect(
+			resolveMessage(kernel, {
+				messageKey: "errors.resourceExpressionConceptMissing",
+				messageParams: {
+					expressionId: "expr:orphan",
+					conceptId: "ghost",
+				},
+			}),
+		).toBe(
+			"La expresión 'expr:orphan' hace referencia al concepto faltante 'ghost'",
+		);
 	});
 });

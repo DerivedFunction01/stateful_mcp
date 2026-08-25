@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { MacroCaptureSpan } from "../contracts/input";
 import type { MacroSpec } from "../contracts/macro";
 import {
@@ -14,6 +15,9 @@ export interface TemplateValidationIssue {
 		| "DUPLICATE_TEMPLATE_OCCURRENCE"
 		| "INVALID_TEMPLATE_FORM";
 	message: string;
+	/** Structured message key; preferred over `message` when present. */
+	messageKey: string;
+	messageParams?: Readonly<Record<string, MessageParam>>;
 	argumentId?: string;
 }
 
@@ -29,6 +33,8 @@ export function validateMacroTemplates(
 		if (!slots.length) {
 			issues.push({
 				code: "INVALID_TEMPLATE_FORM",
+				messageKey: "templates.validation.invalidForm",
+				messageParams: { formId: form.formId },
 				message: `Template form '${form.formId}' must contain a slot`,
 			});
 			continue;
@@ -39,6 +45,8 @@ export function validateMacroTemplates(
 				issues.push({
 					code: "UNKNOWN_TEMPLATE_ARGUMENT",
 					argumentId: slot.argumentId,
+					messageKey: "templates.validation.unknownArgument",
+					messageParams: { argumentId: slot.argumentId },
 					message: `Template references unknown argument '${slot.argumentId}'`,
 				});
 			}
@@ -47,6 +55,8 @@ export function validateMacroTemplates(
 				issues.push({
 					code: "DUPLICATE_TEMPLATE_OCCURRENCE",
 					argumentId: slot.argumentId,
+					messageKey: "templates.validation.duplicateOccurrence",
+					messageParams: { key },
 					message: `Template repeats occurrence '${key}'`,
 				});
 			}

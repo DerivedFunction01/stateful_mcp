@@ -168,4 +168,126 @@ export const ES_PROJECT: Record<string, string> = {
 	"project.activationGroups.apply": "Aplicar cambios",
 	"project.activationGroups.applyFailed":
 		"Los grupos de activación no se pudieron aplicar a este proyecto.",
+	"project.configuration.unsupportedField":
+		"Los siguientes campos son gestionados por un administrador dedicado: {fields}.",
+	"project.configuration.backendChangeRequiresMigration":
+		"Cambiar el backend del proyecto requiere una migración.",
+	"project.configuration.displayNameRequired":
+		"Se requiere un nombre para el proyecto.",
+	"project.configuration.validationFailed":
+		"La configuración no es válida: {details}.",
+	"project.configuration.stale":
+		"La configuración del proyecto está desactualizada.",
+	"project.extensionGroup.changeRejected":
+		"El cambio del grupo de extensiones no se pudo aplicar.",
+	"project.extensionGroup.validationFailed":
+		"El cambio del grupo de extensiones falló la validación.",
+	"project.extensionGroup.activation.rolledBack":
+		"La activación del grupo de extensiones falló y se revirtió.",
+	"project.migration.resume.noJournal":
+		"No hay un diario de migración disponible para reanudar.",
+	"project.migration.finalizingCannotResume":
+		"Una migración en estado 'finalizing' no se puede reanudar de forma segura.",
+	"project.migration.apply.identicalBackend":
+		"El backend de destino debe ser distinto del backend actual.",
+	"project.migration.participantUnavailable":
+		"Un participante de la migración del proyecto no está disponible.",
+	"project.migration.participant.missing":
+		"Al participante de migración {participantId} de la extensión {extensionId} le faltan recursos requeridos.",
+	"project.migration.participant.incompatible":
+		"El participante de migración {participantId} de la extensión {extensionId} es incompatible con el backend de destino.",
+	"project.resource.disabled.noProviderAvailable":
+		"No hay un proveedor disponible para este tipo de recurso.",
+	"project.migration.error.conflict":
+		"Se detectó un cambio en conflicto durante la migración.",
+	"project.migration.error.format":
+		"Los datos del proyecto están corruptos o en un formato no compatible.",
+	"project.migration.error.unknown":
+		"Ocurrió un error desconocido durante la migración.",
+	"project.configuration.update.malformed":
+		"La solicitud de actualización de configuración no tenía el formato correcto.",
+	"project.migration.preview.malformed":
+		"La solicitud de previsualización de migración no tenía el formato correcto.",
+	"project.migration.apply.malformed":
+		"La solicitud de aplicación de migración no tenía el formato correcto.",
+	"project.migration.journal.malformed":
+		"La solicitud del diario de migración no tenía el formato correcto.",
+	"project.migration.discard.malformed":
+		"La solicitud de descarte de migración no tenía el formato correcto.",
+	"project.migration.resume.malformed":
+		"La solicitud de reanudación de migración no tenía el formato correcto.",
+	"project.extensionGroup.preview.malformed":
+		"La solicitud de previsualización del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.update.malformed":
+		"La solicitud de actualización del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.create.malformed":
+		"La solicitud de creación del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.duplicate.malformed":
+		"La solicitud de duplicación del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.delete.malformed":
+		"La solicitud de eliminación del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.activate.malformed":
+		"La solicitud de activación del grupo de extensiones no tenía el formato correcto.",
+	"project.extensionGroup.unknownGroup":
+		"El grupo de activación de extensiones '{groupId}' no existe.",
+	"project.extensionGroup.unknownActiveGroup":
+		"El grupo de activación de extensiones activo '{groupId}' no existe.",
+	"project.extensionGroup.unknownExtension":
+		"La extensión '{extensionId}' no está declarada por el proyecto.",
+	"project.extensionGroup.missingDependency":
+		"La extensión '{extensionId}' requiere '{dependencyId}', pero el proyecto no la declara.",
+	"project.extensionGroup.dependencyCycle":
+		"Ciclo de dependencias de extensiones: {path}.",
+	"project.extensionGroup.duplicateMember":
+		"La extensión '{extensionId}' aparece más de una vez.",
+	"project.extensionGroup.unavailableExtension":
+		"La extensión '{extensionId}' no está disponible.",
+	"project.extensionGroup.incompatibleExtension":
+		"La extensión '{extensionId}' es incompatible con este proyecto.",
+	"project.extensionGroup.emptyGroup":
+		"El grupo de activación de extensiones '{groupId}' no tiene miembros.",
+	"project.extensionGroup.groupMalformed":
+		"El grupo de activación de extensiones '{groupId}' está mal formado.",
+	"project.extensionGroup.groupIdMismatch":
+		"La clave del grupo de activación de extensiones '{groupId}' no coincide con su id.",
+	"project.extensionGroup.invalidGroupId":
+		"El id del grupo de activación de extensiones '{groupId}' no es un identificador válido.",
+	"project.extensionGroup.reservedGroupId":
+		"El id del grupo de activación de extensiones '{groupId}' está reservado por un grupo contribuido.",
+	"project.extensionGroup.duplicateGroupId":
+		"El id del grupo de activación de extensiones '{groupId}' ya está en uso.",
+	"project.extensionGroup.emptyDisplayName":
+		"El grupo de activación de extensiones '{groupId}' requiere un nombre para mostrar.",
+	"project.extensionGroup.invalidSource":
+		"El grupo de activación de extensiones '{groupId}' tiene una fuente desconocida.",
+	"project.extensionGroup.invalidMembership":
+		"El grupo de activación de extensiones '{groupId}' tiene una lista de membresía no válida.",
+	"project.extensionGroup.unknownSourceGroup":
+		"El grupo de activación de extensiones '{groupId}' no existe.",
+	"project.extensionGroup.readOnlyGroup.edit":
+		"El grupo de activación de extensiones '{groupId}' es de solo lectura y debe duplicarse antes de editarlo.",
+	"project.extensionGroup.readOnlyGroup.delete":
+		"El grupo de activación de extensiones '{groupId}' es de solo lectura y no se puede eliminar.",
+	"project.extensionGroup.activeGroupReplacementRequired":
+		"El grupo de activación de extensiones '{groupId}' está activo: elige un grupo de reemplazo o borra el grupo activo explícitamente.",
+	"project.extensionGroup.activeGroupReplacementRequired.same":
+		"El grupo de reemplazo debe ser distinto del grupo eliminado.",
+	"project.extensionGroup.activeGroupReplacementRequired.unknown":
+		"El grupo de activación de extensiones de reemplazo '{groupId}' no existe.",
+	"project.extensionGroup.activeGroupReplacementRequired.cleared":
+		"Se borró el grupo de activación de extensiones; se activará cada extensión declarada.",
+	"project.configuration.localeUnavailable":
+		"El idioma '{locale}' no es un idioma disponible.",
+	"project.configuration.settingType.boolean":
+		"La configuración del proyecto '{namespace}.{path}' debe ser un booleano.",
+	"project.configuration.settingType.number":
+		"La configuración del proyecto '{namespace}.{path}' debe ser un número finito.",
+	"project.configuration.settingType.string":
+		"La configuración del proyecto '{namespace}.{path}' debe ser una cadena.",
+	"project.configuration.settingType.enum":
+		"La configuración del proyecto '{namespace}.{path}' debe ser uno de: {options}.",
+	"project.configuration.settingType.array":
+		"La configuración del proyecto '{namespace}.{path}' debe ser una matriz.",
+	"project.configuration.settingType.object":
+		"La configuración del proyecto '{namespace}.{path}' debe ser un objeto.",
 };

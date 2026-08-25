@@ -45,14 +45,23 @@ function atPath(
 
 function diagnostic(
 	path: readonly string[],
-	item: { readonly code?: string; readonly message: string },
+	item: {
+		readonly code?: string;
+		readonly messageKey?: string;
+		readonly messageParams?: Readonly<
+			Record<string, string | number | boolean>
+		>;
+	},
 ): SettingsDiagnostic {
 	return {
 		severity: "error",
 		code: item.code,
 		path,
-		messageKey: "settings.values.parseError",
-		messageParams: { code: item.code ?? "unknown", message: item.message },
+		messageKey: item.messageKey ?? "settings.values.parseError",
+		messageParams: {
+			code: item.code ?? "unknown",
+			...(item.messageParams ?? {}),
+		},
 	};
 }
 

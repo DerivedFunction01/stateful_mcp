@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import { escapeRegex, getCompiledRegex } from "./regex";
 
 export interface TemplateTokenSpec<T = unknown> {
@@ -24,7 +25,8 @@ export interface CompileTemplateOptions {
 
 export interface TemplateDiagnostic {
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	readonly position?: number;
 }
 
@@ -113,7 +115,8 @@ export function compileFormatTemplate<
 				} catch (err) {
 					diagnostics.push({
 						code: "invalid_template_regex",
-						message: `Invalid embedded regex in template at position ${i}: ${err instanceof Error ? err.message : String(err)}`,
+						messageKey: "errors.templateInvalidRegex",
+						messageParams: { position: i },
 						position: i,
 					});
 					// Safely escape on syntax failure to prevent runtime crash
@@ -166,7 +169,8 @@ export function compileFormatTemplate<
 	} catch (err) {
 		diagnostics.push({
 			code: "invalid_compiled_template",
-			message: `Failed to compile template regex '${finalPattern}': ${err instanceof Error ? err.message : String(err)}`,
+			messageKey: "errors.templateCompileFailed",
+			messageParams: { pattern: finalPattern },
 		});
 		regex = getCompiledRegex("^$", flags);
 	}

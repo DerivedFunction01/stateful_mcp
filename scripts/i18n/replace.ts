@@ -1,8 +1,8 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { ROOT, PROTECTED_GLOBS, FINAL_FILE } from "./config.js";
+import { hasFinal, readFinal } from "./allocation.js";
+import { FINAL_FILE, PROTECTED_GLOBS, ROOT } from "./config.js";
 import { readInventory } from "./inventory.js";
-import { readFinal, hasFinal } from "./allocation.js";
 
 interface Edit {
 	start: number;
@@ -13,9 +13,11 @@ interface Edit {
 
 function isProtected(file: string): boolean {
 	for (const g of PROTECTED_GLOBS) {
-		if (g === "**/i18n/locales/**" && file.includes("/i18n/locales/")) return true;
+		if (g === "**/i18n/locales/**" && file.includes("/i18n/locales/"))
+			return true;
 		if (g === "**/i18n-keys.ts" && file.endsWith("i18n-keys.ts")) return true;
-		if (g === "**/node_modules/**" && file.includes("/node_modules/")) return true;
+		if (g === "**/node_modules/**" && file.includes("/node_modules/"))
+			return true;
 		if (g === "**/dist/**" && file.includes("/dist/")) return true;
 	}
 	return false;
@@ -38,7 +40,9 @@ export function runReplace(write: boolean): ReplaceReport {
 		return {
 			applied: false,
 			files: [],
-			errors: [`no finalized manifest at ${FINAL_FILE}; run \`finalize\` first`],
+			errors: [
+				`no finalized manifest at ${FINAL_FILE}; run \`finalize\` first`,
+			],
 		};
 	}
 	const finalManifest = readFinal();
@@ -81,7 +85,8 @@ export function runReplace(write: boolean): ReplaceReport {
 		const content = readFileSync(abs, "utf8");
 		edits.sort((a, b) => b.start - a.start);
 		let next = content;
-		for (const e of edits) next = next.slice(0, e.start) + e.text + next.slice(e.end);
+		for (const e of edits)
+			next = next.slice(0, e.start) + e.text + next.slice(e.end);
 		if (write) writeFileSync(abs, next, "utf8");
 		files.push({ file, edits: edits.length });
 	}
@@ -95,6 +100,8 @@ export function printReplace(res: ReplaceReport): void {
 	for (const f of res.files) console.log(`  ${f.file}: ${f.edits} edit(s)`);
 	for (const e of res.errors) console.log(`  ! ${e}`);
 	if (!res.applied) {
-		console.log("  (no files written; pass --write to apply; locale files are never modified)");
+		console.log(
+			"  (no files written; pass --write to apply; locale files are never modified)",
+		);
 	}
 }

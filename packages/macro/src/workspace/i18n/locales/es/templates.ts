@@ -63,4 +63,10 @@ export const ES_TEMPLATES: Record<string, string> = {
 	"templates.save.descLabel": "Descripción",
 	"templates.save.descPlaceholder": "Breve explicación de esta plantilla...",
 	"templates.save.submit": "Guardar plantilla",
+	"templates.validation.unknownArgument":
+		"La plantilla hace referencia a un argumento desconocido '{argumentId}'",
+	"templates.validation.duplicateOccurrence":
+		"La plantilla repite la ocurrencia '{key}'",
+	"templates.validation.invalidForm":
+		"La forma de plantilla '{formId}' debe contener un espacio",
 };

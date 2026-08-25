@@ -368,8 +368,7 @@ export class CoreDictionaryResource implements DictionaryResource {
 		try {
 			new RegExp(pattern, item.isCaseInsensitive ? "iu" : "u");
 		} catch (error) {
-			const detail =
-				error instanceof Error ? error.message : String(error);
+			const detail = error instanceof Error ? error.message : String(error);
 			addDiagnostic(report.diagnostics, {
 				code: "INVALID_EXPRESSION_REGEX",
 				message: `Expression '${item.id}' has an invalid regex: ${detail}`,

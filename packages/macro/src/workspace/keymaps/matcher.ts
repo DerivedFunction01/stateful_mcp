@@ -567,18 +567,18 @@ export function validateEditorKeymap(
 				const key = normalized ?? chord;
 				const prior = seen.get(key);
 				if (prior && prior[1] !== action) {
-				diagnostics.push({
-					severity: "error",
-					code: "duplicate-binding",
-					messageKey: "keymap.diagnostic.duplicateBinding",
-					messageParams: {
-						chord,
-						first: prior[1],
-						second: action,
-					},
-					bindings: [prior[0], chord],
-					paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
-				});
+					diagnostics.push({
+						severity: "error",
+						code: "duplicate-binding",
+						messageKey: "keymap.diagnostic.duplicateBinding",
+						messageParams: {
+							chord,
+							first: prior[1],
+							second: action,
+						},
+						bindings: [prior[0], chord],
+						paths: [`${mode}.${prior[1]}`, `${mode}.${action}`],
+					});
 				} else seen.set(key, [chord, action]);
 			}
 		}

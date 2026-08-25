@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { QuantityDimension, UnitId } from "./conversion/contracts";
 import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
 import {
@@ -147,7 +148,8 @@ export type QuantityStatisticsPolicy =
 
 export interface QuantityDiagnostic {
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 }
 
 export interface QuantityGrammarResolution {
@@ -198,7 +200,10 @@ export function parseQuantity(
 	if (!rawText) {
 		return {
 			diagnostics: [
-				{ code: "invalid_quantity", message: "Quantity expression is empty" },
+				{
+					code: "invalid_quantity",
+					messageKey: "errors.quantityEmpty",
+				},
 			],
 		};
 	}
@@ -235,7 +240,10 @@ export function parseQuantity(
 					diagnostics: [
 						{
 							code: "operator_not_allowed",
-							message: `Operator '${opRes.operatorMatch.rawText}' is not permitted for this quantity`,
+							messageKey: "errors.quantityOperatorNotAllowed",
+							messageParams: {
+								operator: opRes.operatorMatch.rawText,
+							},
 						},
 					],
 				};
@@ -258,7 +266,7 @@ export function parseQuantity(
 					diagnostics: [
 						{
 							code: "range_not_allowed",
-							message: `Range expressions are not permitted for this quantity`,
+							messageKey: "errors.quantityRangeNotAllowed",
 						},
 					],
 				};
@@ -270,7 +278,7 @@ export function parseQuantity(
 					diagnostics: [
 						{
 							code: "chained_steps_not_allowed",
-							message: `Chained step sequences are not permitted for this quantity`,
+							messageKey: "errors.quantityChainedStepsNotAllowed",
 						},
 					],
 				};
@@ -308,7 +316,7 @@ export function parseQuantity(
 							diagnostics: [
 								{
 									code: "heterogeneous_units_not_allowed",
-									message: `Heterogeneous units are not permitted in range`,
+									messageKey: "errors.quantityHeterogeneousUnitsNotAllowed",
 								},
 							],
 						};
@@ -332,7 +340,13 @@ export function parseQuantity(
 							diagnostics: [
 								{
 									code: "incompatible_range_dimensions",
-									message: `Cannot form range between dimension '${dim1}' (${firstStep.unit}) and '${dim2}' (${lastStep.unit})`,
+									messageKey: "errors.quantityIncompatibleRangeDimensions",
+									messageParams: {
+										dimension1: dim1,
+										unit1: firstStep.unit,
+										dimension2: dim2,
+										unit2: lastStep.unit,
+									},
 								},
 							],
 						};
@@ -360,7 +374,7 @@ export function parseQuantity(
 						diagnostics: [
 							{
 								code: "descending_range_not_allowed",
-								message: `Descending or tapering range is not permitted`,
+								messageKey: "errors.quantityDescendingRangeNotAllowed",
 							},
 						],
 					};
@@ -399,7 +413,8 @@ export function parseQuantity(
 			diagnostics: [
 				{
 					code: "invalid_quantity",
-					message: `Could not parse quantity from '${text}'`,
+					messageKey: "errors.quantityParseFailed",
+					messageParams: { text },
 				},
 			],
 		};
@@ -733,7 +748,8 @@ function validateUnitPolicy(
 		if (!policy.allowedUnits.includes(qty.unit)) {
 			diagnostics.push({
 				code: "unit_not_allowed",
-				message: `Unit '${qty.unit}' is not in the permitted unit list`,
+				messageKey: "errors.quantityUnitNotAllowed",
+				messageParams: { unit: qty.unit },
 			});
 		}
 	}
@@ -747,7 +763,11 @@ function validateUnitPolicy(
 		if (unitDef && !policy.allowedDimensions.includes(unitDef.dimension)) {
 			diagnostics.push({
 				code: "dimension_not_allowed",
-				message: `Physical dimension '${unitDef.dimension}' for unit '${qty.unit}' is not permitted`,
+				messageKey: "errors.quantityDimensionNotAllowed",
+				messageParams: {
+					dimension: unitDef.dimension,
+					unit: qty.unit,
+				},
 			});
 		}
 	}
@@ -758,7 +778,8 @@ function validateUnitPolicy(
 			if (ns && !policy.allowedNamespaces.includes(ns)) {
 				diagnostics.push({
 					code: "namespace_disallowed",
-					message: `Concept namespace '${ns}' for unit '${qty.unit}' is not permitted by consumer policy`,
+					messageKey: "errors.quantityNamespaceDisallowed",
+					messageParams: { namespace: ns, unit: qty.unit },
 				});
 			}
 		}

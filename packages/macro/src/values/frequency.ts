@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import {
 	type BaseValueGrammarConfig,
 	buildNumericPatternString,
@@ -84,7 +85,8 @@ export interface FrequencyConsumerPolicy<
 
 export interface FrequencyDiagnostic {
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 }
 
 export interface CadenceScheduleResolution<
@@ -111,7 +113,10 @@ export function parseCadenceSchedule<
 	if (!rawText) {
 		return {
 			diagnostics: [
-				{ code: "empty_input", message: "Frequency text is empty" },
+				{
+					code: "empty_input",
+					messageKey: "errors.frequencyEmpty",
+				},
 			],
 		};
 	}
@@ -176,7 +181,7 @@ export function parseCadenceSchedule<
 	if (isConditional && policy.allowConditional === false) {
 		diagnostics.push({
 			code: "conditional_not_allowed",
-			message: "Conditional / PRN schedules are not permitted by policy",
+			messageKey: "errors.frequencyConditionalNotAllowed",
 		});
 	}
 
@@ -747,7 +752,8 @@ export function parseCadenceSchedule<
 		diagnostics: [
 			{
 				code: "unrecognized_cadence",
-				message: `Unable to parse frequency or cadence schedule from '${rawText}'`,
+				messageKey: "errors.frequencyUnrecognized",
+				messageParams: { rawText },
 			},
 		],
 	};
@@ -764,7 +770,8 @@ function validateAndResolve<TAnchor extends string, TUnit extends string>(
 	) {
 		diagnostics.push({
 			code: "cadence_type_not_allowed",
-			message: `Cadence type '${schedule.cadenceType}' is not permitted by policy`,
+			messageKey: "errors.frequencyCadenceTypeNotAllowed",
+			messageParams: { cadenceType: schedule.cadenceType },
 		});
 	}
 
@@ -772,7 +779,8 @@ function validateAndResolve<TAnchor extends string, TUnit extends string>(
 		if (!policy.allowedAnchors.includes(schedule.eventAnchor)) {
 			diagnostics.push({
 				code: "invalid_event_anchor",
-				message: `Event anchor '${schedule.eventAnchor}' is not allowed in this domain context`,
+				messageKey: "errors.frequencyEventAnchorNotAllowed",
+				messageParams: { eventAnchor: schedule.eventAnchor },
 			});
 		}
 	}
@@ -781,7 +789,8 @@ function validateAndResolve<TAnchor extends string, TUnit extends string>(
 		if (!policy.allowedUnits.includes(schedule.interval.unit)) {
 			diagnostics.push({
 				code: "invalid_time_unit",
-				message: `Time unit '${schedule.interval.unit}' is not allowed in this domain context`,
+				messageKey: "errors.frequencyTimeUnitNotAllowed",
+				messageParams: { unit: schedule.interval.unit },
 			});
 		}
 	}
@@ -790,7 +799,8 @@ function validateAndResolve<TAnchor extends string, TUnit extends string>(
 		if (!policy.allowedUnits.includes(schedule.recurrence.period)) {
 			diagnostics.push({
 				code: "invalid_time_unit",
-				message: `Time period '${schedule.recurrence.period}' is not allowed in this domain context`,
+				messageKey: "errors.frequencyTimeUnitNotAllowed",
+				messageParams: { unit: schedule.recurrence.period },
 			});
 		}
 	}

@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import {
 	type CurrencyFormatConfig,
 	type CurrencyGrammarResult,
@@ -56,9 +57,15 @@ export interface CompoundRateConsumerPolicy {
 	readonly quantityPolicy?: QuantityConsumerPolicy;
 }
 
+export interface CompoundRateDiagnostic {
+	readonly code: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+}
+
 export interface CompoundRateResolution {
 	readonly value?: CompoundRateValue;
-	readonly diagnostics: readonly { code: string; message: string }[];
+	readonly diagnostics: readonly CompoundRateDiagnostic[];
 }
 
 /**
@@ -74,7 +81,10 @@ export function parseCompoundRate(
 	if (!rawText) {
 		return {
 			diagnostics: [
-				{ code: "invalid_rate", message: "Rate expression is empty" },
+				{
+					code: "invalid_rate",
+					messageKey: "errors.rateEmpty",
+				},
 			],
 		};
 	}
@@ -94,7 +104,10 @@ export function parseCompoundRate(
 					diagnostics: [
 						{
 							code: "operator_not_allowed",
-							message: `Operator '${opRes.operatorMatch.rawText}' is not permitted for this rate`,
+							messageKey: "errors.rateOperatorNotAllowed",
+							messageParams: {
+								operator: opRes.operatorMatch.rawText,
+							},
 						},
 					],
 				};
@@ -116,7 +129,8 @@ export function parseCompoundRate(
 			diagnostics: [
 				{
 					code: "not_a_rate",
-					message: `Expression '${rawText}' does not contain rate division delimiters`,
+					messageKey: "errors.rateMissingDelimiters",
+					messageParams: { rawText },
 				},
 			],
 		};
@@ -130,7 +144,11 @@ export function parseCompoundRate(
 			diagnostics: [
 				{
 					code: "too_many_denominators",
-					message: `Rate has ${segments.length - 1} denominators, maximum allowed is ${policy.maxDenominators}`,
+					messageKey: "errors.rateTooManyDenominators",
+					messageParams: {
+						count: segments.length - 1,
+						max: policy.maxDenominators,
+					},
 				},
 			],
 		};
@@ -141,7 +159,10 @@ export function parseCompoundRate(
 	if (!numSegment) {
 		return {
 			diagnostics: [
-				{ code: "invalid_numerator", message: "Rate numerator is empty" },
+				{
+					code: "invalid_numerator",
+					messageKey: "errors.rateNumeratorEmpty",
+				},
 			],
 		};
 	}
@@ -172,7 +193,8 @@ export function parseCompoundRate(
 			diagnostics: [
 				{
 					code: "invalid_numerator",
-					message: `Unable to parse rate numerator '${numSegment}' as quantity or currency`,
+					messageKey: "errors.rateNumeratorInvalid",
+					messageParams: { segment: numSegment },
 				},
 			],
 		};
@@ -187,7 +209,8 @@ export function parseCompoundRate(
 				diagnostics: [
 					{
 						code: "invalid_denominator",
-						message: `Rate denominator segment ${i} is empty`,
+						messageKey: "errors.rateDenominatorEmpty",
+						messageParams: { index: i },
 					},
 				],
 			};

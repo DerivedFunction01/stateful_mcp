@@ -166,7 +166,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 				}),
 				"both",
 			),
-		).toThrow(/dependency cycle/u);
+		).toThrow(/project\.extensionGroup\.dependencyCycle/u);
 	});
 
 	test("throws when a selected extension requires an undeclared extension", () => {
@@ -185,7 +185,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 				}),
 				"a",
 			),
-		).toThrow("does not declare");
+		).toThrow("project.extensionGroup.missingDependency");
 	});
 
 	test("throws when an explicitly selected group is unknown", () => {
@@ -197,7 +197,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 				}),
 				"ghost",
 			),
-		).toThrow("does not exist");
+		).toThrow("project.extensionGroup.unknownGroup");
 	});
 
 	test("validateWorkspaceManifest throws when a group references an undeclared extension", () => {
@@ -208,7 +208,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 					extensionGroups: { bad: group("bad", ["a", "ghost"]) },
 				}),
 			),
-		).toThrow("not declared by the project");
+		).toThrow("project.extensionGroup.unknownExtension");
 	});
 
 	test("validateWorkspaceManifest throws on a duplicate group id", () => {
@@ -222,7 +222,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 					},
 				}),
 			),
-		).toThrow("declared more than once");
+		).toThrow("project.extensionGroup.duplicateGroupId");
 	});
 
 	test("validateWorkspaceManifest throws on a group key/id mismatch", () => {
@@ -240,7 +240,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 					},
 				}),
 			),
-		).toThrow("does not match its id");
+		).toThrow("project.extensionGroup.groupIdMismatch");
 	});
 
 	test("validateWorkspaceManifest throws on an invalid group id", () => {
@@ -251,7 +251,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 					extensionGroups: { "Bad Id": group("Bad Id", ["a"]) },
 				}),
 			),
-		).toThrow("not a valid identifier");
+		).toThrow("project.extensionGroup.invalidGroupId");
 	});
 
 	test("validateWorkspaceManifest throws when the active group is unknown", () => {
@@ -263,7 +263,7 @@ describe("resolveWorkspaceExtensions diagnostics", () => {
 					activeExtensionGroupId: "ghost",
 				}),
 			),
-		).toThrow("does not exist");
+		).toThrow("project.extensionGroup.unknownActiveGroup");
 	});
 
 	test("validateWorkspaceManifest throws on a duplicate extension id in the manifest", () => {

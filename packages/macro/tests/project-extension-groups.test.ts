@@ -402,3 +402,55 @@ describe("computeProjectExtensionGroupImpact", () => {
 		expect(impact.deactivatedExtensionIds).toEqual([]);
 	});
 });
+
+describe("ProjectExtensionGroupDiagnostic is strict", () => {
+	test("emits required messageKey and safe messageParams instead of prose", () => {
+		const resolution = resolveProjectExtensionGroup({
+			groupId: "ghost",
+			groups: { real: group("real", ["a"]) },
+			extensions: [EXT("a")],
+		});
+		const diagnostic = resolution.diagnostics[0];
+		expect(diagnostic?.code).toBe("project.extensionGroup.unknownGroup");
+		expect(diagnostic?.messageKey).toBe("project.extensionGroup.unknownGroup");
+		expect(diagnostic?.messageParams).toEqual({ groupId: "ghost" });
+	});
+
+	test("missing dependency diagnostic carries both ids as params", () => {
+		const resolution = resolveProjectExtensionGroup({
+			groupId: "g",
+			groups: { g: group("g", ["a"]) },
+			extensions: [EXT("a", ["absent"])],
+		});
+		const diagnostic = resolution.diagnostics.find(
+			(d) => d.code === "project.extensionGroup.missingDependency",
+		);
+		expect(diagnostic?.messageKey).toBe(
+			"project.extensionGroup.missingDependency",
+		);
+		expect(diagnostic?.messageParams).toEqual({
+			extensionId: "a",
+			dependencyId: "absent",
+		});
+	});
+
+	test("every diagnostic is strict (never an English message)", () => {
+		const diagnostics = validateProjectExtensionGroups({
+			groups: map([
+				["Bad Id", ["a"]],
+				["g", ["a"]],
+			]),
+			extensions: [EXT("a")],
+			activeGroupId: "ghost",
+		});
+		expect(diagnostics.length).toBeGreaterThan(0);
+		for (const diagnostic of diagnostics) {
+			expect(typeof diagnostic.messageKey).toBe("string");
+			expect(diagnostic.messageKey.length).toBeGreaterThan(0);
+			expect(diagnostic.messageParams).toBeDefined();
+			expect(diagnostic.messageKey.startsWith("project.extensionGroup.")).toBe(
+				true,
+			);
+		}
+	});
+});

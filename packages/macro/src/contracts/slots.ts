@@ -1,6 +1,6 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { MacroDiagnosticCode } from "./input";
 import type { MacroArgumentMatch, MacroPendingReason } from "./matching";
-import type { MessageParam } from "@stateful-mcp/macro-protocol";
 
 export interface SlotBinding {
 	backendId?: string;
@@ -122,12 +122,6 @@ export type MacroDraftDiagnosticCode =
 
 export interface MacroDraftDiagnostic {
 	code: MacroDraftDiagnosticCode;
-	/**
-	 * @deprecated Raw prose. Retained only for backward compatibility with
-	 * callers that have not yet migrated to `messageKey`. New producers must
-	 * set `messageKey` and omit `message`.
-	 */
-	message?: string;
 	/** Structured i18n key; the canonical message carrier for user-facing surfaces. */
 	messageKey?: string;
 	messageParams?: Readonly<Record<string, MessageParam>>;

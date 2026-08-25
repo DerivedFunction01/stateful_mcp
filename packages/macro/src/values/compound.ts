@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
 import { EMPTY_DIAGNOSTICS, parseNumericValue } from "./numeric";
 import { resolveUnitAlias as resolveQuantityUnit } from "./quantity";
@@ -20,9 +21,15 @@ export interface ChainedQuantityResult {
 	readonly rawText: string;
 }
 
+export interface ChainedQuantityDiagnostic {
+	readonly code: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+}
+
 export interface ChainedQuantityResolution {
 	readonly value?: ChainedQuantityResult;
-	readonly diagnostics: readonly { code: string; message: string }[];
+	readonly diagnostics: readonly ChainedQuantityDiagnostic[];
 }
 
 import type { BaseValueGrammarConfig } from "./numeric";
@@ -54,7 +61,12 @@ export function parseMultiUnitChain(
 	const rawText = input.trim();
 	if (!rawText) {
 		return {
-			diagnostics: [{ code: "EMPTY_INPUT", message: "Input is empty" }],
+			diagnostics: [
+				{
+					code: "EMPTY_INPUT",
+					messageKey: "errors.compoundEmpty",
+				},
+			],
 		};
 	}
 
@@ -65,7 +77,8 @@ export function parseMultiUnitChain(
 			diagnostics: [
 				{
 					code: "NO_SEGMENTS_FOUND",
-					message: `No unit segments found in '${rawText}'`,
+					messageKey: "errors.compoundNoSegments",
+					messageParams: { rawText },
 				},
 			],
 		};
@@ -87,7 +100,11 @@ export function parseMultiUnitChain(
 				diagnostics: [
 					{
 						code: "UNKNOWN_UNIT",
-						message: `Unknown unit '${rawUnit}' in segment '${rawValue} ${rawUnit}'`,
+						messageKey: "errors.compoundUnknownUnit",
+						messageParams: {
+							unit: rawUnit,
+							segment: `${rawValue} ${rawUnit}`,
+						},
 					},
 				],
 			};
@@ -99,7 +116,8 @@ export function parseMultiUnitChain(
 				diagnostics: [
 					{
 						code: "UNREGISTERED_UNIT",
-						message: `Unit '${resolvedUnitId}' is not registered in conversion registry`,
+						messageKey: "errors.compoundUnregisteredUnit",
+						messageParams: { unit: resolvedUnitId },
 					},
 				],
 			};
@@ -110,7 +128,12 @@ export function parseMultiUnitChain(
 				diagnostics: [
 					{
 						code: "DIMENSION_MISMATCH",
-						message: `Conflicting dimensions in chain: expected dimension '${chainDimension}' but received '${unitDef.dimension}' for unit '${rawUnit}'`,
+						messageKey: "errors.compoundDimensionMismatch",
+						messageParams: {
+							expected: chainDimension,
+							received: unitDef.dimension,
+							unit: rawUnit,
+						},
 					},
 				],
 			};
@@ -126,7 +149,8 @@ export function parseMultiUnitChain(
 				diagnostics: [
 					{
 						code: "CONVERSION_FAILED",
-						message: `Unable to convert unit '${resolvedUnitId}' to canonical value`,
+						messageKey: "errors.compoundConversionFailed",
+						messageParams: { unit: resolvedUnitId },
 					},
 				],
 			};
@@ -144,7 +168,10 @@ export function parseMultiUnitChain(
 	if (!chainDimension || !baseCanonicalUnit) {
 		return {
 			diagnostics: [
-				{ code: "EMPTY_CHAIN", message: "Failed to resolve chain dimensions" },
+				{
+					code: "EMPTY_CHAIN",
+					messageKey: "errors.compoundEmptyChain",
+				},
 			],
 		};
 	}
@@ -157,7 +184,8 @@ export function parseMultiUnitChain(
 			diagnostics: [
 				{
 					code: "DIMENSION_NOT_ALLOWED",
-					message: `Dimension '${chainDimension}' is not allowed`,
+					messageKey: "errors.compoundDimensionNotAllowed",
+					messageParams: { dimension: chainDimension },
 				},
 			],
 		};

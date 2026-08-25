@@ -27,8 +27,8 @@ import {
 	type HostEventType,
 	type KeymapBindingContextDto,
 	type KeymapBindingResolutionDto,
-	type MessageParam,
 	MACRO_PROTOCOL_VERSION,
+	type MessageParam,
 	type ProjectConfigurationDto,
 	type ProjectExtensionGroupDraft,
 	type ProjectExtensionGroupOperationResult,
@@ -508,7 +508,11 @@ export class HostSessionManager {
 			return resolveProjectRelativePath(root, child, allowRoot);
 		} catch (error) {
 			if (error instanceof ProjectPathError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					"project.path.invalid",
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -518,7 +522,11 @@ export class HostSessionManager {
 			return resolveProjectAbsolutePath(root, child);
 		} catch (error) {
 			if (error instanceof ProjectPathError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					"project.path.invalid",
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -528,7 +536,11 @@ export class HostSessionManager {
 			validatePathSegment(name);
 		} catch (error) {
 			if (error instanceof ProjectPathError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					"project.path.segmentInvalid",
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -579,11 +591,7 @@ export class HostSessionManager {
 		const session = this.getOrError(sessionId);
 		const project = session.loaded.project;
 		if (!project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"project.required",
-				false,
-			);
+			throw new SessionError("PROJECT_REQUIRED", "project.required", false);
 		return extractedGetProjectConfiguration(project, session.loaded);
 	}
 
@@ -657,11 +665,7 @@ export class HostSessionManager {
 	): Promise<ProjectOperationResult> {
 		const session = this.getOrError(sessionId);
 		if (!session.loaded.project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"project.required",
-				false,
-			);
+			throw new SessionError("PROJECT_REQUIRED", "project.required", false);
 		return extractedUpdateProjectConfiguration(
 			{
 				requireProject: () => this.requireProject(session),
@@ -773,11 +777,7 @@ export class HostSessionManager {
 	private requireProject(session: Session): MacroProject {
 		const project = session.loaded.project;
 		if (!project)
-			throw new SessionError(
-				"PROJECT_REQUIRED",
-				"project.required",
-				false,
-			);
+			throw new SessionError("PROJECT_REQUIRED", "project.required", false);
 		return project;
 	}
 
@@ -854,9 +854,7 @@ export class HostSessionManager {
 				diagnostics: [
 					{
 						severity: "info",
-						message:
-							translate(session.loaded.workspace.i18n, "keymap.noBinding") ||
-							"keymap.noBinding",
+						messageKey: "keymap.noBinding",
 						code: "no-binding",
 					},
 				],
@@ -871,9 +869,7 @@ export class HostSessionManager {
 			source: "macro-profile",
 			diagnostics: conflicts.map((conflict) => ({
 				severity: "warning" as const,
-				message:
-					translate(session.loaded.workspace.i18n, "keymap.conflict") ||
-					"keymap.conflict",
+				messageKey: "keymap.conflict",
 				code: "duplicate-binding",
 			})),
 		};
@@ -916,7 +912,11 @@ export class HostSessionManager {
 			);
 		} catch (error) {
 			if (error instanceof SettingsServiceError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					this.settingsServiceMessageKey(error.code),
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -934,7 +934,11 @@ export class HostSessionManager {
 			);
 		} catch (error) {
 			if (error instanceof SettingsServiceError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					this.settingsServiceMessageKey(error.code),
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -952,7 +956,11 @@ export class HostSessionManager {
 			);
 		} catch (error) {
 			if (error instanceof SettingsServiceError)
-				throw new SessionError(error.code, error.message, error.retryable);
+				throw new SessionError(
+					error.code,
+					this.settingsServiceMessageKey(error.code),
+					error.retryable,
+				);
 			throw error;
 		}
 	}
@@ -1157,6 +1165,17 @@ export class HostSessionManager {
 		params?: Readonly<Record<string, string | number>>,
 	): string {
 		return translate(session.loaded.workspace.i18n, key, params) || key;
+	}
+
+	private settingsServiceMessageKey(code: string): string {
+		switch (code) {
+			case "SETTINGS_UNAVAILABLE":
+				return "settings.unavailable";
+			case "SETTINGS_OPERATION_UNKNOWN":
+				return "settings.operation.unknown";
+			default:
+				return "settings.error";
+		}
 	}
 
 	private settingsSnapshot(session: Session): SettingsUiSnapshotDto {

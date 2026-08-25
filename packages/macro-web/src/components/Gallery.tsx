@@ -34,10 +34,8 @@ import { useEffect, useMemo, useState } from "react";
 import { createDiagnosticHostClient } from "../dev/diagnostic-host-client";
 import type { EditorSearchResult } from "../lib/browser-vim";
 import type { HostWorkspaceSnapshot } from "../lib/host-client";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import { resolveThrownError } from "../lib/message-resolver";
-import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
-import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
 import { useTheme, WEB_THEMES } from "../lib/theme";
 import {
 	exportUserPreferencesBundle,
@@ -52,6 +50,8 @@ import { CommandPalette } from "./CommandPalette";
 import { EditorOutputDrawer } from "./EditorOutputDrawer";
 import { EditorSurfaceView } from "./EditorSurfaceView";
 import { FindOverlay } from "./FindOverlay";
+import type { InspectorDiagnosticItem } from "./inspector/inspector-types";
+import { resolveDiagnosticMessage } from "./inspector/inspector-utils";
 import { MenuBar } from "./MenuBar";
 import { OpenFolderModal } from "./OpenFolderModal";
 import { PinnedMacroBar } from "./PinnedMacroBar";
@@ -878,7 +878,6 @@ const GALLERY_SCRATCHPAD_LINES: readonly ScratchpadLineDto[] = [
 		diagnostics: [
 			{
 				severity: "error",
-				message: "",
 				messageKey: "common.error",
 			},
 		],
@@ -1004,7 +1003,7 @@ const GALLERY_PREVIEWS: readonly SettingsPreviewDto[] = [
 			{
 				severity: "error",
 				code: "UNKNOWN_TEMPLATE_TOKEN",
-				message: "gallery.preview.unknownToken",
+				messageKey: "settings.preview.unknownTokens",
 				path: ["values", "frequency", "templates"],
 			},
 		],
@@ -1035,6 +1034,7 @@ const GALLERY_PREVIEWS: readonly SettingsPreviewDto[] = [
 ];
 
 function SettingsPreviewStory() {
+	const { t } = useI18n();
 	return (
 		<Card title="Settings semantic preview variants">
 			<div className="form-stack">
@@ -1066,7 +1066,10 @@ function SettingsPreviewStory() {
 								key={`${diagnostic.code}-${index}`}
 								severity={diagnostic.severity}
 							>
-								{diagnostic.message}
+								{t(
+									diagnostic.messageKey as WebI18nKey,
+									diagnostic.messageParams,
+								)}
 							</Diagnostic>
 						))}
 					</div>
@@ -1093,7 +1096,11 @@ function HostStory() {
 			title={t("gallery.hostDiagnostics")}
 			action={
 				<Badge tone={error ? "danger" : snapshot ? "success" : "info"}>
-					{error ? "Disconnected" : snapshot ? "Connected" : "Loading"}
+					{error
+						? t("gallery.hostStatus.disconnected")
+						: snapshot
+							? t("gallery.hostStatus.connected")
+							: t("gallery.hostStatus.loading")}
 				</Badge>
 			}
 		>
@@ -1132,7 +1139,11 @@ function HostStory() {
 								severity={item.severity}
 							>
 								{resolveDiagnosticMessage(
-									{ line: 0, macroName: undefined, ...item } as InspectorDiagnosticItem,
+									{
+										line: 0,
+										macroName: undefined,
+										...item,
+									} as InspectorDiagnosticItem,
 									t,
 								)}
 							</Diagnostic>
@@ -1206,14 +1217,14 @@ function WorkbenchInspectorStory() {
 				rawText: "^vitals bp=invalid_bp",
 				macroName: "vitals",
 				lineStatus: "invalid",
-			diagnostics: ([
-				{
-					code: "invalidBloodPressure",
-					messageKey: "errors.invalidBloodPressure",
-					severity: "error",
-					span: { start: 11, end: 21 },
-				},
-			] as unknown) as readonly DiagnosticDto[],
+				diagnostics: [
+					{
+						code: "invalidBloodPressure",
+						messageKey: "errors.invalidBloodPressure",
+						severity: "error",
+						span: { start: 11, end: 21 },
+					},
+				] as unknown as readonly DiagnosticDto[],
 				projections: [],
 			},
 			{
@@ -1221,15 +1232,15 @@ function WorkbenchInspectorStory() {
 				rawText: "^evaluacion #asma con #sibilancias",
 				macroName: "evaluacion",
 				lineStatus: "valid",
-			diagnostics: ([
-				{
-					code: "conceptUnverified",
-					messageKey: "errors.conceptUnverified",
-					messageParams: { term: "sibilancias", confidence: 92 },
-					severity: "warning",
-					span: { start: 22, end: 34 },
-				},
-			] as unknown) as readonly DiagnosticDto[],
+				diagnostics: [
+					{
+						code: "conceptUnverified",
+						messageKey: "errors.conceptUnverified",
+						messageParams: { term: "sibilancias", confidence: 92 },
+						severity: "warning",
+						span: { start: 22, end: 34 },
+					},
+				] as unknown as readonly DiagnosticDto[],
 				projections: [
 					{
 						kind: "extension",

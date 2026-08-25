@@ -14,6 +14,7 @@ import {
 	validateProjectExtensionGroups,
 } from "@stateful-mcp/macro";
 import type {
+	MessageParam,
 	ProjectExtensionActivationGroupDto,
 	ProjectExtensionAvailabilityDto,
 	ProjectExtensionCapabilitiesDto,
@@ -74,14 +75,14 @@ export type ProjectExtensionGroupPlanResult =
 function error(
 	code: string,
 	messageKey: string,
+	messageParams: Readonly<Record<string, MessageParam>> = {},
 	extra: { readonly groupId?: string; readonly extensionId?: string } = {},
 ): ProjectExtensionGroupDiagnostic {
 	return {
 		code,
 		severity: "error",
-		message: messageKey,
 		messageKey,
-		messageParams: extra,
+		messageParams,
 		...(extra.groupId === undefined ? {} : { groupId: extra.groupId }),
 		...(extra.extensionId === undefined
 			? {}
@@ -121,7 +122,7 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.emptyDisplayName,
-							"An extension activation group requires a display name",
+							"project.extensionGroup.emptyDisplayName",
 						),
 					],
 				};
@@ -134,7 +135,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.invalidGroupId,
-							`Extension activation group id '${change.group.groupId}' is not a valid identifier`,
+							"project.extensionGroup.invalidGroupId",
+							{ groupId: change.group.groupId },
 							{ groupId: change.group.groupId },
 						),
 					],
@@ -145,7 +147,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.duplicateGroupId,
-							`Extension activation group '${requestedId}' already exists`,
+							"project.extensionGroup.duplicateGroupId",
+							{ groupId: requestedId },
 							{ groupId: requestedId },
 						),
 					],
@@ -185,7 +188,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownGroup,
-							`Extension activation group '${change.patch.groupId}' does not exist`,
+							"project.extensionGroup.unknownGroup",
+							{ groupId: change.patch.groupId },
 							{ groupId: change.patch.groupId },
 						),
 					],
@@ -196,7 +200,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.readOnlyGroup,
-							`Extension activation group '${existing.id}' is read-only and must be duplicated before editing`,
+							"project.extensionGroup.readOnlyGroup.edit",
+							{ groupId: existing.id },
 							{ groupId: existing.id },
 						),
 					],
@@ -210,7 +215,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.emptyDisplayName,
-							`Extension activation group '${existing.id}' requires a display name`,
+							"project.extensionGroup.emptyDisplayName",
+							{ groupId: existing.id },
 							{ groupId: existing.id },
 						),
 					],
@@ -251,7 +257,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownSourceGroup,
-							`Extension activation group '${change.sourceGroupId}' does not exist`,
+							"project.extensionGroup.unknownSourceGroup",
+							{ groupId: change.sourceGroupId },
 							{ groupId: change.sourceGroupId },
 						),
 					],
@@ -274,7 +281,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.invalidGroupId,
-							`Extension activation group id '${change.groupId}' is not a valid identifier`,
+							"project.extensionGroup.invalidGroupId",
+							{ groupId: change.groupId },
 							{ groupId: change.groupId },
 						),
 					],
@@ -285,7 +293,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.duplicateGroupId,
-							`Extension activation group '${requestedId}' already exists`,
+							"project.extensionGroup.duplicateGroupId",
+							{ groupId: requestedId },
 							{ groupId: requestedId },
 						),
 					],
@@ -324,7 +333,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownGroup,
-							`Extension activation group '${change.groupId}' does not exist`,
+							"project.extensionGroup.unknownGroup",
+							{ groupId: change.groupId },
 							{ groupId: change.groupId },
 						),
 					],
@@ -335,7 +345,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.readOnlyGroup,
-							`Extension activation group '${existing.id}' is read-only and cannot be deleted`,
+							"project.extensionGroup.readOnlyGroup.delete",
+							{ groupId: existing.id },
 							{ groupId: existing.id },
 						),
 					],
@@ -348,7 +359,8 @@ export function planProjectExtensionGroupChange(
 							diagnostics: [
 								error(
 									ACTIVE_GROUP_REPLACEMENT_REQUIRED,
-									"The replacement group must differ from the deleted group",
+									"project.extensionGroup.activeGroupReplacementRequired.same",
+									{},
 									{ groupId: existing.id },
 								),
 							],
@@ -359,7 +371,8 @@ export function planProjectExtensionGroupChange(
 							diagnostics: [
 								error(
 									PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownGroup,
-									`Replacement extension activation group '${change.replacementGroupId}' does not exist`,
+									"project.extensionGroup.unknownGroup",
+									{ groupId: change.replacementGroupId },
 									{ groupId: change.replacementGroupId },
 								),
 							],
@@ -371,8 +384,9 @@ export function planProjectExtensionGroupChange(
 						code: ACTIVE_GROUP_REPLACEMENT_REQUIRED,
 						severity: "warning",
 						groupId: existing.id,
-						message:
-							"The active extension activation group was cleared; every declared extension will activate",
+						messageKey:
+							"project.extensionGroup.activeGroupReplacementRequired.cleared",
+						messageParams: { groupId: existing.id },
 					});
 				} else
 					return {
@@ -380,7 +394,8 @@ export function planProjectExtensionGroupChange(
 						diagnostics: [
 							error(
 								ACTIVE_GROUP_REPLACEMENT_REQUIRED,
-								`Extension activation group '${existing.id}' is active: choose a replacement group or clear the active group explicitly`,
+								"project.extensionGroup.activeGroupReplacementRequired",
+								{ groupId: existing.id },
 								{ groupId: existing.id },
 							),
 						],
@@ -406,7 +421,8 @@ export function planProjectExtensionGroupChange(
 					diagnostics: [
 						error(
 							PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownActiveGroup,
-							`Extension activation group '${change.groupId}' does not exist`,
+							"project.extensionGroup.unknownActiveGroup",
+							{ groupId: change.groupId },
 							{ groupId: change.groupId },
 						),
 					],
@@ -490,10 +506,8 @@ export function toProjectExtensionGroupDiagnosticDto(
 	return {
 		code: diagnostic.code,
 		severity: diagnostic.severity,
-		messageKey: diagnostic.messageKey ?? diagnostic.message,
-		...(diagnostic.messageParams === undefined
-			? {}
-			: { messageParams: diagnostic.messageParams }),
+		messageKey: diagnostic.messageKey,
+		messageParams: diagnostic.messageParams,
 		...(diagnostic.groupId === undefined
 			? {}
 			: { groupId: diagnostic.groupId }),

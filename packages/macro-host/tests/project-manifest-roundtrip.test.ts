@@ -196,7 +196,7 @@ describe("project manifest through the workspace resolver", () => {
 		// membership is rejected at save time rather than at load time.
 		await expect(
 			project.saveManifest(updated, project.descriptor.revision),
-		).rejects.toThrow(/not declared by the project/u);
+		).rejects.toThrow(/project\.extensionGroup\.unknownExtension/u);
 		await project.close();
 	});
 });

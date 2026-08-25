@@ -43,7 +43,7 @@ export function projectResourceTree(
 		disabled: reference.kind !== "scratchpad",
 		disabledReason:
 			reference.kind !== "scratchpad"
-				? "No resource provider is available"
+				? "project.resource.disabled.noProviderAvailable"
 				: undefined,
 	}));
 	if (scratchpads.length === 0) return [];

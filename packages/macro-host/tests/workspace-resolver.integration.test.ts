@@ -124,7 +124,7 @@ describe("loadMacroWorkspace resolver integration", () => {
 		});
 		await expect(
 			loadMacroWorkspace({ workspacePath: join(root, "workspace.json") }),
-		).rejects.toThrow("does not declare");
+		).rejects.toThrow("project.extensionGroup.missingDependency");
 	});
 
 	test("rejects a cyclic extension dependency before loading", async () => {
@@ -137,6 +137,6 @@ describe("loadMacroWorkspace resolver integration", () => {
 		});
 		await expect(
 			loadMacroWorkspace({ workspacePath: join(root, "workspace.json") }),
-		).rejects.toThrow(/dependency cycle/u);
+		).rejects.toThrow(/project\.extensionGroup\.dependencyCycle/u);
 	});
 });

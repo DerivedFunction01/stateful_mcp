@@ -297,7 +297,8 @@ describe("Phase 3D — Generic vertical integration", () => {
 											{
 												code: "NORMALIZATION_FAILED" as const,
 												message:
-													parsed.diagnostics[0]?.message ?? "Invalid quantity",
+													parsed.diagnostics[0]?.messageKey ??
+													"Invalid quantity",
 											},
 										],
 									};

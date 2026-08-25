@@ -24,7 +24,8 @@ export const ES_ERRORS: Record<string, string> = {
 	"errors.executorFailed": "La ejecución de la macro falló",
 	"errors.rendererFailed": "El renderizador '{rendererId}' falló",
 	"errors.listenerFailed": "El listener '{listenerId}' falló",
-	"errors.parseListenerDiagnostic": "El listener de análisis reportó un diagnóstico",
+	"errors.parseListenerDiagnostic":
+		"El listener de análisis reportó un diagnóstico",
 	"errors.staleLock":
 		"El bloqueo aceptado '{lockId}' está desactualizado y fue descartado",
 	"errors.invalidAcceptance":
@@ -76,4 +77,132 @@ export const ES_ERRORS: Record<string, string> = {
 		"Se requieren el ID de la relación y ambos extremos del concepto",
 	"errors.resourceSeedExpressionRequired":
 		"Se requieren el ID de la expresión y el término",
+	"errors.extensionDependencyUnavailable":
+		"La extensión '{extensionId}' no puede activarse porque faltan dependencias: {missing}",
+	"errors.extensionActivationFailed":
+		"La extensión '{extensionId}' no pudo activarse",
+	"errors.extensionImportFailed":
+		"No se pudo importar el archivo de extensión '{sourceFile}'",
+	"errors.extensionExportMissing":
+		"El archivo de extensión '{sourceFile}' debe exportar por defecto una extensión",
+	"errors.extensionManifestInvalid":
+		"El archivo de extensión '{sourceFile}' tiene un manifiesto no válido",
+	"errors.duplicateExtensionId":
+		"El ID de extensión '{extensionId}' está duplicado",
+	"errors.missingExtensionDependency":
+		"La extensión '{extensionId}' requiere la dependencia faltante '{dependency}'",
+	"errors.extensionDependencyCycle":
+		"El ciclo de dependencias de extensiones incluye '{extensionId}'",
+	"errors.extensionError": "Error de extensión '{code}'",
+
+	// ----------------------------------------------------------------------
+	// Diagnósticos de gramática de valores (quantity, currency, frequency,
+	// rates, numeric, compound, statistics, date-time, template compiler)
+	// ----------------------------------------------------------------------
+	"errors.quantityEmpty": "La expresión de cantidad está vacía",
+	"errors.quantityOperatorNotAllowed":
+		"El operador '{operator}' no está permitido para esta cantidad",
+	"errors.quantityRangeNotAllowed":
+		"Las expresiones de rango no están permitidas para esta cantidad",
+	"errors.quantityChainedStepsNotAllowed":
+		"Las secuencias de pasos encadenados no están permitidas para esta cantidad",
+	"errors.quantityHeterogeneousUnitsNotAllowed":
+		"Las unidades heterogéneas no están permitidas en el rango",
+	"errors.quantityIncompatibleRangeDimensions":
+		"No se puede formar un rango entre la dimensión '{dimension1}' ({unit1}) y '{dimension2}' ({unit2})",
+	"errors.quantityDescendingRangeNotAllowed":
+		"Los rangos descendentes o decrecientes no están permitidos",
+	"errors.quantityParseFailed": "No se pudo analizar la cantidad de '{text}'",
+	"errors.quantityUnitNotAllowed":
+		"La unidad '{unit}' no está en la lista de unidades permitidas",
+	"errors.quantityDimensionNotAllowed":
+		"La dimensión física '{dimension}' para la unidad '{unit}' no está permitida",
+	"errors.quantityNamespaceDisallowed":
+		"El espacio de nombres de concepto '{namespace}' para la unidad '{unit}' no está permitido por la política del consumidor",
+
+	"errors.currencyEmpty": "El texto de moneda está vacío",
+	"errors.currencyNotAllowed": "La moneda '{currency}' no está permitida",
+	"errors.currencyNegativeNotAllowed":
+		"Los montos de moneda negativos no están permitidos",
+	"errors.currencyParseFailed": "No se pudo analizar la moneda '{rawText}'",
+
+	"errors.frequencyEmpty": "El texto de frecuencia está vacío",
+	"errors.frequencyConditionalNotAllowed":
+		"Los horarios condicionales / PRN no están permitidos por la política",
+	"errors.frequencyUnrecognized":
+		"No se pudo analizar la frecuencia o el horario de cadencia de '{rawText}'",
+	"errors.frequencyCadenceTypeNotAllowed":
+		"El tipo de cadencia '{cadenceType}' no está permitido por la política",
+	"errors.frequencyEventAnchorNotAllowed":
+		"El ancla de evento '{eventAnchor}' no está permitida en este contexto de dominio",
+	"errors.frequencyTimeUnitNotAllowed":
+		"La unidad de tiempo '{unit}' no está permitida en este contexto de dominio",
+
+	"errors.rateEmpty": "La expresión de tasa está vacía",
+	"errors.rateOperatorNotAllowed":
+		"El operador '{operator}' no está permitido para esta tasa",
+	"errors.rateMissingDelimiters":
+		"La expresión '{rawText}' no contiene delimitadores de división de tasa",
+	"errors.rateTooManyDenominators":
+		"La tasa tiene {count} denominadores; el máximo permitido es {max}",
+	"errors.rateNumeratorEmpty": "El numerador de la tasa está vacío",
+	"errors.rateNumeratorInvalid":
+		"No se pudo analizar el numerador de la tasa '{segment}' como cantidad o moneda",
+	"errors.rateDenominatorEmpty":
+		"El segmento {index} del denominador de la tasa está vacío",
+
+	"errors.numericEmpty": "El texto numérico está vacío",
+	"errors.numericNegativeNotAllowed":
+		"Los números negativos no están permitidos",
+	"errors.numericFractionsNotAllowed": "Las fracciones no están permitidas",
+	"errors.numericMixedFractionsNotAllowed":
+		"Las fracciones mixtas no están permitidas",
+	"errors.numericDivisionByZero":
+		"El denominador de la fracción no puede ser cero",
+	"errors.numericInvalid":
+		"No se pudo analizar '{rawText}' como un número válido",
+	"errors.numericBoundsExceeded":
+		"El valor {value} está fuera de los límites permitidos [{min}, {max}]",
+
+	"errors.compoundEmpty": "La entrada está vacía",
+	"errors.compoundNoSegments":
+		"No se encontraron segmentos de unidad en '{rawText}'",
+	"errors.compoundUnknownUnit":
+		"Unidad desconocida '{unit}' en el segmento '{segment}'",
+	"errors.compoundUnregisteredUnit":
+		"La unidad '{unit}' no está registrada en el registro de conversión",
+	"errors.compoundDimensionMismatch":
+		"Dimensiones en conflicto en la cadena: se esperaba la dimensión '{expected}' pero se recibió '{received}' para la unidad '{unit}'",
+	"errors.compoundConversionFailed":
+		"No se pudo convertir la unidad '{unit}' a un valor canónico",
+	"errors.compoundEmptyChain":
+		"No se pudieron resolver las dimensiones de la cadena",
+	"errors.compoundDimensionNotAllowed":
+		"La dimensión '{dimension}' no está permitida",
+
+	"errors.statisticsRejected":
+		"El calificador estadístico '{qualifier}' no está permitido para este campo",
+	"errors.statisticsPointEstimateRejected":
+		"La métrica estadística '{qualifier}' ({role}) no se puede asignar a un espacio de estimación puntual",
+	"errors.statisticsExpectedDispersion":
+		"El espacio requiere una métrica de dispersión o error, pero se recibió '{qualifier}' ({role})",
+	"errors.statisticsExpectedInterval":
+		"El espacio requiere un intervalo estadístico (IC/IQR), pero se recibió '{qualifier}'",
+	"errors.statisticsQualifierTypeNotAllowed":
+		"El tipo de calificador estadístico '{type}' no está en la lista permitida",
+	"errors.statisticsQualifierRoleNotAllowed":
+		"El rol estadístico '{role}' no está permitido para este campo",
+
+	"errors.dateTimeDuplicateId":
+		"El ID de formato de fecha/hora '{id}' debe ser único y coincidir con su clave de mapa",
+	"errors.dateTimeFieldMismatch":
+		"El formato '{id}' declara campos que no están presentes en sus tokens",
+	"errors.dateTimeMissingReference":
+		"El analizador hace referencia a un formato desconocido '{id}'",
+	"errors.dateTimeKindMismatch": "El formato '{id}' es {kind}, no {expected}",
+
+	"errors.templateInvalidRegex":
+		"Expresión regular incrustada no válida en la plantilla en la posición {position}",
+	"errors.templateCompileFailed":
+		"No se pudo compilar la expresión regular de la plantilla '{pattern}'",
 };

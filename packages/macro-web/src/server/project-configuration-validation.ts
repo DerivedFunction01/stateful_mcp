@@ -1,8 +1,6 @@
-import {
-	type ProjectExtensionGroupDiagnostic,
-	validateProjectExtensionGroups,
-} from "@stateful-mcp/macro";
+import { validateProjectExtensionGroups } from "@stateful-mcp/macro";
 import type {
+	MessageParam,
 	ProjectConfigurationDto,
 	ProjectExtensionGroupDiagnosticDto,
 	ProjectSettingsContributionDto,
@@ -14,51 +12,123 @@ import {
 
 type SettingSchemaEntry = ProjectSettingsContributionDto["schema"][number];
 
-function validateSettingValue(
-	entry: SettingSchemaEntry,
-	value: unknown,
-): string | undefined {
+interface SettingTypeKey {
+	readonly messageKey: string;
+	readonly expected: string;
+}
+
+function settingTypeKey(entry: SettingSchemaEntry): SettingTypeKey | undefined {
 	switch (entry.type) {
 		case "boolean":
-			return typeof value === "boolean" ? undefined : "must be a boolean";
+			return {
+				messageKey: "project.configuration.settingType.boolean",
+				expected: "boolean",
+			};
 		case "number":
-			return typeof value === "number" && Number.isFinite(value)
-				? undefined
-				: "must be a finite number";
+			return {
+				messageKey: "project.configuration.settingType.number",
+				expected: "number",
+			};
 		case "string":
-			return typeof value === "string" ? undefined : "must be a string";
+			return {
+				messageKey: "project.configuration.settingType.string",
+				expected: "string",
+			};
 		case "enum":
-			if (typeof value !== "string") return "must be a string enum value";
-			if (
-				entry.enumOptions &&
-				!entry.enumOptions.some((option) => option.id === value)
-			)
-				return `must be one of: ${entry.enumOptions
-					.map((option) => option.id)
-					.join(", ")}`;
-			return undefined;
+			return {
+				messageKey: "project.configuration.settingType.enum",
+				expected: "enum",
+			};
 		case "array":
-			return Array.isArray(value) ? undefined : "must be an array";
+			return {
+				messageKey: "project.configuration.settingType.array",
+				expected: "array",
+			};
 		case "object":
 		case "json":
 		case "keymap":
-			return typeof value === "object" && value !== null
-				? undefined
-				: "must be an object";
+			return {
+				messageKey: "project.configuration.settingType.object",
+				expected: "object",
+			};
 		default:
 			return undefined;
 	}
 }
 
+function isValidSettingValue(
+	entry: SettingSchemaEntry,
+	value: unknown,
+): boolean {
+	switch (entry.type) {
+		case "boolean":
+			return typeof value === "boolean";
+		case "number":
+			return typeof value === "number" && Number.isFinite(value);
+		case "string":
+			return typeof value === "string";
+		case "enum":
+			if (typeof value !== "string") return false;
+			return (
+				!entry.enumOptions ||
+				entry.enumOptions.some((option) => option.id === value)
+			);
+		case "array":
+			return Array.isArray(value);
+		case "object":
+		case "json":
+		case "keymap":
+			return typeof value === "object" && value !== null;
+		default:
+			return true;
+	}
+}
+
+/**
+ * Validates one setting value against its schema entry and returns a structured
+ * diagnostic (code + i18n key + safe params) when it fails. Never returns
+ * English prose; enum option ids are passed as a `options` param, not embedded
+ * in a message.
+ */
+export function validateSettingValue(
+	entry: SettingSchemaEntry,
+	value: unknown,
+	namespace: string,
+): ProjectExtensionGroupDiagnosticDto | undefined {
+	const type = settingTypeKey(entry);
+	if (!type) return undefined;
+	if (isValidSettingValue(entry, value)) return undefined;
+	const messageParams: Record<string, MessageParam> = {
+		namespace,
+		path: entry.path.join("."),
+	};
+	if (entry.type === "enum" && entry.enumOptions) {
+		messageParams.options = entry.enumOptions
+			.map((option) => option.id)
+			.join(", ");
+	} else {
+		messageParams.expected = type.expected;
+	}
+	return {
+		code: "project.configuration.settingType",
+		severity: "error",
+		messageKey: type.messageKey,
+		messageParams,
+	};
+}
+
 export interface ProjectConfigurationValidation {
-	/** Human-readable problems. Empty means the edit may be persisted. */
-	readonly errors: readonly string[];
 	/**
 	 * Structured Extension Activation Group diagnostics with stable codes, so
 	 * callers can render them per group or per extension instead of parsing a
 	 * concatenated message.
 	 */
 	readonly groupDiagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
+	/**
+	 * Structured configuration diagnostics (locale and setting validation)
+	 * with stable i18n keys and safe params. Never English prose.
+	 */
+	readonly diagnostics: readonly ProjectExtensionGroupDiagnosticDto[];
 }
 
 /**
@@ -75,24 +145,26 @@ export function validateProjectConfigurationDetailed(
 	contributions: readonly ProjectSettingsContributionDto[],
 	reservedGroupIds: readonly string[] = [],
 ): ProjectConfigurationValidation {
-	const errors: string[] = [];
-	const groupDiagnostics: ProjectExtensionGroupDiagnostic[] = [
-		...validateProjectExtensionGroups({
+	const groupDiagnostics: ProjectExtensionGroupDiagnosticDto[] =
+		validateProjectExtensionGroups({
 			extensions: toResolverExtensions(config.extensions),
 			reservedGroupIds,
 			...(config.extensionGroups ? { groups: config.extensionGroups } : {}),
 			...(config.activeExtensionGroupId === undefined
 				? {}
 				: { activeGroupId: config.activeExtensionGroupId }),
-		}),
-	];
-	for (const diagnostic of groupDiagnostics)
-		if (diagnostic.severity === "error") errors.push(diagnostic.message);
+		}).map(toProjectExtensionGroupDiagnosticDto);
+	const diagnostics: ProjectExtensionGroupDiagnosticDto[] = [];
 
 	if (config.uiLocale !== undefined) {
 		const availableIds = new Set(availableLocales.map((locale) => locale.id));
 		if (!availableIds.has(config.uiLocale)) {
-			errors.push(`Locale '${config.uiLocale}' is not an available locale`);
+			diagnostics.push({
+				code: "project.configuration.localeUnavailable",
+				severity: "error",
+				messageKey: "project.configuration.localeUnavailable",
+				messageParams: { locale: config.uiLocale },
+			});
 		}
 	}
 
@@ -103,38 +175,34 @@ export function validateProjectConfigurationDetailed(
 			for (const entry of contribution.schema) {
 				const key = entry.path.join(".");
 				if (!(key in namespaceValues)) continue;
-				const typeError = validateSettingValue(entry, namespaceValues[key]);
-				if (typeError) {
-					errors.push(
-						`Project setting '${contribution.namespace}.${key}' ${typeError}`,
-					);
-				}
+				const failure = validateSettingValue(
+					entry,
+					namespaceValues[key],
+					contribution.namespace,
+				);
+				if (failure) diagnostics.push(failure);
 			}
 		}
 	}
 
-	return {
-		errors,
-		groupDiagnostics: groupDiagnostics.map(
-			toProjectExtensionGroupDiagnosticDto,
-		),
-	};
+	return { groupDiagnostics, diagnostics };
 }
 
 /**
- * Human-readable projection of {@link validateProjectConfigurationDetailed}.
- * An empty list means the configuration is acceptable for persistence.
+ * Structured projection of {@link validateProjectConfigurationDetailed}. An
+ * object with no error-severity diagnostics means the configuration is
+ * acceptable for persistence.
  */
 export function validateProjectConfiguration(
 	config: ProjectConfigurationDto,
 	availableLocales: readonly { readonly id: string }[],
 	contributions: readonly ProjectSettingsContributionDto[],
 	reservedGroupIds: readonly string[] = [],
-): readonly string[] {
+): ProjectConfigurationValidation {
 	return validateProjectConfigurationDetailed(
 		config,
 		availableLocales,
 		contributions,
 		reservedGroupIds,
-	).errors;
+	);
 }

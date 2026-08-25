@@ -3,7 +3,10 @@ import type {
 	ProjectConfigurationDto,
 	ProjectSettingsContributionDto,
 } from "@stateful-mcp/macro-protocol";
-import { validateProjectConfiguration } from "../src/server/project-configuration-validation";
+import {
+	validateProjectConfiguration,
+	validateProjectConfigurationDetailed,
+} from "../src/server/project-configuration-validation";
 
 const baseConfig: ProjectConfigurationDto = {
 	formatVersion: 2,
@@ -53,29 +56,41 @@ const contributions: ProjectSettingsContributionDto[] = [
 
 const availableLocales = [{ id: "en" }, { id: "es" }];
 
+function errorCodes(result: {
+	readonly groupDiagnostics: readonly { readonly code: string }[];
+	readonly diagnostics: readonly { readonly code: string }[];
+}): string[] {
+	return [
+		...result.groupDiagnostics.map((d) => d.code),
+		...result.diagnostics.map((d) => d.code),
+	];
+}
+
 describe("validateProjectConfiguration", () => {
 	test("accepts a well-formed configuration", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfiguration(
 			baseConfig,
 			availableLocales,
 			[],
 		);
-		expect(errors).toEqual([]);
+		expect(result.groupDiagnostics).toEqual([]);
+		expect(result.diagnostics).toEqual([]);
+		expect(errorCodes(result)).toEqual([]);
 	});
 
 	test("rejects an unknown active extension group", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfigurationDetailed(
 			{ ...baseConfig, activeExtensionGroupId: "ghost" },
 			availableLocales,
 			[],
 		);
-		expect(errors).toEqual([
-			"Active extension activation group 'ghost' does not exist",
-		]);
+		expect(errorCodes(result)).toContain(
+			"project.extensionGroup.unknownActiveGroup",
+		);
 	});
 
 	test("rejects a group with an empty display name", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfigurationDetailed(
 			{
 				...baseConfig,
 				extensionGroups: {
@@ -90,22 +105,29 @@ describe("validateProjectConfiguration", () => {
 			availableLocales,
 			[],
 		);
-		expect(errors).toEqual([
-			"Extension activation group 'default' requires a display name",
-		]);
+		expect(errorCodes(result)).toContain(
+			"project.extensionGroup.emptyDisplayName",
+		);
 	});
 
 	test("rejects a locale that is not available", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfigurationDetailed(
 			{ ...baseConfig, uiLocale: "fr" },
 			availableLocales,
 			[],
 		);
-		expect(errors).toEqual(["Locale 'fr' is not an available locale"]);
+		const localeDiagnostic = result.diagnostics.find(
+			(d) => d.code === "project.configuration.localeUnavailable",
+		);
+		expect(localeDiagnostic).toBeDefined();
+		expect(localeDiagnostic?.messageKey).toBe(
+			"project.configuration.localeUnavailable",
+		);
+		expect(localeDiagnostic?.messageParams).toEqual({ locale: "fr" });
 	});
 
 	test("validates project settings against the contribution schema", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfigurationDetailed(
 			{
 				...baseConfig,
 				projectSettings: {
@@ -120,16 +142,25 @@ describe("validateProjectConfiguration", () => {
 			availableLocales,
 			contributions,
 		);
-		expect(errors).toEqual([
-			"Project setting 'ext.a.theme' must be a string",
-			"Project setting 'ext.a.mode' must be one of: light, dark",
-			"Project setting 'ext.a.count' must be a finite number",
-			"Project setting 'ext.a.enabled' must be a boolean",
+		const keys = result.diagnostics.map((d) => d.messageKey).sort();
+		expect(keys).toEqual([
+			"project.configuration.settingType.boolean",
+			"project.configuration.settingType.enum",
+			"project.configuration.settingType.number",
+			"project.configuration.settingType.string",
 		]);
+		const enumDiagnostic = result.diagnostics.find(
+			(d) => d.messageKey === "project.configuration.settingType.enum",
+		);
+		expect(enumDiagnostic?.messageParams).toEqual({
+			namespace: "ext.a",
+			path: "mode",
+			options: "light, dark",
+		});
 	});
 
 	test("accepts project settings that satisfy the schema", () => {
-		const errors = validateProjectConfiguration(
+		const result = validateProjectConfigurationDetailed(
 			{
 				...baseConfig,
 				projectSettings: {
@@ -139,6 +170,6 @@ describe("validateProjectConfiguration", () => {
 			availableLocales,
 			contributions,
 		);
-		expect(errors).toEqual([]);
+		expect(result.diagnostics).toEqual([]);
 	});
 });

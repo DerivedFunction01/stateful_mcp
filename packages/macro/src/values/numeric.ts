@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { NumericBounds } from "../contracts/values";
 import { normalizeUnicodeDigits } from "./localization";
 import { escapeRegex, getCompiledRegex } from "./regex";
@@ -34,7 +35,8 @@ export interface NumericParseOptions {
 
 export interface NumericDiagnostic {
 	readonly code: string;
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 }
 
 export const EMPTY_DIAGNOSTICS: readonly any[] = Object.freeze([]);
@@ -97,7 +99,12 @@ export function parseNumericValue(
 	const rawText = input.trim();
 	if (!rawText) {
 		return {
-			diagnostics: [{ code: "empty_input", message: "Numeric text is empty" }],
+			diagnostics: [
+				{
+					code: "empty_input",
+					messageKey: "errors.numericEmpty",
+				},
+			],
 		};
 	}
 
@@ -118,7 +125,7 @@ export function parseNumericValue(
 				diagnostics: [
 					{
 						code: "negative_not_allowed",
-						message: "Negative numbers are not allowed",
+						messageKey: "errors.numericNegativeNotAllowed",
 					},
 				],
 			};
@@ -135,7 +142,7 @@ export function parseNumericValue(
 				diagnostics: [
 					{
 						code: "negative_not_allowed",
-						message: "Negative numbers are not allowed",
+						messageKey: "errors.numericNegativeNotAllowed",
 					},
 				],
 			};
@@ -154,7 +161,7 @@ export function parseNumericValue(
 					diagnostics: [
 						{
 							code: "fractions_not_allowed",
-							message: "Fractions are not allowed",
+							messageKey: "errors.numericFractionsNotAllowed",
 						},
 					],
 				};
@@ -167,7 +174,7 @@ export function parseNumericValue(
 						diagnostics: [
 							{
 								code: "mixed_fractions_not_allowed",
-								message: "Mixed fractions are not allowed",
+								messageKey: "errors.numericMixedFractionsNotAllowed",
 							},
 						],
 					};
@@ -213,7 +220,7 @@ export function parseNumericValue(
 				diagnostics: [
 					{
 						code: "mixed_fractions_not_allowed",
-						message: "Mixed fractions are not allowed",
+						messageKey: "errors.numericMixedFractionsNotAllowed",
 					},
 				],
 			};
@@ -256,7 +263,7 @@ export function parseNumericValue(
 				diagnostics: [
 					{
 						code: "fractions_not_allowed",
-						message: "Fractions are not allowed",
+						messageKey: "errors.numericFractionsNotAllowed",
 					},
 				],
 			};
@@ -270,7 +277,7 @@ export function parseNumericValue(
 					diagnostics: [
 						{
 							code: "division_by_zero",
-							message: "Fraction denominator cannot be zero",
+							messageKey: "errors.numericDivisionByZero",
 						},
 					],
 				};
@@ -332,7 +339,8 @@ export function parseNumericValue(
 			diagnostics: [
 				{
 					code: "invalid_number",
-					message: `Unable to parse '${rawText}' as a valid number`,
+					messageKey: "errors.numericInvalid",
+					messageParams: { rawText },
 				},
 			],
 		};
@@ -363,7 +371,12 @@ function validateNumericResult(
 				diagnostics: [
 					{
 						code: "bounds_exceeded",
-						message: `Value ${parsed.value} is outside permitted bounds [${bounds.min ?? "-∞"}, ${bounds.max ?? "+∞"}]`,
+						messageKey: "errors.numericBoundsExceeded",
+						messageParams: {
+							value: parsed.value,
+							min: bounds.min ?? "-∞",
+							max: bounds.max ?? "+∞",
+						},
 					},
 				],
 			};

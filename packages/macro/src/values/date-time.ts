@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import { type BaseValueGrammarConfig, parseNumericValue } from "./numeric";
 import { getCompiledRegex } from "./regex";
 import {
@@ -84,7 +85,8 @@ export interface DateTimeRegistryDiagnostic {
 		| "kind-mismatch"
 		| "field-mismatch"
 		| "ambiguous-order";
-	readonly message: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	readonly formatId?: string;
 }
 
@@ -166,7 +168,8 @@ export function validateDateTimeRegistry(
 		if (seen.has(definition.id) || key !== definition.id)
 			diagnostics.push({
 				code: "duplicate-id",
-				message: `Date/time format ID '${definition.id}' must be unique and match its map key.`,
+				messageKey: "errors.dateTimeDuplicateId",
+				messageParams: { id: definition.id },
 				formatId: definition.id,
 			});
 		seen.add(definition.id);
@@ -174,9 +177,11 @@ export function validateDateTimeRegistry(
 		if ((definition.fields ?? []).some((field) => !inferred.has(field)))
 			diagnostics.push({
 				code: "field-mismatch",
-				message: `Format '${definition.id}' declares fields not present in its tokens.`,
+				messageKey: "errors.dateTimeFieldMismatch",
+				messageParams: { id: definition.id },
 				formatId: definition.id,
 			});
+		seen.add(definition.id);
 	}
 	for (const kind of ["date", "time", "datetime"] as const) {
 		for (const id of registry.parse[kind] ?? []) {
@@ -184,13 +189,15 @@ export function validateDateTimeRegistry(
 			if (!definition)
 				diagnostics.push({
 					code: "missing-reference",
-					message: `Parser references unknown format '${id}'.`,
+					messageKey: "errors.dateTimeMissingReference",
+					messageParams: { id },
 					formatId: id,
 				});
 			else if (definition.kind !== kind)
 				diagnostics.push({
 					code: "kind-mismatch",
-					message: `Format '${id}' is ${definition.kind}, not ${kind}.`,
+					messageKey: "errors.dateTimeKindMismatch",
+					messageParams: { id, kind: definition.kind, expected: kind },
 					formatId: id,
 				});
 		}

@@ -65,11 +65,7 @@ export function InspectorSlotsTab({
 												{
 													line: line.lineNumber,
 													macroName: line.macroName,
-													message: line.diagnostics[0]!.message,
-													messageKey: line.diagnostics[0]!.messageKey,
-													messageParams: line.diagnostics[0]!.messageParams,
-													code: line.diagnostics[0]!.code,
-													severity: line.diagnostics[0]!.severity,
+													...line.diagnostics[0]!,
 												} as InspectorDiagnosticItem,
 												t,
 											)}

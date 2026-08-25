@@ -7,7 +7,10 @@ export function resolveMessage(
 	descriptor: MessageDescriptor | undefined,
 ): string {
 	if (!descriptor) return i18n.t("common.error");
-	const translated = i18n.t(descriptor.messageKey as never, descriptor.messageParams);
+	const translated = i18n.t(
+		descriptor.messageKey as never,
+		descriptor.messageParams,
+	);
 	if (translated === descriptor.messageKey) {
 		console.error(`Missing translation: ${descriptor.messageKey}`);
 		return i18n.t("common.error");

@@ -1,5 +1,5 @@
-import type { I18nKernel, TranslationParams } from "./i18n-kernel";
 import type { MessageDescriptor } from "@stateful-mcp/macro-protocol";
+import type { I18nKernel, TranslationParams } from "./i18n-kernel";
 import { EN_LOCALE, ES_LOCALE } from "./locales";
 
 export function translate(

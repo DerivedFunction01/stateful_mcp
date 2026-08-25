@@ -61,4 +61,10 @@ export const EN_TEMPLATES: Record<string, string> = {
 	"templates.save.descLabel": "Description",
 	"templates.save.descPlaceholder": "Brief explanation of this template...",
 	"templates.save.submit": "Save Template",
+	"templates.validation.unknownArgument":
+		"Template references unknown argument '{argumentId}'",
+	"templates.validation.duplicateOccurrence":
+		"Template repeats occurrence '{key}'",
+	"templates.validation.invalidForm":
+		"Template form '{formId}' must contain a slot",
 };

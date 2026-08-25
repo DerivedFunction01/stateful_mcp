@@ -266,7 +266,7 @@ describe("project migration journal", () => {
 		const journal = await readJournal(root);
 		expect(journal.status).toBe("failed");
 		expect(journal.resumable).toBe(true);
-		expect(journal.error).toContain("source changed during migration");
+		expect(journal.error).toBe("project.migration.error.conflict");
 		await project.close();
 	});
 

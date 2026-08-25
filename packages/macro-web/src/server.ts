@@ -174,10 +174,10 @@ function requestId(request: Request): string {
 }
 
 function errorResponse(id: string, error: unknown): Response {
-		const hostErrorValue =
-			error instanceof SessionError
-				? error.toHostError()
-				: hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
+	const hostErrorValue =
+		error instanceof SessionError
+			? error.toHostError()
+			: hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
 	const status =
 		hostErrorValue.code === "SESSION_NOT_FOUND" ||
 		hostErrorValue.code === "COMMAND_NOT_FOUND" ||
@@ -202,11 +202,7 @@ async function handleJson(
 	try {
 		const envelope = await jsonBody(request);
 		if (sessionId && envelope.sessionId !== sessionId)
-			throw new SessionError(
-				"SESSION_MISMATCH",
-				"session.mismatch",
-				false,
-			);
+			throw new SessionError("SESSION_MISMATCH", "session.mismatch", false);
 		const payload = await handler(envelope);
 		return Response.json(response(envelope.requestId || id, payload));
 	} catch (error) {
@@ -274,18 +270,18 @@ const server = Bun.serve<SocketData>({
 					name?: unknown;
 				};
 				if (typeof payload.parentPath !== "string" || !payload.parentPath) {
-				throw new SessionError(
-					"INVALID_REQUEST",
-					"request.parentPath.required",
-					false,
-				);
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"request.parentPath.required",
+						false,
+					);
 				}
 				if (typeof payload.name !== "string") {
-				throw new SessionError(
-					"INVALID_REQUEST",
-					"request.directoryName.required",
-					false,
-				);
+					throw new SessionError(
+						"INVALID_REQUEST",
+						"request.directoryName.required",
+						false,
+					);
 				}
 				const created = await sessions.createDirectory(
 					payload.parentPath,

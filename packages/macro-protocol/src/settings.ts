@@ -1,5 +1,5 @@
-import type { SidepanelPosition } from "./workspace";
 import type { MessageParam } from "./errors";
+import type { SidepanelPosition } from "./workspace";
 
 export type SettingsScope = "user" | "workspace" | "folder";
 

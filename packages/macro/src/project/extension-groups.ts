@@ -8,6 +8,7 @@
  * calculation all agree on one algorithm. The browser never re-implements it.
  */
 
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import {
 	PROJECT_EXTENSION_GROUP_SOURCES,
 	type ProjectExtensionActivationGroup,
@@ -51,12 +52,9 @@ export interface ProjectExtensionGroupDiagnostic {
 	readonly extensionId?: string;
 	readonly dependencyId?: string;
 	readonly path?: readonly string[];
-	readonly message: string;
-	/** Structured message key; preferred over `message` when present. */
-	readonly messageKey?: string;
-	readonly messageParams?: Readonly<
-		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
-	>;
+	/** Structured i18n key; the canonical message carrier for user-facing surfaces. */
+	readonly messageKey: string;
+	readonly messageParams: Readonly<Record<string, MessageParam>>;
 }
 
 export type ProjectExtensionAvailability =
@@ -176,18 +174,20 @@ export function uniqueProjectExtensionGroupId(
 function diagnostic(
 	code: ProjectExtensionGroupDiagnosticCode,
 	severity: ProjectExtensionGroupDiagnosticSeverity,
-	message: string,
+	messageKey: string,
 	extra: {
 		readonly groupId?: string;
 		readonly extensionId?: string;
 		readonly dependencyId?: string;
 		readonly path?: readonly string[];
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
 	} = {},
 ): ProjectExtensionGroupDiagnostic {
 	return {
 		code,
 		severity,
-		message,
+		messageKey,
+		messageParams: extra.messageParams ?? {},
 		...(extra.groupId === undefined ? {} : { groupId: extra.groupId }),
 		...(extra.extensionId === undefined
 			? {}
@@ -221,8 +221,11 @@ export function resolveProjectExtensionGroup(
 			diagnostic(
 				PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownGroup,
 				"error",
-				`Extension activation group '${input.groupId}' does not exist`,
-				{ groupId: input.groupId },
+				"project.extensionGroup.unknownGroup",
+				{
+					groupId: input.groupId,
+					messageParams: { groupId: input.groupId },
+				},
 			),
 		);
 
@@ -249,8 +252,12 @@ export function resolveProjectExtensionGroup(
 			diagnostic(
 				PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.duplicateMember,
 				"warning",
-				`Extension '${duplicateId}' is listed more than once`,
-				{ groupId: input.groupId, extensionId: duplicateId },
+				"project.extensionGroup.duplicateMember",
+				{
+					groupId: input.groupId,
+					extensionId: duplicateId,
+					messageParams: { extensionId: duplicateId },
+				},
 			),
 		);
 
@@ -266,8 +273,12 @@ export function resolveProjectExtensionGroup(
 			diagnostic(
 				PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownExtension,
 				"error",
-				`Extension '${id}' is not declared by the project`,
-				{ groupId: input.groupId, extensionId: id },
+				"project.extensionGroup.unknownExtension",
+				{
+					groupId: input.groupId,
+					extensionId: id,
+					messageParams: { extensionId: id },
+				},
 			),
 		);
 	}
@@ -289,8 +300,13 @@ export function resolveProjectExtensionGroup(
 					diagnostic(
 						PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.dependencyCycle,
 						"error",
-						`Extension dependency cycle: ${path.join(" -> ")}`,
-						{ groupId: input.groupId, extensionId: id, path },
+						"project.extensionGroup.dependencyCycle",
+						{
+							groupId: input.groupId,
+							extensionId: id,
+							path,
+							messageParams: { path: path.join(" -> ") },
+						},
 					),
 				);
 			}
@@ -305,8 +321,13 @@ export function resolveProjectExtensionGroup(
 					diagnostic(
 						PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.missingDependency,
 						"error",
-						`Extension '${id}' requires '${dependencyId}', which the project does not declare`,
-						{ groupId: input.groupId, extensionId: id, dependencyId },
+						"project.extensionGroup.missingDependency",
+						{
+							groupId: input.groupId,
+							extensionId: id,
+							dependencyId,
+							messageParams: { extensionId: id, dependencyId },
+						},
 					),
 				);
 				continue;
@@ -323,8 +344,12 @@ export function resolveProjectExtensionGroup(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unavailableExtension,
 					"error",
-					`Extension '${id}' is not available`,
-					{ groupId: input.groupId, extensionId: id },
+					"project.extensionGroup.unavailableExtension",
+					{
+						groupId: input.groupId,
+						extensionId: id,
+						messageParams: { extensionId: id },
+					},
 				),
 			);
 		}
@@ -334,8 +359,12 @@ export function resolveProjectExtensionGroup(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.incompatibleExtension,
 					"error",
-					`Extension '${id}' is incompatible with this project`,
-					{ groupId: input.groupId, extensionId: id },
+					"project.extensionGroup.incompatibleExtension",
+					{
+						groupId: input.groupId,
+						extensionId: id,
+						messageParams: { extensionId: id },
+					},
 				),
 			);
 		}
@@ -366,8 +395,8 @@ export function resolveProjectExtensionGroup(
 			diagnostic(
 				PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.emptyGroup,
 				"info",
-				`Extension activation group '${group.id}' has no members`,
-				{ groupId: group.id },
+				"project.extensionGroup.emptyGroup",
+				{ groupId: group.id, messageParams: { groupId: group.id } },
 			),
 		);
 
@@ -429,8 +458,8 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.groupIdMismatch,
 					"error",
-					`Extension activation group '${key}' is malformed`,
-					{ groupId: key },
+					"project.extensionGroup.groupMalformed",
+					{ groupId: key, messageParams: { groupId: key } },
 				),
 			);
 			continue;
@@ -440,8 +469,8 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.groupIdMismatch,
 					"error",
-					`Extension activation group key '${key}' does not match its id '${group.id}'`,
-					{ groupId: key },
+					"project.extensionGroup.groupIdMismatch",
+					{ groupId: key, messageParams: { groupId: key } },
 				),
 			);
 		if (!isValidProjectExtensionGroupId(group.id))
@@ -449,8 +478,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.invalidGroupId,
 					"error",
-					`Extension activation group id '${group.id}' is not a valid identifier`,
-					{ groupId: group.id },
+					"project.extensionGroup.invalidGroupId",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 		if (seenIds.has(group.id))
@@ -458,8 +490,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.duplicateGroupId,
 					"error",
-					`Extension activation group id '${group.id}' is declared more than once`,
-					{ groupId: group.id },
+					"project.extensionGroup.duplicateGroupId",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 		seenIds.add(group.id);
@@ -468,8 +503,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.emptyDisplayName,
 					"error",
-					`Extension activation group '${group.id}' requires a display name`,
-					{ groupId: group.id },
+					"project.extensionGroup.emptyDisplayName",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 		if (!PROJECT_EXTENSION_GROUP_SOURCES.includes(group.source))
@@ -477,8 +515,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.invalidSource,
 					"error",
-					`Extension activation group '${group.id}' has an unknown source`,
-					{ groupId: group.id },
+					"project.extensionGroup.invalidSource",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 		if (group.source === "project" && reserved.has(group.id))
@@ -486,8 +527,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.reservedGroupId,
 					"error",
-					`Extension activation group id '${group.id}' is reserved by a contributed group`,
-					{ groupId: group.id },
+					"project.extensionGroup.reservedGroupId",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 		if (!Array.isArray(group.extensionIds)) {
@@ -495,8 +539,11 @@ export function validateProjectExtensionGroups(
 				diagnostic(
 					PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.invalidMembership,
 					"error",
-					`Extension activation group '${group.id}' has an invalid membership list`,
-					{ groupId: group.id },
+					"project.extensionGroup.invalidMembership",
+					{
+						groupId: group.id,
+						messageParams: { groupId: group.id },
+					},
 				),
 			);
 			continue;
@@ -517,8 +564,11 @@ export function validateProjectExtensionGroups(
 			diagnostic(
 				PROJECT_EXTENSION_GROUP_DIAGNOSTIC_CODES.unknownActiveGroup,
 				"error",
-				`Active extension activation group '${input.activeGroupId}' does not exist`,
-				{ groupId: input.activeGroupId },
+				"project.extensionGroup.unknownActiveGroup",
+				{
+					groupId: input.activeGroupId,
+					messageParams: { groupId: input.activeGroupId },
+				},
 			),
 		);
 	return diagnostics;

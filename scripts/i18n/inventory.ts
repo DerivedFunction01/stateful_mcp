@@ -1,16 +1,16 @@
-import { readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
+import { readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
-	type ScanPackage,
-	SCAN_PACKAGES,
-	scanRoot,
-	ROOT,
+	EN_AGGREGATOR,
 	INVENTORY_FILE,
 	INVENTORY_VERSION,
-	EN_AGGREGATOR,
 	LOCALES_DIR,
+	ROOT,
+	SCAN_PACKAGES,
+	type ScanPackage,
+	scanRoot,
 } from "./config.js";
 
 export type SiteKind = "throw" | "error" | "surface";
@@ -106,13 +106,21 @@ export function proposeKey(raw: string, kind: SiteKind): string | null {
 		.filter(Boolean);
 	if (words.length === 0) return null;
 	const camel =
-		words[0] + words.slice(1).map((w) => w[0].toUpperCase() + w.slice(1)).join("");
+		words[0] +
+		words
+			.slice(1)
+			.map((w) => w[0].toUpperCase() + w.slice(1))
+			.join("");
 	const ns = kind === "throw" || kind === "error" ? "errors" : "messages";
 	const safe = /^[0-9]/.test(camel) ? `k${camel}` : camel;
 	return `${ns}.${safe}`;
 }
 
-function makeId(file: string, content: string, site: Omit<InventorySite, "id">): string {
+function makeId(
+	file: string,
+	content: string,
+	site: Omit<InventorySite, "id">,
+): string {
 	const basis = `${file}\u0000${site.line}\u0000${site.column}\u0000${site.raw}`;
 	return createHash("sha256").update(basis).digest("hex").slice(0, 12);
 }
@@ -143,7 +151,10 @@ function collectFiles(base: string): { abs: string; rel: string }[] {
 	return out;
 }
 
-function* candidates(pkg: ScanPackage, includeSurface: boolean): Generator<InventorySite> {
+function* candidates(
+	pkg: ScanPackage,
+	includeSurface: boolean,
+): Generator<InventorySite> {
 	const root = scanRoot(pkg);
 	let base: string;
 	try {
@@ -198,7 +209,8 @@ function* candidates(pkg: ScanPackage, includeSurface: boolean): Generator<Inven
 				if (!SURFACE_CALLS.has(call)) continue;
 				const literal = sm[2] ?? sm[3] ?? sm[4] ?? "";
 				if (!literal) continue;
-				const quote = sm[2] !== undefined ? '"' : sm[3] !== undefined ? "`" : "'";
+				const quote =
+					sm[2] !== undefined ? '"' : sm[3] !== undefined ? "`" : "'";
 				const start = sm.index + sm[0].lastIndexOf(quote);
 				const end = start + literal.length + 2;
 				const { line, column } = lineCol(content, start);
@@ -233,7 +245,10 @@ export function buildInventory(includeSurface: boolean): Inventory {
 		roots.push(`packages/${pkg}`);
 		for (const s of candidates(pkg, includeSurface)) sites.push(s);
 	}
-	sites.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column);
+	sites.sort(
+		(a, b) =>
+			a.file.localeCompare(b.file) || a.line - b.line || a.column - b.column,
+	);
 	return {
 		version: INVENTORY_VERSION,
 		tool: "scripts/i18n",
@@ -245,7 +260,9 @@ export function buildInventory(includeSurface: boolean): Inventory {
 }
 
 export function digestSites(sites: InventorySite[]): string {
-	const canonical = JSON.stringify(sites.map((s) => ({ ...s, start: undefined, end: undefined })));
+	const canonical = JSON.stringify(
+		sites.map((s) => ({ ...s, start: undefined, end: undefined })),
+	);
 	return createHash("sha256").update(canonical).digest("hex").slice(0, 16);
 }
 

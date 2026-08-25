@@ -75,11 +75,11 @@ export async function applySettingsBundleOperation(
 	if (operation.operation === "export") {
 		if (!host.supportedScopes(workspace).includes(operation.scope))
 			return {
-			status: "unsupported",
-			code: "SETTINGS_SCOPE_UNSUPPORTED",
-			messageKey: "settings.bundle.scopeUnsupported",
-			messageParams: { scope: operation.scope },
-		};
+				status: "unsupported",
+				code: "SETTINGS_SCOPE_UNSUPPORTED",
+				messageKey: "settings.bundle.scopeUnsupported",
+				messageParams: { scope: operation.scope },
+			};
 		const profiles = await settings.listProfiles();
 		if (!profiles.includes(operation.profileId))
 			return {
@@ -114,7 +114,7 @@ export async function applySettingsBundleOperation(
 				diagnostics: [
 					{
 						severity: "error",
-						message: host.message(workspace, "settings.bundle.versionInvalid"),
+						messageKey: "settings.bundle.versionInvalid",
 					},
 				],
 			};
@@ -174,7 +174,7 @@ export async function applySettingsBundleOperation(
 			diagnostics: [
 				{
 					severity: "error",
-					message: host.message(workspace, "settings.bundle.stageUnknown"),
+					messageKey: "settings.bundle.stageUnknown",
 				},
 			],
 		};

@@ -27,29 +27,29 @@
 
 import { existsSync } from "node:fs";
 import {
-	INVENTORY_FILE,
+	detectDuplicateKeys,
+	finalize as finalizeAlloc,
+	hasAllocations,
+	readAllocations,
+	refresh,
+	scaffold,
+	validate,
+	writeAllocations,
+} from "./i18n/allocation.js";
+import {
 	ALLOCATIONS_FILE,
 	EN_DIR,
 	ES_DIR,
+	INVENTORY_FILE,
 } from "./i18n/config.js";
-import {
-	buildInventory,
-	writeInventory,
-	readInventory,
-	enLocaleKeys,
-} from "./i18n/inventory.js";
 import { collectModuleKeys } from "./i18n/duplicates.js";
 import {
-	scaffold,
-	refresh,
-	writeAllocations,
-	readAllocations,
-	hasAllocations,
-	validate,
-	finalize as finalizeAlloc,
-	detectDuplicateKeys,
-} from "./i18n/allocation.js";
-import { runReplace, printReplace } from "./i18n/replace.js";
+	buildInventory,
+	enLocaleKeys,
+	readInventory,
+	writeInventory,
+} from "./i18n/inventory.js";
+import { printReplace, runReplace } from "./i18n/replace.js";
 
 function flag(name: string): boolean {
 	return process.argv.includes(`--${name}`);
@@ -81,7 +81,8 @@ function summarizeIssues(
 		byKind.delete(kind);
 		out.push(`    ${msgs.length} x ${label[kind] ?? kind}`);
 		for (const m of msgs.slice(0, sample)) out.push(`        - ${m}`);
-		if (msgs.length > sample) out.push(`        ... and ${msgs.length - sample} more`);
+		if (msgs.length > sample)
+			out.push(`        ... and ${msgs.length - sample} more`);
 	}
 	return out;
 }
@@ -101,7 +102,11 @@ async function cmdInventory(): Promise<void> {
 		acc[s.kind] = (acc[s.kind] ?? 0) + 1;
 		return acc;
 	}, {});
-	console.log(`  kinds: ${Object.entries(byKind).map(([k, v]) => `${k}=${v}`).join(", ")}`);
+	console.log(
+		`  kinds: ${Object.entries(byKind)
+			.map(([k, v]) => `${k}=${v}`)
+			.join(", ")}`,
+	);
 	console.log(`  digest: ${inv.digest}`);
 }
 
@@ -124,15 +129,23 @@ async function cmdCheck(): Promise<void> {
 
 		// 1. Duplicate EN modular keys.
 		if (dup.en.length > 0) {
-			const lines = dup.en
-				.flatMap((d) => [`    - ${d.key}`, ...d.locations.map((l) => `        ${l.file}:${l.line}`)]);
-			problems.push(`${dup.en.length} duplicate EN modular key(s):\n${lines.join("\n")}`);
+			const lines = dup.en.flatMap((d) => [
+				`    - ${d.key}`,
+				...d.locations.map((l) => `        ${l.file}:${l.line}`),
+			]);
+			problems.push(
+				`${dup.en.length} duplicate EN modular key(s):\n${lines.join("\n")}`,
+			);
 		}
 		// 2. Duplicate ES modular keys.
 		if (dup.es.length > 0) {
-			const lines = dup.es
-				.flatMap((d) => [`    - ${d.key}`, ...d.locations.map((l) => `        ${l.file}:${l.line}`)]);
-			problems.push(`${dup.es.length} duplicate ES modular key(s):\n${lines.join("\n")}`);
+			const lines = dup.es.flatMap((d) => [
+				`    - ${d.key}`,
+				...d.locations.map((l) => `        ${l.file}:${l.line}`),
+			]);
+			problems.push(
+				`${dup.es.length} duplicate ES modular key(s):\n${lines.join("\n")}`,
+			);
 		}
 
 		// 3. EN/ES module parity.
@@ -154,7 +167,9 @@ async function cmdCheck(): Promise<void> {
 	if (doManifest) {
 		if (hasAllocations()) {
 			if (!existsSync(INVENTORY_FILE)) {
-				problems.push("allocation manifest present but inventory missing; run `inventory` first");
+				problems.push(
+					"allocation manifest present but inventory missing; run `inventory` first",
+				);
 			} else {
 				const inv = readInventory();
 				const enKeysRt = await enLocaleKeys();
@@ -167,7 +182,9 @@ async function cmdCheck(): Promise<void> {
 							"\n    remediation: bun scripts/i18n.ts inventory && bun scripts/i18n.ts finalize --refresh",
 					);
 				} else {
-					console.log(`allocation manifest: valid (${Object.keys(manifest.sites).length} site(s))`);
+					console.log(
+						`allocation manifest: valid (${Object.keys(manifest.sites).length} site(s))`,
+					);
 				}
 				for (const w of result.warnings) console.log(`  warning: ${w.message}`);
 			}
@@ -177,7 +194,11 @@ async function cmdCheck(): Promise<void> {
 	}
 
 	if (problems.length > 0) {
-		const scope = localesOnly ? " (locales)" : manifestOnly ? " (manifest)" : "";
+		const scope = localesOnly
+			? " (locales)"
+			: manifestOnly
+				? " (manifest)"
+				: "";
 		console.error(`i18n allocation check FAILED${scope}:\n`);
 		console.error(problems.join("\n\n"));
 		process.exit(1);

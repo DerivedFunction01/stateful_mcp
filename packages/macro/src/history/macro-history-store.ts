@@ -201,7 +201,7 @@ const defaultMacroExecutor: import("./contracts").MacroExecutor = {
 
 function toDraftDiagnostic(diagnostic: {
 	code: string;
-	message: string;
+	message?: string;
 	messageKey?: string;
 	messageParams?: Readonly<
 		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
@@ -213,7 +213,6 @@ function toDraftDiagnostic(diagnostic: {
 }): MacroDraftDiagnostic {
 	return {
 		code: diagnostic.code,
-		message: diagnostic.message,
 		...(diagnostic.messageKey !== undefined
 			? { messageKey: diagnostic.messageKey }
 			: {}),

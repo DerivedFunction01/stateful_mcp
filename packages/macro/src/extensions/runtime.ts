@@ -47,6 +47,7 @@ import type {
 	MacroExtension,
 } from "./contracts";
 import {
+	defaultExtensionMessage,
 	type ExtensionDiagnostic,
 	ExtensionError,
 	extensionDiagnostic,

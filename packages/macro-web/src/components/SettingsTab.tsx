@@ -122,7 +122,10 @@ export function SettingsTab({
 			const result = await client.applySettingsUi(operation);
 			if (result.snapshot) setUi(result.snapshot);
 			if (result.status === "unsupported") {
-				setNotice({ severity: "warning", message: resolveMessage(i18n, result) });
+				setNotice({
+					severity: "warning",
+					message: resolveMessage(i18n, result),
+				});
 			}
 		} catch (error) {
 			setNotice({ severity: "error", message: t("common.error") });
@@ -144,7 +147,7 @@ export function SettingsTab({
 				setNotice({
 					severity: "error",
 					message: result.diagnostics
-						.map((item: SettingsDiagnosticDto) => item.message)
+						.map((item) => resolveMessage(i18n, item))
 						.join("; "),
 				});
 			} else if (result.status === "conflict") {
@@ -153,12 +156,15 @@ export function SettingsTab({
 					message: t("settings.conflict"),
 				});
 			} else if (result.status === "unsupported") {
-				setNotice({ severity: "warning", message: resolveMessage(i18n, result) });
+				setNotice({
+					severity: "warning",
+					message: resolveMessage(i18n, result),
+				});
 			} else if (result.status === "preview") {
 				setNotice({
 					severity: result.preview.status === "invalid" ? "error" : "info",
 					message: result.preview.diagnostics
-						.map((diagnostic) => diagnostic.message)
+						.map((diagnostic) => resolveMessage(i18n, diagnostic))
 						.join("; "),
 				});
 			}
@@ -336,9 +342,9 @@ export function SettingsTab({
 						{pendingImport.diagnostics.length > 0 ? (
 							<ul>
 								{pendingImport.diagnostics.map((diagnostic, index) => (
-									<li key={`${diagnostic.message}-${index}`}>
+									<li key={`${diagnostic.messageKey}-${index}`}>
 										{diagnostic.path ? `${diagnostic.path.join(".")}: ` : ""}
-										{diagnostic.message}
+										{resolveMessage(i18n, diagnostic)}
 									</li>
 								))}
 							</ul>
@@ -663,12 +669,18 @@ function SchemaField({
 	readonly disabled: boolean;
 	readonly onChange: (value: unknown) => void;
 	readonly onReset?: () => void;
-	readonly t: (key: WebI18nKey) => string;
+	readonly t: (key: WebI18nKey, params?: Record<string, unknown>) => string;
 }) {
 	const value = item.value;
-	const error = item.diagnostics.find(
+	const errorDiagnostic = item.diagnostics.find(
 		(diagnostic) => diagnostic.severity === "error",
-	)?.message;
+	);
+	const error = errorDiagnostic
+		? t(
+				errorDiagnostic.messageKey as WebI18nKey,
+				errorDiagnostic.messageParams as Record<string, unknown>,
+			)
+		: undefined;
 	const label = item.schema.title;
 	const hint = [item.schema.description, item.origin.description]
 		.filter(Boolean)
@@ -1022,7 +1034,7 @@ function SettingsPreviewPanel({
 	readonly preview: SettingsPreviewDto;
 	readonly sampleInput: string;
 	readonly onSampleInputChange: (value: string) => void;
-	readonly t: (key: WebI18nKey) => string;
+	readonly t: (key: WebI18nKey, params?: Record<string, unknown>) => string;
 }) {
 	return (
 		<Card title={t("settings.preview")}>
@@ -1084,8 +1096,14 @@ function SettingsPreviewPanel({
 
 function previewDiagnosticMessage(
 	diagnostic: SettingsDiagnosticDto,
-	t: (key: WebI18nKey) => string,
+	t: (key: WebI18nKey, params?: Record<string, unknown>) => string,
 ): string {
+	if (diagnostic.messageKey) {
+		return t(
+			diagnostic.messageKey as WebI18nKey,
+			diagnostic.messageParams as Record<string, unknown>,
+		);
+	}
 	if (diagnostic.code === "UNKNOWN_TEMPLATE_TOKEN")
 		return t("settings.preview.unknownTokens");
 	if (diagnostic.code === "SETTINGS_PREVIEW_STALE")
@@ -1110,10 +1128,7 @@ function hasModified(snapshot: SettingsUiSnapshotDto): boolean {
 
 function bundleResultMessage(
 	result: SettingsBundleResult,
-	t: (
-		key: WebI18nKey,
-		params?: Readonly<Record<string, string | number>>,
-	) => string,
+	t: (key: WebI18nKey, params?: Record<string, unknown>) => string,
 ): string {
 	if (result.status === "unsupported") {
 		if (result.code === "SETTINGS_SCOPE_UNSUPPORTED")
@@ -1127,7 +1142,12 @@ function bundleResultMessage(
 	if (result.status === "blocked")
 		return t("settings.bundle.blocked", {
 			message: result.diagnostics
-				.map((diagnostic) => diagnostic.message)
+				.map((diagnostic) =>
+					t(
+						diagnostic.messageKey as WebI18nKey,
+						diagnostic.messageParams as Record<string, unknown>,
+					),
+				)
 				.join("; "),
 		});
 	return t("settings.imported");

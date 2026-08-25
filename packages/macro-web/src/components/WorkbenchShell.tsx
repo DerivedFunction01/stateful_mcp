@@ -53,7 +53,9 @@ export interface WorkbenchShellProps {
 	readonly editorError?: {
 		readonly code?: string;
 		readonly messageKey?: string;
-		readonly messageParams?: Readonly<Record<string, import("@stateful-mcp/macro-protocol").MessageParam>>;
+		readonly messageParams?: Readonly<
+			Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
+		>;
 	};
 	readonly onEditorOperation: (
 		operation: EditorOperation,

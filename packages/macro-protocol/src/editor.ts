@@ -490,7 +490,9 @@ export interface EditorOperationResultBase {
 	readonly actualWorkspaceRevision?: number;
 	readonly code?: string;
 	readonly messageKey?: string;
-	readonly messageParams?: Readonly<Record<string, import("./errors").MessageParam>>;
+	readonly messageParams?: Readonly<
+		Record<string, import("./errors").MessageParam>
+	>;
 }
 
 export type EditorOperationResult =

@@ -1,4 +1,7 @@
-import type { ProjectMigrationParticipant } from "@stateful-mcp/macro";
+import type {
+	ProjectMigrationParticipant,
+	ProjectMigrationParticipantPlan,
+} from "@stateful-mcp/macro";
 import {
 	isMigrationJournalStale,
 	isResumableMigrationStatus,
@@ -50,6 +53,21 @@ export type ProjectBackendDescriptor = ProjectConfigurationDto["backend"];
 export interface ProjectMigrationParticipantEntry {
 	readonly extensionId: string;
 	readonly participant: ProjectMigrationParticipant;
+}
+
+/**
+ * Maps a migration participant's plan status to an explicit, host-authored
+ * translation key. The participant's own `message` is extension-authored prose
+ * and must never leak into a translation key, so it is not consulted here; the
+ * keys carry only safe identifier params (`participantId`, `extensionId`).
+ */
+export function participantMessageKey(
+	status: ProjectMigrationParticipantPlan["status"] | undefined,
+): string | undefined {
+	if (status === "missing") return "project.migration.participant.missing";
+	if (status === "incompatible")
+		return "project.migration.participant.incompatible";
+	return undefined;
 }
 
 /**
@@ -163,13 +181,25 @@ export async function buildBackendMigrationPlan(
 			targetHistory: undefined,
 			targetScratchpads: undefined,
 		});
+		// `result.message` is extension-authored prose and must never be used as
+		// a translation key, so it is dropped. A non-ready participant instead
+		// gets an explicit, host-authored key with only safe identifier params.
+		const messageKey = participantMessageKey(result?.status);
 		participants.push({
 			id: participant.id,
 			extensionId,
 			dependsOn: participant.dependsOn,
 			status: result?.status ?? "ready",
 			resourceIds: result?.resourceIds ?? participant.resourceIds ?? [],
-			...(result?.message ? { messageKey: result.message } : {}),
+			...(messageKey
+				? {
+						messageKey,
+						messageParams: {
+							participantId: participant.id,
+							extensionId,
+						},
+					}
+				: {}),
 		});
 	}
 	return {

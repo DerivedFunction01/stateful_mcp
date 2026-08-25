@@ -23,8 +23,6 @@ export const hostError = (
 	...(retryable === undefined ? {} : { retryable }),
 });
 
-export function safeHostError(
-	error: unknown,
-): HostError {
+export function safeHostError(error: unknown): HostError {
 	return hostError("HOST_REQUEST_FAILED", { messageKey: "host.requestFailed" });
 }

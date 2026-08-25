@@ -1,3 +1,4 @@
+import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { CurrencyValue, ValueEvidence } from "../contracts/values";
 import {
 	EMPTY_DIAGNOSTICS,
@@ -70,9 +71,15 @@ export interface CurrencyGrammarResult {
 	rawText: string;
 }
 
+export interface CurrencyDiagnostic {
+	readonly code: string;
+	readonly messageKey?: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+}
+
 export interface CurrencyResolution {
 	value?: CurrencyGrammarResult;
-	readonly diagnostics: readonly { code: string; message: string }[];
+	readonly diagnostics: readonly CurrencyDiagnostic[];
 }
 
 export const STANDARD_CURRENCY_CATALOG: readonly CurrencyDefinition[] = [
@@ -168,7 +175,10 @@ export function parseCurrency(
 	if (!rawText)
 		return {
 			diagnostics: [
-				{ code: "EMPTY_CURRENCY", message: "Currency text is empty" },
+				{
+					code: "EMPTY_CURRENCY",
+					messageKey: "errors.currencyEmpty",
+				},
 			],
 		};
 
@@ -187,7 +197,8 @@ export function parseCurrency(
 				diagnostics: [
 					{
 						code: "CURRENCY_NOT_ALLOWED",
-						message: `Currency '${currency}' is not allowed`,
+						messageKey: "errors.currencyNotAllowed",
+						messageParams: { currency },
 					},
 				],
 			};
@@ -197,7 +208,7 @@ export function parseCurrency(
 				diagnostics: [
 					{
 						code: "NEGATIVE_NOT_ALLOWED",
-						message: "Negative currency amounts are not allowed",
+						messageKey: "errors.currencyNegativeNotAllowed",
 					},
 				],
 			};
@@ -240,7 +251,8 @@ export function parseCurrency(
 			diagnostics: [
 				{
 					code: "INVALID_CURRENCY",
-					message: `Unable to parse currency '${rawText}'`,
+					messageKey: "errors.currencyParseFailed",
+					messageParams: { rawText },
 				},
 			],
 		};
@@ -258,7 +270,8 @@ export function parseCurrency(
 			diagnostics: [
 				{
 					code: "CURRENCY_NOT_ALLOWED",
-					message: `Currency '${currency}' is not allowed`,
+					messageKey: "errors.currencyNotAllowed",
+					messageParams: { currency },
 				},
 			],
 		};
@@ -269,7 +282,7 @@ export function parseCurrency(
 			diagnostics: [
 				{
 					code: "NEGATIVE_NOT_ALLOWED",
-					message: "Negative currency amounts are not allowed",
+					messageKey: "errors.currencyNegativeNotAllowed",
 				},
 			],
 		};

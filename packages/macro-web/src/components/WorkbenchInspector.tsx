@@ -52,13 +52,16 @@ export function WorkbenchInspector({
 			: lines[0];
 
 	// Aggregate diagnostics from all lines
-	const allDiagnostics: readonly InspectorDiagnosticItem[] = useMemo(() => {
+	const allDiagnostics = useMemo(() => {
 		return lines.flatMap((line) =>
-			line.diagnostics.map((diag) => ({
-				line: line.lineNumber,
-				macroName: line.macroName,
-				...diag,
-			})),
+			line.diagnostics.map(
+				(diag) =>
+					({
+						line: line.lineNumber,
+						macroName: line.macroName,
+						...diag,
+					}) as InspectorDiagnosticItem,
+			),
 		);
 	}, [lines]);
 

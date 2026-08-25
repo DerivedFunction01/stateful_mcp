@@ -8,7 +8,7 @@ import type {
 import { Settings2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { HostClient } from "../lib/host-client";
-import { useI18n } from "../lib/macro-i18n-provider";
+import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import { resolveMessage, resolveThrownError } from "../lib/message-resolver";
 import { Badge, Button, Diagnostic, TextInput } from "./ui/primitives";
 
@@ -70,9 +70,7 @@ export function ProjectSettingsModal({
 				setTargetBackend(value.backend.kind);
 				if (client.getMigrationJournal) void refreshJournal();
 			})
-			.catch((reason: unknown) =>
-				setError(resolveThrownError(i18n, reason)),
-			);
+			.catch((reason: unknown) => setError(resolveThrownError(i18n, reason)));
 	}, [client, isOpen, t]);
 
 	// Keep every hook above the closed-modal early return. The modal remains
@@ -940,7 +938,9 @@ function MigrationJournalSection({
 					: t("project.settings.journalRecovery.targetDiscarded");
 			case "targetRetained":
 				return t("project.settings.journalRecovery.targetRetained", {
-					reason: result.retainedReason ?? "",
+					reason: result.retainedReason
+						? t(result.retainedReason as WebI18nKey)
+						: "",
 				});
 			case "activeMigrationRetained":
 				return t("project.settings.journalRecovery.activeMigrationRetained");
@@ -1006,7 +1006,7 @@ function MigrationJournalSection({
 							<>
 								<dt>{t("project.settings.migrationJournalError")}</dt>
 								<dd className="project-settings-journal-error">
-									{record.error}
+									{t(record.error as WebI18nKey)}
 								</dd>
 							</>
 						)}
