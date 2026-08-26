@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { ProjectResourceRegistry } from "../src/project/resource-registry";
+import { ProjectResourceRegistry } from "../../src/project/resource-registry";
 
 describe("ProjectResourceRegistry", () => {
 	it("registers ownership and validates schema versions", () => {

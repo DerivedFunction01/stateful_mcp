@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { NumberWordConfig } from "../src/contracts/extension-config";
-import { traverseLexicalTokens } from "../src/parser/macro-scanner";
+import type { NumberWordConfig } from "../../src/contracts/extension-config";
+import { traverseLexicalTokens } from "../../src/parser/macro-scanner";
 import {
 	normalizeUnicodeDigits,
 	UniversalNumberParser,
 	UniversalWordSegmenter,
-} from "../src/values/localization";
+} from "../../src/values/localization";
 
 describe("Declarative Universal Localization & Future-Proof Unicode Engine", () => {
 	describe("1. Universal Unicode Decimal Digit Normalization", () => {

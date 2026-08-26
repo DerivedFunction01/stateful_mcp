@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createAssertionMacro } from "../src/composition/assertion";
-import type { MacroInput } from "../src/contracts/input";
+import { createAssertionMacro } from "../../src/composition/assertion";
+import type { MacroInput } from "../../src/contracts/input";
 
 describe("Adverse & Multi-lingual Assertion Tests (Zero Hardcoded Heuristics)", () => {
 	test("Adverse Substring: concept or word containing 'rule', 'not', 'true' does NOT falsely flip polarity", async () => {

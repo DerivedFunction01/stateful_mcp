@@ -4,13 +4,13 @@ import {
 	compileDomainConfig,
 	createBuiltinTerminals,
 	parseConfiguredValue,
-} from "../src";
-import type { FrequencyGrammarConfig } from "../src/values/frequency";
-import type { CompoundRateConfig } from "../src/values/rates";
+} from "../../src";
+import type { FrequencyGrammarConfig } from "../../src/values/frequency";
+import type { CompoundRateConfig } from "../../src/values/rates";
 import {
 	createFrequencyRecipeSet,
 	createRateRecipeSet,
-} from "./support/builtin-recipes";
+} from "../support/builtin-recipes";
 
 describe("opt-in built-in recipe factories", () => {
 	test("parses a configured frequency through bounded slots", () => {

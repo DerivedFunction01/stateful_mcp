@@ -7,7 +7,7 @@ import {
 	type ProjectExtensionGroupDiagnosticCode,
 	resolveProjectExtensionGroup,
 	validateProjectExtensionGroups,
-} from "../src";
+} from "../../src";
 
 const EXT = (
 	id: string,

@@ -5,19 +5,19 @@ import {
 	createBuiltinTerminals,
 	parseConfiguredValue,
 	parseConfiguredValueAsync,
-} from "../src";
-import { createCompoundQuantityOutputBuilder } from "../src/values/compound";
-import { createFundamentalFromAuthoredFormat } from "../src/values/fundamentals";
+} from "../../src";
+import { createCompoundQuantityOutputBuilder } from "../../src/values/compound";
+import { createFundamentalFromAuthoredFormat } from "../../src/values/fundamentals";
 import {
 	compileAuthoredQuantityTemplates,
 	createQuantityOutputBuilders,
 	createSingleQuantity,
-} from "../src/values/quantity";
+} from "../../src/values/quantity";
 import {
 	compileAuthoredTemplate,
 	parseAuthoredTemplate,
 	parseAuthoredTemplateAsync,
-} from "../src/values/template-compiler";
+} from "../../src/values/template-compiler";
 
 describe("user-authored value graph", () => {
 	test("compiles and parses the exact authored ordering", () => {

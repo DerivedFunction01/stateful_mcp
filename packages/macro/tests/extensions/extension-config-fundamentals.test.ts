@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { compileDomainConfig } from "../src/extensions/config";
+import { compileDomainConfig } from "../../src/extensions/config";
 
 describe("compiled extension fundamentals", () => {
 	test("compiles profile fundamentals, aliases, and recipes together", () => {

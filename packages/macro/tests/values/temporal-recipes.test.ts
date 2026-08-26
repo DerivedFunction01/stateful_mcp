@@ -10,9 +10,9 @@ import {
 	isValidTimeZone,
 	parseConfiguredValue,
 	resolveTimeZone,
-} from "../src";
-import type { DateTimeFormatRegistry } from "../src/values/date-time";
-import type { FrequencyGrammarConfig } from "../src/values/frequency";
+} from "../../src";
+import type { DateTimeFormatRegistry } from "../../src/values/date-time";
+import type { FrequencyGrammarConfig } from "../../src/values/frequency";
 
 describe("temporal authored recipe factories", () => {
 	test("compileDomainConfig registers authored frequency and date recipes", () => {

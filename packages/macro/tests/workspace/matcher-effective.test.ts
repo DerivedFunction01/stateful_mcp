@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { matchEffectiveBindings } from "../../../src/workspace/keymaps/matcher";
+import { matchEffectiveBindings } from "../../src/workspace/keymaps/matcher";
 
 describe("matchEffectiveBindings", () => {
 	test("matches a canonical chord and respects mode", () => {

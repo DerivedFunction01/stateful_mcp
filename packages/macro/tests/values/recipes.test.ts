@@ -5,7 +5,7 @@ import {
 	parseValueRecipes,
 	type TerminalParser,
 	type ValueRecipe,
-} from "../src";
+} from "../../src";
 
 const groups: readonly FundamentalGroup[] = [
 	{

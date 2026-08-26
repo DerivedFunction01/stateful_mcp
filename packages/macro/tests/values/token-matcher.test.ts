@@ -4,7 +4,7 @@ import {
 	extractPrefixAlias,
 	flattenAndSortAliases,
 	splitByDelimiters,
-} from "../src/values/token-matcher";
+} from "../../src/values/token-matcher";
 
 describe("Universal Token Matcher & Memoization Engine (token-matcher.ts)", () => {
 	test("memoizes flattened and sorted aliases by object reference equality", () => {

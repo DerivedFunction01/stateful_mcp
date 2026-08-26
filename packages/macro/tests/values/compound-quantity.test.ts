@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import {
 	decomposeScalarToChain,
 	parseMultiUnitChain,
-} from "../src/values/compound";
-import { createCommonConversionRegistry } from "../src/values/conversion";
+} from "../../src/values/compound";
+import { createCommonConversionRegistry } from "../../src/values/conversion";
 
 describe("Generic Multi-Unit Chained Measurements & Modulus Decomposition", () => {
 	const registry = createCommonConversionRegistry();

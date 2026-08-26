@@ -4,7 +4,7 @@ import {
 	parseTemplateString,
 	parseWithTemplate,
 	type TemplateTokenSpec,
-} from "../src/values/template-compiler";
+} from "../../src/values/template-compiler";
 
 describe("Universal Generic Format Template Compiler & Parser (template-compiler.ts)", () => {
 	describe("1. Literal Affixes & Separators Extraction", () => {

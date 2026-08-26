@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
-import type { CompiledArgumentPolicy } from "../src/contracts/extension-config";
-import { compileDomainConfig } from "../src/extensions/config";
+import type { CompiledArgumentPolicy } from "../../src/contracts/extension-config";
+import { compileDomainConfig } from "../../src/extensions/config";
 import {
 	parseConfiguredArgument,
 	parseConfiguredArgumentAsync,
 	parseConfiguredValue,
-} from "../src/values/engine";
-import { createAsyncBuiltinTerminals } from "../src/values/terminals";
+} from "../../src/values/engine";
+import { createAsyncBuiltinTerminals } from "../../src/values/terminals";
 
 describe("configured value engine", () => {
 	test("uses only enabled recipes and terminal parsers", () => {

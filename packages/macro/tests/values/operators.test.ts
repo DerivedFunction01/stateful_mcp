@@ -5,7 +5,7 @@ import {
 	OPERATOR_KINDS,
 	type OperatorConfig,
 	resolveOperator,
-} from "../src/values/operators";
+} from "../../src/values/operators";
 
 // Test dictionaries used strictly for unit testing
 const TEST_OPERATOR_CONFIG: OperatorConfig = {

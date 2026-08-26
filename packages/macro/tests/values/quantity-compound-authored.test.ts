@@ -3,13 +3,13 @@ import {
 	compileAuthoredValueGraph,
 	createBuiltinTerminals,
 	parseConfiguredValue,
-} from "../src";
-import { createCompoundQuantityOutputBuilder } from "../src/values/compound";
-import { createCommonConversionRegistry } from "../src/values/conversion";
+} from "../../src";
+import { createCompoundQuantityOutputBuilder } from "../../src/values/compound";
+import { createCommonConversionRegistry } from "../../src/values/conversion";
 import {
 	compileAuthoredQuantityTemplates,
 	createQuantityOutputBuilders,
-} from "../src/values/quantity";
+} from "../../src/values/quantity";
 
 describe("authored quantity and compound values", () => {
 	test("keeps an explicitly authored unordered single-quantity structure", () => {
@@ -126,7 +126,7 @@ describe("authored quantity and compound values", () => {
 			fundamentals: authored.fundamentals,
 			recipes: authored.recipes,
 		});
-		const parsed = await import("../src").then(
+		const parsed = await import("../../src").then(
 			({ parseConfiguredValueAsync, createAsyncBuiltinTerminals }) =>
 				parseConfiguredValueAsync(
 					"5 boxes of gloves",

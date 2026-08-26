@@ -6,7 +6,7 @@ import {
 	formatNumericValue,
 	selectDateTimeFormats,
 	validateDateTimeRegistry,
-} from "../src";
+} from "../../src";
 
 describe("macro display formatters", () => {
 	test("formats numbers with configured grouping, precision, and negative style", () => {

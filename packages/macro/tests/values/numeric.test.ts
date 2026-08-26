@@ -2,8 +2,11 @@ import { describe, expect, test } from "bun:test";
 import {
 	normalizeUnicodeDigits,
 	parseOrdinalValue,
-} from "../src/values/localization";
-import { formatNumericValue, parseNumericValue } from "../src/values/numeric";
+} from "../../src/values/localization";
+import {
+	formatNumericValue,
+	parseNumericValue,
+} from "../../src/values/numeric";
 
 describe("Universal Numeric Engine (numeric.ts)", () => {
 	describe("explicit numeric capabilities", () => {

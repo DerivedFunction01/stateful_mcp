@@ -15,7 +15,7 @@ import {
 	resolveTimeZone,
 	resolveTwoDigitYear,
 	splitFormatList,
-} from "../src";
+} from "../../src";
 
 describe("dynamic timezone and date-time utilities", () => {
 	test("generateTimeZoneCodeMap discovers standard timezone short codes dynamically", () => {

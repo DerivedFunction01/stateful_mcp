@@ -3,9 +3,9 @@ import {
 	compileFundamentalGroups,
 	extractFundamental,
 	type FundamentalGroup,
-} from "../src/values/fundamentals";
-import { resolveOperator } from "../src/values/operators";
-import { resolveStatisticalQualifier } from "../src/values/statistics";
+} from "../../src/values/fundamentals";
+import { resolveOperator } from "../../src/values/operators";
+import { resolveStatisticalQualifier } from "../../src/values/statistics";
 
 describe("configured extraction fundamentals", () => {
 	const pairedGroups: readonly FundamentalGroup[] = [

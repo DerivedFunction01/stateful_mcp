@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { createAssertionMacro } from "../src/composition/assertion";
-import type { MacroInput } from "../src/contracts/input";
+import { createAssertionMacro } from "../../src/composition/assertion";
+import type { MacroInput } from "../../src/contracts/input";
 
 describe("Universal Composite Relational Assertion Engine (createAssertionMacro)", () => {
 	test("Clinical Domain: parses composite assessment with supporting findings, refuting rule-outs, and triggers", async () => {

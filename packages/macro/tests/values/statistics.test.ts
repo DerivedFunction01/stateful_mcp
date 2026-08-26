@@ -7,7 +7,7 @@ import {
 	resolveStatisticalQualifier,
 	STATISTICAL_QUALIFIER_TYPES,
 	type StatisticalConfig,
-} from "../src/values/statistics";
+} from "../../src/values/statistics";
 
 const TEST_STATS_CONFIG: StatisticalConfig = {
 	qualifierAliases: {

@@ -3,15 +3,15 @@ import {
 	compileDomainConfig,
 	createBuiltinTerminals,
 	parseConfiguredValue,
-} from "../src";
+} from "../../src";
 import {
 	compileAuthoredCurrencyTemplates,
 	createCurrencyOutputBuilders,
-} from "../src/values/currency";
+} from "../../src/values/currency";
 import {
 	compileAuthoredRateTemplates,
 	createRateOutputBuilders,
-} from "../src/values/rates";
+} from "../../src/values/rates";
 
 describe("authored currency and rate values", () => {
 	test("compileDomainConfig registers authored currency and rate recipes", () => {

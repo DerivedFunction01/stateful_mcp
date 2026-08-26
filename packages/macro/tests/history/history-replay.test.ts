@@ -6,8 +6,8 @@ import {
 	MacroListenerRegistry,
 	MacroRendererRegistry,
 	MacroReplayService,
-} from "../src/index";
-import { createListOutputRenderer } from "./support/sample-renderers";
+} from "../../src/index";
+import { createListOutputRenderer } from "../support/sample-renderers";
 
 const attempt = (id: string, sequenceValue: string): MacroExecutionAttempt => ({
 	attemptId: id,
