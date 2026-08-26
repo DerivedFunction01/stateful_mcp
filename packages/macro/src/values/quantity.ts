@@ -2,6 +2,11 @@ import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { QuantityDimension, UnitId } from "./conversion/contracts";
 import type { QuantityConversionRegistry } from "./conversion/conversion-registry";
 import {
+	compileFundamentalGroups,
+	extractFundamental,
+	type FundamentalGroup,
+} from "./fundamentals";
+import {
 	type BaseValueGrammarConfig,
 	buildNumericPatternString,
 	EMPTY_DIAGNOSTICS,
@@ -116,6 +121,8 @@ export interface QuantityGrammarConfig
 	/** Directional descending range delimiters (e.g. ["down to", "herunter auf", "descendiendo a"]) */
 	readonly descendingDelimiters?: readonly string[];
 	readonly locales?: string | readonly string[];
+	/** Explicit extraction fundamentals used by this quantity consumer. */
+	readonly fundamentalGroups?: readonly FundamentalGroup[];
 }
 
 export interface QuantityConsumerPolicy {
@@ -254,11 +261,70 @@ export function parseQuantity(
 	}
 
 	// 3. Check for Range / Chained Delimiters
+	if (config.fundamentalGroups) {
+		const compiled = compileFundamentalGroups(config.fundamentalGroups);
+		const rangeVariants = compiled.variants.filter(
+			(variant) => variant.groupId === "range",
+		);
+		for (const variant of rangeVariants) {
+			const extraction = extractFundamental(text, variant);
+			if (!extraction || variant.slots.length !== 2) continue;
+			if (policy.allowRange === false) {
+				return {
+					diagnostics: [
+						{
+							code: "range_not_allowed",
+							messageKey: "errors.quantityRangeNotAllowed",
+						},
+					],
+				};
+			}
+			const start = parseSingleQuantityPart(
+				extraction.slots[variant.slots[0]!.id]!,
+				config,
+			);
+			const end = parseSingleQuantityPart(
+				extraction.slots[variant.slots[1]!.id]!,
+				config,
+				start?.unit,
+			);
+			if (!start || !end) continue;
+			const direction: RangeDirection =
+				start.magnitude === end.magnitude
+					? "equal"
+					: start.magnitude < end.magnitude
+						? "ascending"
+						: "descending";
+			if (
+				direction === "descending" &&
+				policy.allowDirectionalRange === false
+			) {
+				return {
+					diagnostics: [
+						{
+							code: "descending_range_not_allowed",
+							messageKey: "errors.quantityDescendingRangeNotAllowed",
+						},
+					],
+				};
+			}
+			return {
+				value: {
+					primaryQuantity: start,
+					range: { start, end, direction, rawText },
+					...(operatorMatch ? { operator: operatorMatch } : {}),
+					...(statisticalQualifier ? { statisticalQualifier } : {}),
+					rawText,
+				},
+				diagnostics: EMPTY_DIAGNOSTICS,
+			};
+		}
+	}
 	const rangeDelimiters = config.rangeDelimiters ?? [];
 	const descendingDelimiters = config.descendingDelimiters ?? [];
 	const allDelimiters = [...rangeDelimiters, ...descendingDelimiters];
 
-	if (allDelimiters.length > 0) {
+	if (!config.fundamentalGroups && allDelimiters.length > 0) {
 		const splitResult = splitQuantityRange(text, allDelimiters);
 		if (splitResult && splitResult.parts.length >= 2) {
 			if (policy.allowRange === false) {
@@ -666,9 +732,11 @@ function parseSingleQuantityPart(
 						resolvedConceptId ??
 						resolvedConceptOnly?.canonicalUnit ??
 						resolvedClassifierOnly?.canonicalUnit ??
-						(classifierKey && conceptTerm
-							? `${classifierKey}::${conceptTerm}`
-							: (classifierKey ?? conceptTerm));
+						(config.unitAliases
+							? classifierKey && conceptTerm
+								? `${classifierKey}::${conceptTerm}`
+								: (classifierKey ?? conceptTerm)
+							: undefined);
 
 					conceptDetails = {
 						conceptTerm: conceptTerm || (classifierKey ?? remainderText),

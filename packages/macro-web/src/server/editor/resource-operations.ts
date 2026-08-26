@@ -2,31 +2,17 @@ import {
 	type EditorOperation,
 	type EditorOperationResult,
 	type EditorRejection,
+	RESOURCE_OPERATIONS,
+	type ResourceOperation,
 	structuredError,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
-type ResourceOperation = Extract<
-	EditorOperation,
-	{
-		operation:
-			| "editor.openScratchpad"
-			| "editor.openResource"
-			| "editor.resourceAction"
-			| "editor.saveArtifact"
-			| "editor.deleteScratchpad";
-	}
->;
-
 export function isResourceOperation(
 	operation: EditorOperation,
 ): operation is ResourceOperation {
-	return (
-		operation.operation === "editor.openScratchpad" ||
-		operation.operation === "editor.openResource" ||
-		operation.operation === "editor.resourceAction" ||
-		operation.operation === "editor.saveArtifact" ||
-		operation.operation === "editor.deleteScratchpad"
+	return (RESOURCE_OPERATIONS as readonly string[]).includes(
+		operation.operation,
 	);
 }
 

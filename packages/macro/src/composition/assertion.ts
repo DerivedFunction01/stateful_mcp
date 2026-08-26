@@ -201,9 +201,11 @@ export function createAssertionMacro(
 		type: "assertion-subject",
 		validate: (context: MacroChildValidationContext) => {
 			const raw = context.input.rawValue;
-			const value = compiler.parseClauseValue(
+			const value = canonicalInputValue(
+				context.input,
 				spec.subjectValueKind ?? "concept",
 				raw,
+				compiler,
 			);
 			return {
 				status: "accepted",
@@ -224,7 +226,12 @@ export function createAssertionMacro(
 			type: `assertion-clause-${clause.role}`,
 			validate: (context: MacroChildValidationContext) => {
 				const raw = context.input.rawValue;
-				const value = compiler.parseClauseValue(clause.valueKind, raw);
+				const value = canonicalInputValue(
+					context.input,
+					clause.valueKind,
+					raw,
+					compiler,
+				);
 				return {
 					status: "accepted",
 					binding: { canonicalValue: value },
@@ -261,9 +268,11 @@ export function createAssertionMacro(
 					a.name === spec.subjectSlotId,
 			);
 			if (subjectInput) {
-				subjectValue = compiler.parseClauseValue(
+				subjectValue = canonicalInputValue(
+					subjectInput,
 					spec.subjectValueKind ?? "concept",
 					subjectInput.rawValue,
+					compiler,
 				);
 			}
 
@@ -279,7 +288,15 @@ export function createAssertionMacro(
 							: [match.rawValue];
 
 					for (const rawItem of rawItems) {
-						const parsed = compiler.parseClauseValue(clause.valueKind, rawItem);
+						const parsed =
+							matchingInputs.length === 1 && !match.items?.length
+								? canonicalInputValue(
+										match,
+										clause.valueKind,
+										rawItem,
+										compiler,
+									)
+								: compiler.parseClauseValue(clause.valueKind, rawItem);
 						const clauseBinding: AssertionClauseBinding = {
 							role: clause.role,
 							slotId: clause.slotId,
@@ -318,4 +335,15 @@ export function createAssertionMacro(
 			return compileHandler(graph, input);
 		},
 	};
+}
+
+function canonicalInputValue(
+	input: MacroInput["arguments"][number],
+	kind: PatternCompilerValueKind,
+	raw: string,
+	compiler: ValuePatternCompiler,
+): unknown {
+	return input.match?.canonicalValue !== undefined
+		? input.match.canonicalValue
+		: compiler.parseClauseValue(kind, raw);
 }

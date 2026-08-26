@@ -41,6 +41,7 @@ export interface OperatorConfig {
 	readonly negationPrefixes?: readonly string[];
 	readonly negationPostfixes?: readonly string[];
 	readonly locales?: string | readonly string[];
+	readonly caseSensitive?: boolean;
 }
 
 export interface OperatorMatch {
@@ -75,7 +76,11 @@ export function resolveOperator(
 			? positionOrConfig
 			: (maybeConfig ?? {});
 
-	const lower = trimmed.toLocaleLowerCase(config.locales as string);
+	const normalize = (value: string) =>
+		config.caseSensitive
+			? value
+			: value.toLocaleLowerCase(config.locales as string);
+	const lower = normalize(trimmed);
 
 	const aliases =
 		position === "prefix"
@@ -88,7 +93,7 @@ export function resolveOperator(
 
 	// 1. Direct Alias Match
 	for (const { key: opKind, alias } of allPairs) {
-		if (alias.toLocaleLowerCase(config.locales as string) === lower) {
+		if (normalize(alias) === lower) {
 			return {
 				operator: opKind,
 				position,

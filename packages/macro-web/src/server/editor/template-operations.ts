@@ -6,30 +6,17 @@ import type {
 	EditorOperationResult,
 	EditorRejection,
 } from "@stateful-mcp/macro-protocol";
-import { structuredError } from "@stateful-mcp/macro-protocol";
+import {
+	structuredError,
+	TEMPLATE_OPERATIONS,
+	type TemplateOperation,
+} from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
-
-type TemplateOperation = Extract<
-	EditorOperation,
-	{
-		operation:
-			| "editor.saveTemplate"
-			| "editor.deleteTemplate"
-			| "editor.openTemplateAsDocument"
-			| "editor.updateTemplateLiteralArgs";
-	}
->;
 export function isTemplateOperation(
 	operation: EditorOperation,
 ): operation is TemplateOperation {
-	return (
-		operation.operation.startsWith("editor.") &&
-		[
-			"editor.saveTemplate",
-			"editor.deleteTemplate",
-			"editor.openTemplateAsDocument",
-			"editor.updateTemplateLiteralArgs",
-		].includes(operation.operation)
+	return (TEMPLATE_OPERATIONS as readonly string[]).includes(
+		operation.operation,
 	);
 }
 export async function executeTemplateOperation(

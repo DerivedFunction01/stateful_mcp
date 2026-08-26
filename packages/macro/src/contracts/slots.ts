@@ -1,4 +1,5 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
+import type { RecipeDiagnostic, RecipeEvaluation } from "../values/recipes";
 import type { MacroDiagnosticCode } from "./input";
 import type { MacroArgumentMatch, MacroPendingReason } from "./matching";
 
@@ -7,6 +8,10 @@ export interface SlotBinding {
 	candidateId?: string;
 	displayValue?: string;
 	canonicalValue?: unknown;
+	recipeId?: string;
+	variantPath?: readonly string[];
+	recipeDiagnostics?: readonly RecipeDiagnostic[];
+	recipeEvaluation?: RecipeEvaluation;
 	metadata?: Record<string, unknown>;
 }
 

@@ -18,6 +18,7 @@ const INVALID_PAYLOAD_DIAGNOSTICS: ReadonlySet<MacroDiagnosticCode> =
 		"PATH_CONFLICT",
 		"INVALID_PATH",
 		"AMBIGUOUS_MATCH",
+		"NUMERIC_BOUNDS",
 	]);
 
 /** Structured descriptor key for a normalizer that threw. */
@@ -115,6 +116,10 @@ function materializeAcceptedLocks(
 			canonicalValue: lock.binding?.canonicalValue,
 			sourceId: lock.candidateId,
 			backendId: lock.binding?.backendId,
+			recipeId: lock.binding?.recipeId,
+			variantPath: lock.binding?.variantPath,
+			recipeDiagnostics: lock.binding?.recipeDiagnostics,
+			recipeEvaluation: lock.binding?.recipeEvaluation,
 			matchKind: "exact",
 		};
 		if (existing >= 0) result[existing] = match;
@@ -144,10 +149,31 @@ function createArgumentResult(
 			: "locked";
 	let value: unknown = match.canonicalValue ?? match.rawValue;
 	try {
-		if (argument.normalize)
+		if (argument.configuredValue) {
+			if (argument.normalizeCanonical)
+				value = argument.normalizeCanonical(
+					value,
+					match.rawValue,
+					match.captures ?? {},
+				);
+		} else if (argument.normalize) {
 			value = argument.normalize(match.rawValue, match.captures ?? {});
-		else value = normalizeValue(argument, value);
-	} catch {
+		} else {
+			value = normalizeValue(argument, value);
+		}
+		if (argument.configuredValue)
+			validateCanonicalBounds(argument, value, diagnostics);
+	} catch (error) {
+		if (error instanceof CanonicalBoundsError) {
+			return {
+				argumentId: argument.argumentId,
+				name: argument.name,
+				path: argument.path,
+				state: "invalid" as ArgumentState,
+				rawText: match.rawValue,
+				match,
+			};
+		}
 		// Normalizers are extension-authored: their thrown text is developer
 		// facing and never localized, so only the structured descriptor is kept.
 		diagnostics.push({
@@ -175,6 +201,55 @@ function createArgumentResult(
 		value,
 		match,
 	};
+}
+
+class CanonicalBoundsError extends RangeError {}
+
+function validateCanonicalBounds(
+	argument: MacroArgumentSpec,
+	value: unknown,
+	diagnostics: MacroDiagnostic[],
+): void {
+	if (!argument.numericBounds) return;
+	const numbers = canonicalNumericLeaves(value);
+	for (const number of numbers) {
+		try {
+			checkBounds(argument, number);
+		} catch {
+			diagnostics.push({
+				code: "NUMERIC_BOUNDS",
+				argumentId: argument.argumentId,
+				message: "errors.numericBoundsExceeded",
+				messageKey: "errors.numericBoundsExceeded",
+				messageParams: { argumentName: argument.name },
+			});
+			throw new CanonicalBoundsError();
+		}
+	}
+}
+
+function canonicalNumericLeaves(value: unknown): readonly number[] {
+	if (typeof value === "number" && Number.isFinite(value)) return [value];
+	if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+	const record = value as Record<string, unknown>;
+	const result: number[] = [];
+	const add = (candidate: unknown) => {
+		if (typeof candidate === "number" && Number.isFinite(candidate))
+			result.push(candidate);
+	};
+	add(record.magnitude);
+	add(record.amount);
+	add(record.value);
+	const primary = record.primaryQuantity;
+	if (primary && typeof primary === "object") {
+		add((primary as Record<string, unknown>).magnitude);
+	}
+	const range = record.range;
+	if (range && typeof range === "object") {
+		add((range as Record<string, unknown>).lower);
+		add((range as Record<string, unknown>).upper);
+	}
+	return result;
 }
 
 function normalizeValue(argument: MacroArgumentSpec, value: unknown): unknown {

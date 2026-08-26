@@ -29,6 +29,7 @@ export const MACRO_ARGUMENT_SOURCES = [
 	"inferred",
 	"friendly",
 	"expression",
+	"configured",
 	"accepted",
 	"default",
 ] as const;
@@ -79,6 +80,7 @@ export const MACRO_DIAGNOSTIC_CODES = [
 	"INVALID_PATH",
 	"PATH_CONFLICT",
 	"NORMALIZATION_FAILED",
+	"NUMERIC_BOUNDS",
 	"BACKEND_MISSING",
 	"STALE_SNAPSHOT",
 	"CROSS_RESOURCE_CANDIDATE_REJECTED",

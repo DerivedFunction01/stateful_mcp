@@ -75,6 +75,7 @@ export interface MacroExecutionPreview {
 	bindings: readonly MacroExecutionBinding[];
 	spans: readonly MacroSpan[];
 	candidateSnapshots: readonly MacroCandidateSnapshot[];
+	configuredValueFingerprint?: string;
 	fingerprint: string;
 	diagnostics: readonly MacroDiagnostic[];
 }

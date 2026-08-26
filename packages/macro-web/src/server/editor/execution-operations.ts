@@ -6,20 +6,12 @@ import {
 	type EditorOperation,
 	type EditorOperationResult,
 	type EditorRejection,
+	EXECUTION_OPERATIONS,
+	type ExecutionOperation,
 	type ScratchpadExecutionReceiptDto,
 	structuredError,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
-
-type ExecutionOperation = Extract<
-	EditorOperation,
-	{
-		operation:
-			| "editor.executeLine"
-			| "editor.executeRange"
-			| "editor.executeValidLines";
-	}
->;
 
 export function toExecutionReceiptDto(
 	receipt: ScratchpadExecutionReceipt,
@@ -58,10 +50,8 @@ export function toExecutionReceiptDto(
 export function isExecutionOperation(
 	operation: EditorOperation,
 ): operation is ExecutionOperation {
-	return (
-		operation.operation === "editor.executeLine" ||
-		operation.operation === "editor.executeRange" ||
-		operation.operation === "editor.executeValidLines"
+	return (EXECUTION_OPERATIONS as readonly string[]).includes(
+		operation.operation,
 	);
 }
 

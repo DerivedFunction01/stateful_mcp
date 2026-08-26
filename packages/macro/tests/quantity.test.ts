@@ -79,6 +79,26 @@ const TEST_CONFIG: QuantityGrammarConfig = {
 };
 
 describe("Universal Quantity & Range Engine (quantity.ts)", () => {
+	test("uses an explicit range fundamental when configured", () => {
+		const result = parseQuantity("from 20 mg to 50 mg", {
+			fundamentalGroups: [{
+				id: "range",
+				variants: [{
+					id: "from-to",
+					prefix: [{ id: "from", text: "from" }],
+					connectors: [[{ id: "to", text: "to" }]],
+					slots: [
+						{ id: "start", pattern: ".+?" },
+						{ id: "end", pattern: ".+?" },
+					],
+				}],
+			}],
+			unitAliases: { mg: ["mg"] },
+		}, { allowRange: true });
+		expect(result.diagnostics).toEqual([]);
+		expect(result.value?.range?.start.magnitude).toBe(20);
+		expect(result.value?.range?.end.magnitude).toBe(50);
+	});
 	describe("1. Single Quantities & Multi-Lingual Unit Resolution", () => {
 		test("parses standard quantities and resolves aliases to canonical units", () => {
 			const res1 = parseQuantity("50 mg", TEST_CONFIG);

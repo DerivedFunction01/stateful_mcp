@@ -5,17 +5,17 @@ import type {
 	EditorOperationResult,
 	EditorRejection,
 } from "@stateful-mcp/macro-protocol";
-import { structuredError } from "@stateful-mcp/macro-protocol";
+import {
+	PERSISTENCE_OPERATIONS,
+	type PersistenceOperation,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 
-type PersistenceOperation = Extract<
-	EditorOperation,
-	{ operation: "editor.openFile" | "editor.save" | "editor.saveScratchpad" }
->;
 export function isPersistenceOperation(
 	operation: EditorOperation,
 ): operation is PersistenceOperation {
-	return ["editor.openFile", "editor.save", "editor.saveScratchpad"].includes(
+	return (PERSISTENCE_OPERATIONS as readonly string[]).includes(
 		operation.operation,
 	);
 }

@@ -4,10 +4,22 @@ import {
 	DocumentRevisionError,
 } from "@stateful-mcp/macro";
 import {
+	DOCUMENT_LIFECYCLE_OPERATIONS,
+	type DocumentLifecycleOperation,
 	type EditorOperation,
 	type EditorOperationResult,
 	type EditorRejection,
+	type ExecutionOperation,
+	GROUP_OPERATIONS,
+	type GroupOperation,
+	type PersistenceOperation,
+	PREVIEW_OPERATIONS,
+	type PreviewOperation,
+	type ResourceOperation,
 	structuredError,
+	TEXT_OPERATIONS,
+	type TemplateOperation,
+	type TextOperation,
 } from "@stateful-mcp/macro-protocol";
 import type { Session } from "../host-session/session-types";
 import { isPersistenceOperation } from "./document-persistence-operations";
@@ -44,29 +56,11 @@ export interface EditorOperationRouterContext {
 	) => void;
 	readonly lines: (
 		document: import("@stateful-mcp/macro").MacroDocument,
-		operation: Extract<
-			EditorOperation,
-			{
-				operation:
-					| "editor.previewLine"
-					| "editor.previewRange"
-					| "editor.previewDocument";
-			}
-		>,
+		operation: PreviewOperation,
 	) => readonly unknown[];
 	readonly executeResource: (
 		session: Session,
-		operation: Extract<
-			EditorOperation,
-			{
-				operation:
-					| "editor.openScratchpad"
-					| "editor.openResource"
-					| "editor.resourceAction"
-					| "editor.saveArtifact"
-					| "editor.deleteScratchpad";
-			}
-		>,
+		operation: ResourceOperation,
 		context: {
 			readonly base: () => Record<string, unknown>;
 			readonly workspaceConflict: (expected: number) => EditorOperationResult;
@@ -94,16 +88,7 @@ export interface EditorOperationRouterContext {
 	) => Promise<EditorOperationResult>;
 	readonly executeTemplate: (
 		session: Session,
-		operation: Extract<
-			EditorOperation,
-			{
-				operation:
-					| "editor.saveTemplate"
-					| "editor.deleteTemplate"
-					| "editor.openTemplateAsDocument"
-					| "editor.updateTemplateLiteralArgs";
-			}
-		>,
+		operation: TemplateOperation,
 		context: {
 			readonly base: () => Record<string, unknown>;
 			readonly reject: (error: EditorRejection) => EditorOperationResult;
@@ -113,10 +98,7 @@ export interface EditorOperationRouterContext {
 	) => Promise<EditorOperationResult>;
 	readonly executePersistence: (
 		session: Session,
-		operation: Extract<
-			EditorOperation,
-			{ operation: "editor.openFile" | "editor.save" | "editor.saveScratchpad" }
-		>,
+		operation: PersistenceOperation,
 		context: {
 			readonly base: () => Record<string, unknown>;
 			readonly conflict: (
@@ -133,15 +115,7 @@ export interface EditorOperationRouterContext {
 	) => Promise<EditorOperationResult>;
 	readonly executeExecution: (
 		session: Session,
-		operation: Extract<
-			EditorOperation,
-			{
-				operation:
-					| "editor.executeLine"
-					| "editor.executeRange"
-					| "editor.executeValidLines";
-			}
-		>,
+		operation: ExecutionOperation,
 		context: {
 			readonly base: () => Record<string, unknown>;
 			readonly conflict: (
@@ -198,33 +172,13 @@ export interface EditorOperationRouterContext {
 	readonly resolvePath: (root: string, path: string) => string;
 }
 
-const GROUP_OPERATIONS = new Set([
-	"editor.createSplitGroup",
-	"editor.closeGroup",
-	"editor.resizeSplit",
-	"editor.focusGroup",
-	"editor.openDocumentInGroup",
-	"editor.moveDocumentToGroup",
-]);
-
 export function isGroupOperation(operation: EditorOperation): boolean {
-	return GROUP_OPERATIONS.has(operation.operation);
+	return (GROUP_OPERATIONS as readonly string[]).includes(operation.operation);
 }
 
 export async function executeGroupOperation(
 	session: Session,
-	operation: Extract<
-		EditorOperation,
-		{
-			operation:
-				| "editor.createSplitGroup"
-				| "editor.closeGroup"
-				| "editor.resizeSplit"
-				| "editor.focusGroup"
-				| "editor.openDocumentInGroup"
-				| "editor.moveDocumentToGroup";
-		}
-	>,
+	operation: GroupOperation,
 	context: {
 		readonly base: () => Record<string, unknown>;
 		readonly workspaceConflict: (expected: number) => EditorOperationResult;
@@ -289,27 +243,13 @@ export async function executeGroupOperation(
 	}
 }
 
-export function isTextOperation(operation: EditorOperation): boolean {
-	return [
-		"editor.setCellDefault",
-		"editor.replaceText",
-		"editor.clearExecutedLines",
-		"editor.resetExecutionState",
-	].includes(operation.operation);
+export function isTextOperation(operation: EditorOperation): operation is TextOperation {
+	return (TEXT_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
 }
 
 export async function executeTextOperation(
 	session: Session,
-	operation: Extract<
-		EditorOperation,
-		{
-			operation:
-				| "editor.setCellDefault"
-				| "editor.replaceText"
-				| "editor.clearExecutedLines"
-				| "editor.resetExecutionState";
-		}
-	>,
+	operation: TextOperation,
 	context: {
 		readonly base: () => Record<string, unknown>;
 		readonly conflict: (
@@ -373,45 +313,21 @@ export async function executeTextOperation(
 	} as EditorOperationResult;
 }
 
-export function isPreviewOperation(operation: EditorOperation): boolean {
-	return [
-		"editor.previewLine",
-		"editor.previewRange",
-		"editor.previewDocument",
-	].includes(operation.operation);
+export function isPreviewOperation(operation: EditorOperation): operation is PreviewOperation {
+	return (PREVIEW_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
 }
 
 export { isExecutionOperation } from "./execution-operations";
 
 export function isDocumentLifecycleOperation(
 	operation: EditorOperation,
-): boolean {
-	return [
-		"editor.newScratchpad",
-		"editor.newScratchpadFromTemplate",
-		"editor.selectDocument",
-		"editor.closeDocument",
-		"editor.closeDocumentInGroup",
-		"editor.renameDocument",
-		"editor.duplicateDocument",
-	].includes(operation.operation);
+): operation is DocumentLifecycleOperation {
+	return (DOCUMENT_LIFECYCLE_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
 }
 
 export async function executeDocumentLifecycleOperation(
 	session: Session,
-	operation: Extract<
-		EditorOperation,
-		{
-			operation:
-				| "editor.newScratchpad"
-				| "editor.newScratchpadFromTemplate"
-				| "editor.selectDocument"
-				| "editor.closeDocument"
-				| "editor.closeDocumentInGroup"
-				| "editor.renameDocument"
-				| "editor.duplicateDocument";
-		}
-	>,
+	operation: DocumentLifecycleOperation,
 	context: {
 		readonly base: () => Record<string, unknown>;
 		readonly conflict: (
@@ -560,15 +476,7 @@ export async function executeDocumentLifecycleOperation(
 
 export async function executePreviewOperation(
 	session: Session,
-	operation: Extract<
-		EditorOperation,
-		{
-			operation:
-				| "editor.previewLine"
-				| "editor.previewRange"
-				| "editor.previewDocument";
-		}
-	>,
+	operation: PreviewOperation,
 	context: {
 		readonly base: () => Record<string, unknown>;
 		readonly conflict: (
@@ -579,15 +487,7 @@ export async function executePreviewOperation(
 		readonly reject: (error: EditorRejection) => EditorOperationResult;
 		readonly lines: (
 			document: import("@stateful-mcp/macro").MacroDocument,
-			operation: Extract<
-				EditorOperation,
-				{
-					operation:
-						| "editor.previewLine"
-						| "editor.previewRange"
-						| "editor.previewDocument";
-				}
-			>,
+			operation: PreviewOperation,
 		) => readonly unknown[];
 	},
 ): Promise<EditorOperationResult> {
@@ -705,7 +605,7 @@ export function createEditorOperationRouter(
 						sessionOwner: context.sessionOwner?.(session),
 						isResourceExposed: context.isResourceExposed
 							? (kind, resourceId) =>
-									context.isResourceExposed!(session, kind, resourceId)
+								context.isResourceExposed!(session, kind, resourceId)
 							: undefined,
 						materializeArtifact: context.materializeArtifact
 							? (token) => context.materializeArtifact!(session, token)

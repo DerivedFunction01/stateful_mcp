@@ -1,8 +1,63 @@
 import { describe, expect, test } from "bun:test";
-import { normalizeUnicodeDigits } from "../src/values/localization";
+import {
+	normalizeUnicodeDigits,
+	parseOrdinalValue,
+} from "../src/values/localization";
 import { formatNumericValue, parseNumericValue } from "../src/values/numeric";
 
 describe("Universal Numeric Engine (numeric.ts)", () => {
+	describe("explicit numeric capabilities", () => {
+		test("keeps ordinal forms explicit and separate from cardinals", () => {
+			const config = {
+				atoms: { "1": "one", "2": "two" },
+				scales: [],
+				ordinals: {
+					ordinalAtoms: { "1": "first", "2": ["second", "2nd"] },
+					suffix: "th",
+					prefix: "第",
+				},
+			} as const;
+			expect(parseOrdinalValue("first", config)?.value).toBe(1);
+			expect(parseOrdinalValue("second", config)?.value).toBe(2);
+			expect(parseOrdinalValue("2nd", config)?.value).toBe(2);
+			expect(parseOrdinalValue("第3", config)?.value).toBe(3);
+			expect(parseOrdinalValue("3th", config)?.value).toBe(3);
+			expect(parseOrdinalValue("one", config)).toBeUndefined();
+		});
+		test("accepts only configured forms", () => {
+			expect(
+				parseNumericValue("3", { allowedForms: ["integer"] }).parsed?.value,
+			).toBe(3);
+			expect(
+				parseNumericValue("3.5", { allowedForms: ["integer"] }).parsed,
+			).toBeUndefined();
+			expect(
+				parseNumericValue("3/5", { allowedForms: ["fraction"] }).parsed?.value,
+			).toBe(0.6);
+			expect(
+				parseNumericValue("1 1/2", { allowedForms: ["fraction"] }).parsed,
+			).toBeUndefined();
+			expect(
+				parseNumericValue("1 1/2", { allowedForms: ["mixed_fraction"] }).parsed
+					?.value,
+			).toBe(1.5);
+		});
+
+		test("validates fraction denominator and improper policy before decimal coercion", () => {
+			expect(
+				parseNumericValue("3/5", {
+					allowedForms: ["fraction"],
+					fractionConstraints: { denominator: { exact: 10 } },
+				}).parsed,
+			).toBeUndefined();
+			expect(
+				parseNumericValue("5/3", {
+					allowedForms: ["fraction"],
+					fractionConstraints: { allowImproper: false },
+				}).parsed,
+			).toBeUndefined();
+		});
+	});
 	describe("1. Standard Integers & Decimals", () => {
 		test("parses positive and negative integers", () => {
 			const res1 = parseNumericValue("50");

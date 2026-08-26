@@ -27,6 +27,7 @@ export interface MacroAdapterExecutionOptions {
 	context?: MacroRuntimeContext;
 	candidates?: readonly MacroCandidateSnapshot[];
 	backends?: Readonly<Record<string, ExpressionBackend>>;
+	configuredValues?: import("../values/engine").ConfiguredValueRuntime;
 }
 
 export async function parseMacroWithAdapter(
@@ -148,6 +149,12 @@ export async function executeMacroWithAdapter(
 			stableFingerprint(executionPreview.candidateSnapshots)
 	)
 		throw new Error("Macro execution preview candidates are stale");
+	if (
+		executionPreview.configuredValueFingerprint !== undefined &&
+		executionPreview.configuredValueFingerprint !==
+			options.configuredValues?.fingerprint
+	)
+		throw new Error("Macro execution preview configured values are stale");
 	if (options.backends) {
 		for (const snapshot of executionPreview.candidateSnapshots) {
 			const backend = options.backends[snapshot.resolverId];
@@ -243,6 +250,9 @@ function createExecutionPreview(
 		bindings,
 		spans,
 		candidateSnapshots: options.candidates ?? options.candidateSnapshots ?? [],
+		...(options.configuredValues?.fingerprint === undefined
+			? {}
+			: { configuredValueFingerprint: options.configuredValues.fingerprint }),
 	};
 	return deepFreeze({
 		...artifact,

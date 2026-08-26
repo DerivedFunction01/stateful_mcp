@@ -353,6 +353,10 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				candidateId: match.sourceId,
 				displayValue: match.rawValue,
 				canonicalValue: match.canonicalValue,
+				recipeId: match.recipeId,
+				variantPath: match.variantPath,
+				recipeDiagnostics: match.recipeDiagnostics,
+				recipeEvaluation: match.recipeEvaluation,
 				metadata:
 					match.metadata ??
 					(argument ? { argumentName: argument.name } : undefined),

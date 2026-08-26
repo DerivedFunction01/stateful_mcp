@@ -1,4 +1,5 @@
 import {
+	type ErrorDescriptor,
 	errorDescriptor,
 	type MessageParam,
 	type StructuredError,
@@ -612,6 +613,7 @@ export interface DocumentManagerErrorOptions {
 }
 
 export class DocumentManagerError extends Error {
+	readonly descriptor: ErrorDescriptor;
 	readonly messageKey: string;
 	readonly messageParams?: Readonly<Record<string, MessageParam>>;
 

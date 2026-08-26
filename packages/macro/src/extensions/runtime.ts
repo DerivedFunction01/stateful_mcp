@@ -35,10 +35,18 @@ import {
 	type MacroRuntimeOptions,
 	parseMacroWithAdapter,
 } from "../runtime/macro-runtime";
+import type { AliasResolver } from "../values/aliases";
+import type { ConfiguredValueRuntime } from "../values/engine";
+import type { RecipeOutputBuilder, TerminalParser } from "../values/recipes";
+import {
+	BUILTIN_VALUE_TERMINAL_IDS,
+	createBuiltinTerminals,
+} from "../values/terminals";
 import type { I18nKernel } from "../workspace/i18n/i18n-kernel";
 import {
 	compileDomainConfig,
 	type ExtensionConfig,
+	resolveArgumentPolicy,
 	resolveExtensionConfig,
 } from "./config";
 import type {
@@ -67,6 +75,10 @@ export interface ExtensionRuntimeOptions {
 	settings?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 	i18n?: I18nKernel;
 	storage?: ExtensionStorageServices;
+	valueTerminals?: Readonly<Record<string, TerminalParser>>;
+	valueOutputBuilders?: Readonly<Record<string, RecipeOutputBuilder>>;
+	valueAliasResolvers?: Readonly<Record<string, AliasResolver>>;
+	valueContext?: Readonly<Record<string, unknown>>;
 }
 
 export interface ActivationResult {
@@ -82,11 +94,16 @@ export class ExtensionRuntime {
 	readonly i18n?: I18nKernel;
 	private readonly contexts = new Map<string, ExtensionContext>();
 	private readonly listeners = new Map<string, ParseListener[]>();
+	private valueRuntimeRevision = 0;
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
 		logger: ExtensionLogger;
 		profile?: UserMacroProfile;
 		settings: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 		storage?: ExtensionStorageServices;
+		valueTerminals: Readonly<Record<string, TerminalParser>>;
+		valueOutputBuilders: Readonly<Record<string, RecipeOutputBuilder>>;
+		valueAliasResolvers: Readonly<Record<string, AliasResolver>>;
+		valueContext: Readonly<Record<string, unknown>>;
 	};
 	private loaded: LoadedExtension[] = [];
 
@@ -97,6 +114,10 @@ export class ExtensionRuntime {
 			profile: options.profile,
 			settings: options.settings ?? {},
 			storage: options.storage,
+			valueTerminals: options.valueTerminals ?? {},
+			valueOutputBuilders: options.valueOutputBuilders ?? {},
+			valueAliasResolvers: options.valueAliasResolvers ?? {},
+			valueContext: options.valueContext ?? {},
 		};
 		this.context = options.context ?? createMacroRuntimeContext();
 		this.i18n = options.i18n;
@@ -210,6 +231,21 @@ export class ExtensionRuntime {
 		);
 		try {
 			const activation = await extension.activate(context);
+			const compiled = compileDomainConfig(
+				this.options.profile,
+				manifest.domainConfig,
+				this.domainCompileOptions(scope),
+			);
+			if (!compiled.valid) {
+				throw new ExtensionError({
+					messageKey: "extensions.errors.invalidDomainConfig",
+					messageParams: { extensionId: manifest.id },
+					cause: compiled.diagnostics,
+				});
+			}
+			(
+				context as { compiledDomainGrammar: CompiledDomainGrammar }
+			).compiledDomainGrammar = compiled;
 			for (const [id, backend] of Object.entries(backendRecord())) {
 				this.macros.registerBackend(id, backend, manifest.id);
 			}
@@ -289,18 +325,46 @@ export class ExtensionRuntime {
 	}
 
 	applyProfile(profile?: UserMacroProfile): void {
-		this.options.profile = profile;
+		const profileCompilation = compileDomainConfig(
+			profile,
+			undefined,
+			this.domainCompileOptions(),
+		);
+		if (!profileCompilation.valid) {
+			throw new ExtensionError({
+				messageKey: "extensions.errors.invalidDomainConfig",
+				messageParams: { extensionId: "profile" },
+				cause: profileCompilation.diagnostics,
+			});
+		}
+		const compiledByExtension = new Map<string, CompiledDomainGrammar>();
 		for (const [id, ctx] of this.contexts.entries()) {
 			const active = this.extensions.get(id);
 			if (active) {
-				(ctx as { profile?: UserMacroProfile }).profile = profile;
-				(
-					ctx as { compiledDomainGrammar: CompiledDomainGrammar }
-				).compiledDomainGrammar = compileDomainConfig(
+				const compiled = compileDomainConfig(
 					profile,
 					active.manifest.domainConfig,
+					this.domainCompileOptions(ctx.values),
 				);
+				if (!compiled.valid) {
+					throw new ExtensionError({
+						messageKey: "extensions.errors.invalidDomainConfig",
+						messageParams: { extensionId: id },
+						cause: compiled.diagnostics,
+					});
+				}
+				compiledByExtension.set(id, compiled);
 			}
+		}
+		this.options.profile = profile;
+		this.valueRuntimeRevision += 1;
+		for (const [id, compiled] of compiledByExtension) {
+			const ctx = this.contexts.get(id);
+			if (!ctx) continue;
+			(ctx as { profile?: UserMacroProfile }).profile = profile;
+			(
+				ctx as { compiledDomainGrammar: CompiledDomainGrammar }
+			).compiledDomainGrammar = compiled;
 		}
 	}
 
@@ -327,6 +391,12 @@ export class ExtensionRuntime {
 			...options,
 			context: this.context,
 			backends: this.getScopedBackends(registered.ownerExtensionId),
+			configuredValues:
+				options.configuredValues ??
+				this.getConfiguredValues(
+					registered.ownerExtensionId,
+					registered.adapter.definition,
+				),
 		});
 	}
 
@@ -341,6 +411,12 @@ export class ExtensionRuntime {
 			...options,
 			context: this.context,
 			backends: this.getScopedBackends(registered.ownerExtensionId),
+			configuredValues:
+				options.configuredValues ??
+				this.getConfiguredValues(
+					registered.ownerExtensionId,
+					registered.adapter.definition,
+				),
 		});
 	}
 
@@ -353,11 +429,89 @@ export class ExtensionRuntime {
 			? this.macros.get(macroName)
 			: this.macros.list().find((candidate) => raw.includes(candidate.name));
 		if (!spec) return null;
+		const registered = this.macros.getRegistered(spec.name);
 		return parseMacroLine(raw, spec, {
 			...options,
 			context: this.context,
 			backends: this.macros.backendsRecord(),
+			configuredValues: registered
+				? this.getConfiguredValues(registered.ownerExtensionId, registered)
+				: options.configuredValues,
 		});
+	}
+
+	private getConfiguredValues(
+		extensionId: string,
+		spec: MacroSpec,
+	): ConfiguredValueRuntime {
+		const extensionContext = this.contexts.get(extensionId);
+		const grammar =
+			extensionContext?.compiledDomainGrammar ??
+			compileDomainConfig(
+				this.options.profile,
+				extensionContext?.domainConfig,
+				this.domainCompileOptions(),
+			);
+		const configuredPolicies: Record<
+			string,
+			ReturnType<typeof resolveArgumentPolicy>
+		> = {};
+		const macroPolicies =
+			extensionContext?.domainConfig?.macros?.[spec.name]?.arguments;
+		for (const argument of spec.arguments) {
+			configuredPolicies[argument.argumentId] = resolveArgumentPolicy(
+				extensionId,
+				spec.name,
+				argument.argumentId,
+				grammar,
+				macroPolicies?.[argument.argumentId],
+			);
+		}
+		return {
+			grammar,
+			policies: configuredPolicies,
+			terminals: {
+				...createBuiltinTerminals({
+					grammar,
+					aliasResolvers: {
+						...(this.options.profile?.aliasResolvers ?? {}),
+						...(extensionContext?.domainConfig?.aliasResolvers ?? {}),
+						...this.options.valueAliasResolvers,
+					},
+				}),
+				...(extensionContext?.values.listTerminals() ?? {}),
+				...this.options.valueTerminals,
+			},
+			outputBuilders: {
+				...(extensionContext?.values.listOutputBuilders() ?? {}),
+				...this.options.valueOutputBuilders,
+			},
+			fingerprint: `configured-values-v1:${this.valueRuntimeRevision}:${extensionId}`,
+			context: {
+				...this.options.valueContext,
+				...(this.options.profile?.locale && !this.options.valueContext.locale
+					? { locale: this.options.profile.locale }
+					: {}),
+			},
+		};
+	}
+
+	private domainCompileOptions(values?: {
+		listTerminals(): Readonly<Record<string, TerminalParser>>;
+		listOutputBuilders(): Readonly<Record<string, RecipeOutputBuilder>>;
+	}) {
+		return {
+			terminalIds: new Set([
+				...BUILTIN_VALUE_TERMINAL_IDS,
+				...Object.keys(this.options.valueTerminals),
+				...Object.keys(values?.listTerminals() ?? {}),
+			]),
+			outputBuilderIds: new Set([
+				...Object.keys(this.options.valueOutputBuilders),
+				...Object.keys(values?.listOutputBuilders() ?? {}),
+			]),
+			aliasResolvers: this.options.valueAliasResolvers,
+		};
 	}
 }
 
@@ -384,6 +538,18 @@ function createContext(
 ): ExtensionContext {
 	const rootDirectory = options.rootDirectory;
 	const extensionRoot = dirname(resolve(sourceFile));
+	const compiledDomainGrammar = compileDomainConfig(
+		options.profile,
+		manifest.domainConfig,
+		{ aliasResolvers: options.valueAliasResolvers },
+	);
+	if (!compiledDomainGrammar.valid) {
+		throw new ExtensionError({
+			messageKey: "extensions.errors.invalidDomainConfig",
+			messageParams: { extensionId: manifest.id },
+			cause: compiledDomainGrammar.diagnostics,
+		});
+	}
 	return {
 		extension: {
 			id: manifest.id,
@@ -393,10 +559,7 @@ function createContext(
 		config,
 		profile: options.profile,
 		domainConfig: manifest.domainConfig,
-		compiledDomainGrammar: compileDomainConfig(
-			options.profile,
-			manifest.domainConfig,
-		),
+		compiledDomainGrammar,
 		dictionaries: {
 			open: async (resourceOptions = {}) =>
 				scope.trackResource(
@@ -421,6 +584,13 @@ function createContext(
 		matchers,
 		macros,
 		listeners,
+		values: {
+			registerTerminal: (id, parser) => scope.registerTerminal(id, parser),
+			registerOutputBuilder: (id, builder) =>
+				scope.registerOutputBuilder(id, builder),
+			listTerminals: () => scope.listTerminals(),
+			listOutputBuilders: () => scope.listOutputBuilders(),
+		},
 		dependencies: createDependencyResolver(
 			manifest.id,
 			new Map(registry.list().map((item) => [item.manifest.id, item])),

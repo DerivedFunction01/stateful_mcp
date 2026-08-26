@@ -69,6 +69,7 @@ export interface StatisticalConfig {
 		Partial<Record<StatisticalQualifierType, readonly string[]>>
 	>;
 	readonly locales?: string | readonly string[];
+	readonly caseSensitive?: boolean;
 }
 
 export interface StatisticalDiagnostic {
@@ -101,7 +102,11 @@ export function resolveStatisticalQualifier(
 	if (!trimmed) {
 		return { diagnostics: [] };
 	}
-	const lower = trimmed.toLocaleLowerCase(config.locales as string);
+	const normalize = (value: string) =>
+		config.caseSensitive
+			? value
+			: value.toLocaleLowerCase(config.locales as string);
+	const lower = normalize(trimmed);
 
 	const aliases = config.qualifierAliases ?? config.qualifiers;
 	if (!aliases) {
@@ -112,14 +117,14 @@ export function resolveStatisticalQualifier(
 	const allPairs = flattenAndSortAliases(aliases, false);
 
 	for (const { key: type, alias } of allPairs) {
-		const aliasLower = alias.toLocaleLowerCase(config.locales as string);
+		const aliasLower = normalize(alias);
 		let confidenceLevel: number | undefined;
 		let isMatch = false;
 
 		if (type === "confidence_interval") {
 			const ciRegex = new RegExp(
 				`^(?:(?<level>\\d+)%\\s*)?${escapeRegex(aliasLower)}$`,
-				"iu",
+				config.caseSensitive ? "u" : "iu",
 			);
 			const ciMatch = lower.match(ciRegex);
 			if (ciMatch) {

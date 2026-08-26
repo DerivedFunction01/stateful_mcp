@@ -1,23 +1,14 @@
-import {
-	type CurrencyFormatConfig,
-	parseCurrency,
-} from "../../values/currency";
+import { compileDomainConfig } from "../../extensions/config";
+import type { CurrencyFormatConfig } from "../../values/currency";
 import {
 	type DateTimeFormatConfig,
 	parseDateTimeStringToConfig,
 } from "../../values/date-time";
-import {
-	type FrequencyGrammarConfig,
-	parseCadenceSchedule,
-} from "../../values/frequency";
-import {
-	type NumericParseOptions,
-	parseNumericValue,
-} from "../../values/numeric";
-import {
-	parseQuantity,
-	type QuantityGrammarConfig,
-} from "../../values/quantity";
+import type { FrequencyGrammarConfig } from "../../values/frequency";
+import type { NumericParseOptions } from "../../values/numeric";
+import type { QuantityGrammarConfig } from "../../values/quantity";
+import type { TerminalParseResult } from "../../values/recipes";
+import { createBuiltinTerminals } from "../../values/terminals";
 import {
 	analyzeFormatTemplate,
 	CURRENCY_TOKENS,
@@ -47,6 +38,7 @@ function diagnostic(
 	path: readonly string[],
 	item: {
 		readonly code?: string;
+		readonly errorCode?: string;
 		readonly messageKey?: string;
 		readonly messageParams?: Readonly<
 			Record<string, string | number | boolean>
@@ -55,11 +47,11 @@ function diagnostic(
 ): SettingsDiagnostic {
 	return {
 		severity: "error",
-		code: item.code,
+		code: item.code ?? item.errorCode,
 		path,
 		messageKey: item.messageKey ?? "settings.values.parseError",
 		messageParams: {
-			code: item.code ?? "unknown",
+			code: item.code ?? item.errorCode ?? "unknown",
 			...(item.messageParams ?? {}),
 		},
 	};
@@ -77,6 +69,30 @@ function resultStatus(
 	return diagnostics.some((item) => item.severity === "error")
 		? "invalid"
 		: "valid";
+}
+
+function configuredSample(
+	consumerId: string,
+	config: Partial<{
+		quantity: QuantityGrammarConfig;
+		frequency: FrequencyGrammarConfig;
+		currency: CurrencyFormatConfig;
+		numeric: NumericParseOptions;
+	}>,
+	input: string,
+): TerminalParseResult {
+	const grammar = compileDomainConfig({
+		values: {
+			...(config.numeric ? { numeric: config.numeric } : {}),
+			...(config.quantity ? { quantity: config.quantity } : {}),
+			...(config.frequency ? { frequency: config.frequency } : {}),
+			...(config.currency ? { currency: config.currency } : {}),
+		},
+	});
+	const terminal = createBuiltinTerminals({ grammar })[consumerId];
+	return terminal
+		? terminal(consumerId, input, { consumerId, input, grammar })
+		: { valid: false };
 }
 
 function quantityRuntimeTokens(
@@ -161,17 +177,20 @@ export const quantitySettingsSemanticProvider: SettingsSemanticProvider = {
 		);
 		let sample: SettingsPreviewResult["sample"];
 		if (request.sampleInput) {
-			const parsed = parseQuantity(request.sampleInput, {
-				...config,
-				templates,
-			});
+			const parsed = configuredSample(
+				"quantity",
+				{
+					quantity: { ...config, templates },
+				},
+				request.sampleInput,
+			);
 			diagnostics.push(
-				...parsed.diagnostics.map((item) => diagnostic(path, item)),
+				...(parsed.diagnostics ?? []).map((item) => diagnostic(path, item)),
 			);
 			sample = {
 				input: request.sampleInput,
-				matched: Boolean(parsed.value),
-				value: parsed.value,
+				matched: parsed.valid,
+				value: parsed.canonicalValue,
 			};
 		}
 		return {
@@ -231,17 +250,20 @@ export const frequencySettingsSemanticProvider: SettingsSemanticProvider = {
 		);
 		let sample: SettingsPreviewResult["sample"];
 		if (request.sampleInput) {
-			const parsed = parseCadenceSchedule(request.sampleInput, {
-				...config,
-				templates,
-			});
+			const parsed = configuredSample(
+				"frequency",
+				{
+					frequency: { ...config, templates },
+				},
+				request.sampleInput,
+			);
 			diagnostics.push(
-				...parsed.diagnostics.map((item) => diagnostic(path, item)),
+				...(parsed.diagnostics ?? []).map((item) => diagnostic(path, item)),
 			);
 			sample = {
 				input: request.sampleInput,
-				matched: Boolean(parsed.value),
-				value: parsed.value,
+				matched: parsed.valid,
+				value: parsed.canonicalValue,
 			};
 		}
 		return {
@@ -280,11 +302,13 @@ export const numericSettingsSemanticProvider: SettingsSemanticProvider = {
 		]) ?? {}) as NumericParseOptions;
 		const diagnostics: SettingsDiagnostic[] = [];
 		const sample = request.sampleInput
-			? parseNumericValue(request.sampleInput, config)
+			? configuredSample("number", { numeric: config }, request.sampleInput)
 			: undefined;
 		if (sample)
 			diagnostics.push(
-				...sample.diagnostics.map((item) => diagnostic(request.path, item)),
+				...(sample.diagnostics ?? []).map((item) =>
+					diagnostic(request.path, item),
+				),
 			);
 		return {
 			requestId: request.requestId,
@@ -296,8 +320,8 @@ export const numericSettingsSemanticProvider: SettingsSemanticProvider = {
 				sample && request.sampleInput
 					? {
 							input: request.sampleInput,
-							matched: Boolean(sample.parsed),
-							value: sample.parsed,
+							matched: sample.valid,
+							value: sample.canonicalValue,
 						}
 					: undefined,
 		};
@@ -340,11 +364,13 @@ export const currencySettingsSemanticProvider: SettingsSemanticProvider = {
 			})),
 		);
 		const parsed = request.sampleInput
-			? parseCurrency(request.sampleInput, config)
+			? configuredSample("currency", { currency: config }, request.sampleInput)
 			: undefined;
 		if (parsed)
 			diagnostics.push(
-				...parsed.diagnostics.map((item) => diagnostic(request.path, item)),
+				...(parsed.diagnostics ?? []).map((item) =>
+					diagnostic(request.path, item),
+				),
 			);
 		return {
 			requestId: request.requestId,
@@ -358,8 +384,8 @@ export const currencySettingsSemanticProvider: SettingsSemanticProvider = {
 				parsed && request.sampleInput
 					? {
 							input: request.sampleInput,
-							matched: Boolean(parsed.value),
-							value: parsed.value,
+							matched: parsed.valid,
+							value: parsed.canonicalValue,
 						}
 					: undefined,
 		};

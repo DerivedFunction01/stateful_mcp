@@ -1,4 +1,10 @@
+import type { ErrorDescriptor } from "@stateful-mcp/macro-protocol";
 import type { ConceptSeed, ExpressionSeed } from "../resources/contracts";
+import type {
+	AliasDefinition,
+	AliasResolver,
+	CompiledAliasRegistry,
+} from "../values/aliases";
 import type { MultiUnitCanonicalTarget } from "../values/compound";
 import type { CurrencyFormatConfig } from "../values/currency";
 import type {
@@ -12,6 +18,10 @@ import type {
 	TwoDigitYearCenturyConfig,
 } from "../values/date-time";
 import type { FrequencyGrammarConfig } from "../values/frequency";
+import type {
+	FundamentalCompileResult,
+	FundamentalGroup,
+} from "../values/fundamentals";
 import type { NumericParseOptions } from "../values/numeric";
 import type {
 	QuantityConsumerPolicy,
@@ -19,6 +29,7 @@ import type {
 	QuantityStatisticsPolicy,
 } from "../values/quantity";
 import type { CompoundRateConfig } from "../values/rates";
+import type { RecipeCompileResult, ValueRecipe } from "../values/recipes";
 import type { MacroSyntax } from "./syntax";
 import type { NumericBounds } from "./values";
 
@@ -56,6 +67,17 @@ export interface NumberWordConfig {
 	readonly useWordBoundaries?: boolean;
 }
 
+export interface OrdinalConfig {
+	readonly ordinalAtoms?: Readonly<Record<string, string | readonly string[]>>;
+	readonly suffix?: string;
+	readonly prefix?: string;
+	readonly applyToFinalOnly?: boolean;
+}
+
+export interface ExtendedNumberWordConfig extends NumberWordConfig {
+	readonly ordinals?: OrdinalConfig;
+}
+
 export type {
 	CurrencyFormatConfig,
 	MultiUnitCanonicalTarget,
@@ -86,7 +108,7 @@ export interface UserMacroProfile {
 	readonly syntax?: Partial<MacroSyntax>;
 	readonly locale?: string;
 	readonly localization?: LocalizationPolicyConfig;
-	readonly numberWords?: NumberWordConfig;
+	readonly numberWords?: ExtendedNumberWordConfig;
 	readonly values?: UserMacroProfileValues;
 	readonly excludePrefixes?: readonly string[];
 	/** Master general spelling aliases (e.g. British vs US spellings, standard SI/Imperial) */
@@ -97,6 +119,10 @@ export interface UserMacroProfile {
 	readonly operatorAliases?: Readonly<Record<string, readonly string[]>>;
 	/** Universal statistical qualifiers (e.g. { "mean": ["mean", "average", "avg"] }) */
 	readonly statisticalAliases?: Readonly<Record<string, readonly string[]>>;
+	readonly aliases?: readonly AliasDefinition[];
+	readonly aliasResolvers?: Readonly<Record<string, AliasResolver>>;
+	readonly fundamentals?: readonly FundamentalGroup[];
+	readonly recipes?: readonly ValueRecipe[];
 }
 
 export interface MacroArgumentPolicy {
@@ -120,6 +146,10 @@ export interface MacroArgumentPolicy {
 	readonly allowOperator?: boolean;
 	/** Whether data point counts are allowed */
 	readonly allowDataPointCount?: boolean;
+	/** Explicit value recipes accepted by this argument. */
+	readonly enabledRecipes?: readonly string[];
+	/** Consumer-specific ordering overrides for enabled recipes. */
+	readonly priorityOverrides?: Readonly<Record<string, number>>;
 }
 
 export interface MacroPolicyConfig {
@@ -146,7 +176,7 @@ export interface ExtensionDomainConfig {
 	readonly localization?: LocalizationPolicyConfig;
 
 	/** Specialized domain written number word definitions */
-	readonly numberWords?: NumberWordConfig;
+	readonly numberWords?: ExtendedNumberWordConfig;
 
 	/** Specialized domain currency formatting */
 	readonly currency?: CurrencyFormatConfig;
@@ -171,15 +201,32 @@ export interface ExtensionDomainConfig {
 
 	/** Optional domain-level overrides for profile fundamentals */
 	readonly overrides?: Partial<UserMacroProfile>;
+	readonly aliases?: readonly AliasDefinition[];
+	readonly aliasResolvers?: Readonly<Record<string, AliasResolver>>;
+	readonly fundamentals?: readonly FundamentalGroup[];
+	readonly recipes?: readonly ValueRecipe[];
 }
 
 export interface CompiledDomainGrammar {
+	readonly valid: boolean;
+	readonly diagnostics: readonly (ErrorDescriptor & {
+		readonly errorCode?: string;
+		readonly recipeId?: string;
+		readonly groupId?: string;
+		readonly variantId?: string;
+	})[];
 	readonly quantity: QuantityGrammarConfig;
+	readonly frequency?: FrequencyGrammarConfig;
+	readonly rates?: CompoundRateConfig;
 	readonly date?: DateTimeFormatConfig;
 	readonly dateTime?: DateTimeFormatRegistry;
+	readonly relativeTemporal?: RelativeTemporalConfig;
 	readonly currency?: CurrencyFormatConfig;
 	readonly localization?: LocalizationPolicyConfig;
-	readonly numberWords?: NumberWordConfig;
+	readonly numberWords?: ExtendedNumberWordConfig;
+	readonly fundamentals?: FundamentalCompileResult;
+	readonly aliases?: CompiledAliasRegistry;
+	readonly recipes?: RecipeCompileResult;
 	readonly bounds: Readonly<Record<string, NumericBounds>>;
 	readonly excludePrefixes: readonly string[];
 	readonly excludePrefixRegexPattern?: string;
@@ -193,4 +240,6 @@ export interface CompiledArgumentPolicy {
 	readonly targetCanonicalUnit?: MultiUnitCanonicalTarget;
 	readonly bounds?: NumericBounds;
 	readonly rangeDelimiters?: readonly string[];
+	readonly enabledRecipes?: readonly string[];
+	readonly priorityOverrides?: Readonly<Record<string, number>>;
 }

@@ -118,7 +118,7 @@ export function parseCompoundRate(
 	}
 
 	// 2. Split into Numerator and Denominators using configured rateDelimiters
-	const rateDelimiters = config.rateDelimiters ?? ["/"];
+	const rateDelimiters = config.rateDelimiters ?? [];
 	const segments =
 		rateDelimiters.length > 0
 			? (splitByDelimiters(text, rateDelimiters)?.parts ?? [text])

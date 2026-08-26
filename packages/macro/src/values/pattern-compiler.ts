@@ -2,10 +2,11 @@ import type {
 	CompiledDomainGrammar,
 	UserMacroProfile,
 } from "../contracts/extension-config";
+import { compileDomainConfig } from "../extensions/config";
 import type { ValueKind } from "../contracts/values";
 import type { ScannerSyntax } from "../parser/macro-scanner";
 import type { CurrencyFormatConfig } from "./currency";
-import { buildCurrencyPatternString, parseCurrency } from "./currency";
+import { buildCurrencyPatternString } from "./currency";
 import type { DateTimeFormatConfig, DateTimeFormatRegistry } from "./date-time";
 import { buildDatePatternString, createDateTimeRegistry } from "./date-time";
 import { normalizeUnicodeDigits } from "./localization";
@@ -14,8 +15,8 @@ import {
 	createMeasurementValueFromQuantity,
 } from "./measurement";
 import type { QuantityConsumerPolicy, QuantityGrammarConfig } from "./quantity";
-import { parseQuantity } from "./quantity";
 import { escapeRegex } from "./regex";
+import { createBuiltinTerminals } from "./terminals";
 
 export type PatternCompilerValueKind =
 	| ValueKind
@@ -39,17 +40,20 @@ export class ValuePatternCompiler {
 	private readonly dateConfig?: DateTimeFormatConfig;
 	private readonly dateTimeRegistry?: DateTimeFormatRegistry;
 	private readonly syntax?: ScannerSyntax;
+	private readonly compiledGrammar: CompiledDomainGrammar;
 
 	constructor(options: PatternCompilerOptions = {}) {
 		const { grammar, syntax } = options;
 		this.syntax = syntax;
 		if (grammar && "quantity" in grammar && grammar.quantity) {
+			this.compiledGrammar = grammar as CompiledDomainGrammar;
 			this.quantityConfig = grammar.quantity;
 			this.currencyConfig = grammar.currency;
 			this.dateConfig = grammar.date;
 			this.dateTimeRegistry = grammar.dateTime;
 		} else {
 			const profile = grammar as Partial<UserMacroProfile> | undefined;
+			this.compiledGrammar = compileDomainConfig(profile);
 			const valQuantity = profile?.values?.quantity;
 			this.quantityConfig = {
 				unitAliases: profile?.unitAliases ?? valQuantity?.unitAliases ?? {},
@@ -263,9 +267,19 @@ export class ValuePatternCompiler {
 				allowOperator: true,
 				allowDataPointCount: false,
 			};
-			const res = parseQuantity(normalized, this.quantityConfig, policy);
-			if (res.value) {
-				return createMeasurementValueFromQuantity(res.value, {
+			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar }).quantity!;
+			const res = terminal("quantity", normalized, {
+				consumerId: "quantity",
+				input: normalized,
+				grammar: this.compiledGrammar,
+				policy: {
+					path: "assertion",
+					policy,
+					quantityConsumerPolicy: policy,
+				},
+			});
+			if (res.valid && res.canonicalValue) {
+				return createMeasurementValueFromQuantity(res.canonicalValue as Parameters<typeof createMeasurementValueFromQuantity>[0], {
 					rawText: trimmed,
 				});
 			}
@@ -273,14 +287,25 @@ export class ValuePatternCompiler {
 		}
 
 		if (kind === "currency") {
-			const res = parseCurrency(normalized, this.currencyConfig);
-			if (res.value) {
+			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar }).currency!;
+			const res = terminal("currency", normalized, {
+				consumerId: "currency",
+				input: normalized,
+				grammar: this.compiledGrammar,
+			});
+			if (res.valid && res.canonicalValue) {
+				const value = res.canonicalValue as {
+					amount: number;
+					currency: string;
+					subunits?: number;
+					symbol?: string;
+				};
 				return {
 					kind: "currency",
-					amount: res.value.amount,
-					currency: res.value.currency,
-					subunits: res.value.subunits,
-					symbol: res.value.symbol,
+					amount: value.amount,
+					currency: value.currency,
+					subunits: value.subunits,
+					symbol: value.symbol,
 					rawText: trimmed,
 				};
 			}

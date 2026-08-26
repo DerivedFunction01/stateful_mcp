@@ -265,6 +265,7 @@ describe("Quantified Concepts & Discrete Packaging Units", () => {
 		test("parses compound rate with concept numerator (e.g. '10 boxes of gloves / day')", () => {
 			const res = parseCompoundRate("10 boxes of nitrile gloves / day", {
 				quantityConfig: { ...baseConfig, conversionRegistry: registry },
+				rateDelimiters: ["/"],
 			});
 			expect(res.diagnostics).toHaveLength(0);
 			expect(res.value).toBeDefined();

@@ -22,6 +22,7 @@ import {
 	resolveMacroArgumentMatches,
 } from "../matcher/friendly";
 import { escapeRegex, execAll } from "../values/regex";
+import { findConfiguredValueMatches } from "../values/engine";
 import {
 	scanConceptTokenParts,
 	scanNamedAssignments,
@@ -149,7 +150,22 @@ export function parseMacroLine(
 			...semanticMatches,
 		]);
 		allCandidates.push(...candidateMatches);
-		const matched = candidateMatches.sort(compareMatches)[0];
+		const rankedMatches = candidateMatches.sort(compareMatches);
+		const matched =
+			rankedMatches[0]?.stability === "ambiguous"
+				? undefined
+				: rankedMatches[0];
+		if (rankedMatches[0]?.stability === "ambiguous") {
+			diagnostics.push({
+				code: "AMBIGUOUS_MATCH",
+				argumentId: argument.argumentId,
+				message: "errors.ambiguousMatch",
+				messageKey: "errors.ambiguousMatch",
+				messageParams: { argumentName: argument.name },
+				start: segment.valueSpan.start,
+				end: segment.valueSpan.end,
+			});
+		}
 
 		if (matched) {
 			used.add(argument.argumentId);
@@ -406,9 +422,9 @@ function inferPositionalMatches(
 			return;
 		}
 		visit(index + 1, selected);
-		for (const candidate of selectionCandidates.filter(
-			(item) => item.argumentId === specs[index]!.argumentId,
-		)) {
+		for (const candidate of selectionCandidates
+			.filter((item) => item.argumentId === specs[index]!.argumentId)
+			.filter((item) => item.stability !== "ambiguous")) {
 			if (
 				selected.some((item) =>
 					spansOverlap(item.extraction, candidate.extraction),
@@ -553,7 +569,13 @@ function matchArgument(
 			? { start: match.anchor.start + offset, end: match.anchor.end + offset }
 			: undefined,
 	}));
-	if (matches.length || !isNamed || argument.matcher) return matches;
+	if (
+		matches.length ||
+		!isNamed ||
+		argument.matcher ||
+		argument.configuredValue
+	)
+		return matches;
 	const trimmed = text.trim();
 	if (!trimmed) return [];
 	const start = offset + text.indexOf(trimmed);
@@ -575,6 +597,15 @@ function findArgumentMatches(
 	options: MacroParseOptions,
 	diagnostics: MacroDiagnostic[],
 ): MacroArgumentMatch[] {
+	if (argument.configuredValue) {
+		return findConfiguredArgumentMatches(
+			argument,
+			raw,
+			region,
+			options,
+			diagnostics,
+		);
+	}
 	return asMatchers(argument.matcher).flatMap((matcher) => {
 		if (matcher.kind === "expression") {
 			const backend = options.backends?.[matcher.backendId];
@@ -762,6 +793,62 @@ function matchDefault(
 		extraction: { start: 0, end: 0 },
 		rawValue: matches[0]?.rawValue ?? value,
 	};
+}
+
+function findConfiguredArgumentMatches(
+	argument: MacroArgumentSpec,
+	raw: string,
+	region: MacroSpan,
+	options: MacroParseOptions,
+	diagnostics: MacroDiagnostic[],
+): MacroArgumentMatch[] {
+	const runtime = options.configuredValues;
+	if (!runtime) {
+		diagnostics.push({
+			code: "BACKEND_MISSING",
+			argumentId: argument.argumentId,
+			message: "errors.backendMissing",
+			messageKey: "errors.backendMissing",
+			messageParams: {
+				resolverId: argument.configuredValue?.consumerId ?? "configured-values",
+			},
+			start: region.start,
+			end: region.end,
+		});
+		return [];
+	}
+	const configuredMatches = findConfiguredValueMatches(
+		raw,
+		runtime,
+		argument.argumentId,
+		[region],
+		argument.configuredValue?.consumerId,
+	);
+	const ambiguous = configuredMatches.length > 1;
+	return configuredMatches.map(({ candidate, start, end, rawText }) => ({
+		argumentId: argument.argumentId,
+		source: "configured",
+		extraction: { start, end },
+		rawValue: rawText,
+		captures: candidate.captures,
+		captureSpans: Object.entries(candidate.captureSpans).map(
+			([name, span]) => ({
+				name,
+				value: candidate.captures[name],
+				start: start + span.start,
+				end: start + span.end,
+			}),
+		),
+		canonicalValue: candidate.canonicalValue,
+		displayValue: candidate.displayValue,
+		priority: candidate.priority,
+		recipeId: candidate.recipeId,
+		variantPath: candidate.variantPath,
+		recipeDiagnostics: candidate.diagnostics,
+		recipeEvaluation: candidate.evaluation,
+		matchKind: "exact",
+		stability: ambiguous ? "ambiguous" : "stable",
+	}));
 }
 
 function scanPatternMatches(

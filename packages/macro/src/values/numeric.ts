@@ -21,6 +21,24 @@ export interface ParsedNumber {
 		| "scientific";
 }
 
+export const NUMERIC_FORMS = [
+	"integer",
+	"decimal",
+	"fraction",
+	"mixed_fraction",
+	"scientific",
+] as const;
+export type NumericForm = (typeof NUMERIC_FORMS)[number];
+
+export interface FractionConstraints {
+	readonly allowImproper?: boolean;
+	readonly denominator?: {
+		readonly exact?: number;
+		readonly min?: number;
+		readonly max?: number;
+	};
+}
+
 export interface NumericParseOptions {
 	readonly decimalPoint?: string;
 	readonly decimalSeparator?: string;
@@ -31,6 +49,9 @@ export interface NumericParseOptions {
 	readonly allowNegative?: boolean;
 	readonly bounds?: NumericBounds;
 	readonly locales?: string | readonly string[];
+	/** When supplied, only these syntactic forms are recognized. */
+	readonly allowedForms?: readonly NumericForm[];
+	readonly fractionConstraints?: FractionConstraints;
 }
 
 export interface NumericDiagnostic {
@@ -195,6 +216,7 @@ export function parseNumericValue(
 							kind: "mixed_fraction",
 						},
 						options.bounds,
+						options,
 					);
 				}
 			} else {
@@ -208,6 +230,7 @@ export function parseNumericValue(
 						kind: "fraction",
 					},
 					options.bounds,
+					options,
 				);
 			}
 		}
@@ -251,6 +274,7 @@ export function parseNumericValue(
 						kind: "mixed_fraction",
 					},
 					options.bounds,
+					options,
 				);
 			}
 		}
@@ -292,6 +316,7 @@ export function parseNumericValue(
 					kind: "fraction",
 				},
 				options.bounds,
+				options,
 			);
 		}
 	}
@@ -318,6 +343,7 @@ export function parseNumericValue(
 					kind: "scientific",
 				},
 				options.bounds,
+				options,
 			);
 		}
 	}
@@ -358,13 +384,65 @@ export function parseNumericValue(
 			kind: isDecimal ? "decimal" : "integer",
 		},
 		options.bounds,
+		options,
 	);
 }
 
 function validateNumericResult(
 	parsed: ParsedNumber,
 	bounds?: NumericBounds,
+	options: NumericParseOptions = {},
 ): NumericParseResult {
+	if (options.allowedForms && !options.allowedForms.includes(parsed.kind)) {
+		return {
+			diagnostics: [
+				{
+					code: "numeric_form_not_allowed",
+					messageKey: "errors.numericFormNotAllowed",
+					messageParams: { form: parsed.kind },
+				},
+			],
+		};
+	}
+	if (parsed.fraction && options.fractionConstraints) {
+		const { numerator, denominator } = parsed.fraction;
+		const constraints = options.fractionConstraints;
+		if (
+			constraints.allowImproper === false &&
+			numerator >= denominator &&
+			parsed.kind === "fraction"
+		) {
+			return {
+				diagnostics: [
+					{
+						code: "improper_fraction_not_allowed",
+						messageKey: "errors.numericImproperFractionNotAllowed",
+					},
+				],
+			};
+		}
+		const expected = constraints.denominator;
+		if (
+			(expected?.exact !== undefined && denominator !== expected.exact) ||
+			(expected?.min !== undefined && denominator < expected.min) ||
+			(expected?.max !== undefined && denominator > expected.max)
+		) {
+			return {
+				diagnostics: [
+					{
+						code: "fraction_denominator_invalid",
+						messageKey: "errors.numericFractionDenominatorInvalid",
+						messageParams: {
+							denominator,
+							...(expected?.exact === undefined
+								? {}
+								: { expected: expected.exact }),
+						},
+					},
+				],
+			};
+		}
+	}
 	if (bounds) {
 		if (!checkNumericBounds(parsed.value, bounds)) {
 			return {

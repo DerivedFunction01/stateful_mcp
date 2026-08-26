@@ -1,3 +1,4 @@
+import type { ConfiguredValueRuntime } from "../values/engine";
 import type { ExpressionBackend } from "./backends";
 import type { MacroRuntimeContext } from "./context";
 import type {
@@ -36,6 +37,10 @@ export interface MacroArgumentSpec {
 	position?: number;
 	path: string;
 	matcher?: MacroMatcher | readonly MacroMatcher[];
+	/** Typed values are parsed only through the explicitly supplied recipes. */
+	configuredValue?: {
+		consumerId: string;
+	};
 	forms?: readonly MacroArgumentForm[];
 	valueKind?: ValueKind;
 	scalarType?: ScalarType;
@@ -46,6 +51,11 @@ export interface MacroArgumentSpec {
 	defaultValue?: string;
 	blankPolicy?: MacroBlankPolicy;
 	normalize?: (
+		raw: string,
+		captures: Record<string, string | undefined>,
+	) => unknown;
+	normalizeCanonical?: (
+		value: unknown,
 		raw: string,
 		captures: Record<string, string | undefined>,
 	) => unknown;
@@ -83,4 +93,5 @@ export interface MacroParseOptions {
 	candidateSnapshots?: readonly import("./composition").MacroCandidateSnapshot[];
 	subOrder?: readonly string[];
 	subOrderGroups?: Readonly<Record<string, readonly string[]>>;
+	configuredValues?: ConfiguredValueRuntime;
 }

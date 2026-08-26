@@ -7,19 +7,31 @@ import type {
 	UserMacroProfile,
 } from "../contracts/extension-config";
 import type { NumericBounds } from "../contracts/values";
+import type { AliasResolver } from "../values/aliases";
+import { compileAliasRegistry } from "../values/aliases";
 import type {
 	CurrencyDefinition,
 	CurrencyFormatConfig,
 } from "../values/currency";
 import type { DateTimeFormatConfig } from "../values/date-time";
-
+import { compileFundamentalGroups } from "../values/fundamentals";
 import type {
 	QuantityConsumerPolicy,
 	QuantityGrammarConfig,
 } from "../values/quantity";
+import { compileValueRecipes } from "../values/recipes";
 import { escapeRegex } from "../values/regex";
 
 export type ExtensionConfig = Readonly<Record<string, unknown>>;
+
+export interface DomainConfigCompileOptions {
+	/** Runtime terminal IDs available to recipe nodes. */
+	readonly terminalIds?: ReadonlySet<string>;
+	/** Runtime output-builder IDs available to structured recipe roots. */
+	readonly outputBuilderIds?: ReadonlySet<string>;
+	/** Scoped alias resolvers supplied by the active runtime. */
+	readonly aliasResolvers?: Readonly<Record<string, AliasResolver>>;
+}
 
 export function resolveExtensionConfig(
 	defaults: Readonly<Record<string, unknown>> | undefined,
@@ -33,6 +45,7 @@ export function resolveExtensionConfig(
 export function compileDomainConfig(
 	profile?: UserMacroProfile,
 	config?: ExtensionDomainConfig,
+	options: DomainConfigCompileOptions = {},
 ): CompiledDomainGrammar {
 	const decimalSeparator: "." | "," | undefined = (config?.overrides?.values
 		?.numeric?.decimalSeparator ??
@@ -126,7 +139,14 @@ export function compileDomainConfig(
 		}
 	}
 
+	const numeric = {
+		...(profile?.values?.numeric ?? {}),
+		...(config?.overrides?.values?.numeric ?? {}),
+	};
 	const quantity: QuantityGrammarConfig = {
+		...numeric,
+		...(profile?.values?.quantity ?? {}),
+		...(config?.overrides?.values?.quantity ?? {}),
 		unitAliases: combinedUnitAliases,
 		rangeDelimiters: combinedRangeDelimiters,
 		...(decimalSeparator ? { decimalSeparator } : {}),
@@ -137,9 +157,23 @@ export function compileDomainConfig(
 			? { statisticalConfig: { qualifiers: combinedStatisticalAliases } }
 			: {}),
 	};
+	const frequency = {
+		...(profile?.values?.frequency ?? {}),
+		...(config?.overrides?.values?.frequency ?? {}),
+	};
+	const rates = {
+		...(profile?.values?.rates ?? {}),
+		...(config?.overrides?.values?.rates ?? {}),
+	};
 
 	const date = (config?.overrides?.values?.date ?? profile?.values?.date) as
 		| DateTimeFormatConfig
+		| undefined;
+	const dateTime = (config?.overrides?.values?.dateTime ??
+		profile?.values?.dateTime) as CompiledDomainGrammar["dateTime"] | undefined;
+	const relativeTemporal = (config?.overrides?.values?.relativeTemporal ??
+		profile?.values?.relativeTemporal) as
+		| CompiledDomainGrammar["relativeTemporal"]
 		| undefined;
 
 	// Merge currency configuration
@@ -284,15 +318,62 @@ export function compileDomainConfig(
 		...(config?.bounds ?? {}),
 	};
 
+	const fundamentals = [
+		...(profile?.fundamentals ?? []),
+		...(config?.fundamentals ?? []),
+		...(config?.overrides?.fundamentals ?? []),
+	];
+	const aliases = [
+		...(profile?.aliases ?? []),
+		...(config?.aliases ?? []),
+		...(config?.overrides?.aliases ?? []),
+	];
+	const aliasResolvers = {
+		...(profile?.aliasResolvers ?? {}),
+		...(config?.aliasResolvers ?? {}),
+		...(options.aliasResolvers ?? {}),
+	};
+	const fundamentalCompilation = compileFundamentalGroups(fundamentals);
+	const aliasCompilation = compileAliasRegistry(aliases, aliasResolvers);
+	const recipeCompilation = compileValueRecipes(
+		fundamentals,
+		[
+			...(profile?.recipes ?? []),
+			...(config?.recipes ?? []),
+			...(config?.overrides?.recipes ?? []),
+		],
+		{
+			terminalIds: options.terminalIds,
+			outputBuilderIds: options.outputBuilderIds,
+		},
+	);
+	const diagnostics = Object.freeze([
+		...fundamentalCompilation.diagnostics,
+		...aliasCompilation.diagnostics,
+		...recipeCompilation.diagnostics,
+	]);
+
 	return {
-		quantity,
+		valid: diagnostics.length === 0,
+		diagnostics,
+		quantity:
+			fundamentals.length > 0
+				? { ...quantity, fundamentalGroups: fundamentals }
+				: quantity,
+		...(Object.keys(frequency).length ? { frequency } : {}),
+		...(Object.keys(rates).length ? { rates } : {}),
 		date,
+		dateTime,
+		relativeTemporal,
 		currency,
 		localization,
 		numberWords,
 		bounds,
 		excludePrefixes,
 		excludePrefixRegexPattern,
+		fundamentals: fundamentalCompilation,
+		aliases: aliasCompilation,
+		recipes: recipeCompilation,
 	};
 }
 
@@ -334,6 +415,8 @@ export function resolveArgumentPolicy(
 		targetCanonicalUnit: policy?.targetCanonicalUnit,
 		bounds: resolvedBounds,
 		rangeDelimiters: policy?.rangeDelimiters,
+		enabledRecipes: policy?.enabledRecipes,
+		priorityOverrides: policy?.priorityOverrides,
 	};
 }
 

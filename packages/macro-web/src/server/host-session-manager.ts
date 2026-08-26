@@ -19,6 +19,7 @@ import {
 	ServerUserPreferencesStore,
 } from "@stateful-mcp/macro-host";
 import {
+	type ArtifactLifecycle,
 	type EditorOperation,
 	type EditorOperationResult,
 	type EditorWorkspaceSnapshotDto,
@@ -214,7 +215,7 @@ export class HostSessionManager {
 		data: Uint8Array;
 		name: string;
 		mimeType: string;
-		lifecycle?: "ephemeral" | "project" | "extension" | "external";
+		lifecycle?: ArtifactLifecycle;
 		expiresAt?: number;
 		owner?: string;
 		projectId?: string;

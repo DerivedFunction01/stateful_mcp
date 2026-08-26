@@ -52,7 +52,7 @@ export interface MacroArtifactDescriptorDto {
 	readonly downloadUrl?: string;
 	readonly previewSnippet?: string;
 	readonly artifactToken?: string;
-	readonly lifecycle?: "ephemeral" | "project" | "extension" | "external";
+	readonly lifecycle?: ArtifactLifecycle;
 	readonly scope?: "project" | "global" | "content" | "cache" | "external";
 	readonly capabilities?: readonly ("download" | "save" | "open")[];
 }
@@ -138,7 +138,7 @@ export interface EditorGroupDto {
 	readonly groupId: string;
 	readonly documentIds: readonly string[];
 	readonly activeDocumentId: string | null;
-	readonly orientation: "horizontal" | "vertical";
+	readonly orientation: EditorOrientation;
 	readonly sizeRatio?: number;
 }
 
@@ -152,7 +152,7 @@ export interface EditorLayoutLeafDto {
 export interface EditorLayoutSplitDto {
 	readonly kind: "split";
 	readonly nodeId: string;
-	readonly orientation: "horizontal" | "vertical";
+	readonly orientation: EditorOrientation;
 	readonly children: readonly EditorLayoutNodeDto[];
 	readonly sizeRatios?: readonly number[];
 }
@@ -354,7 +354,7 @@ export type EditorOperation =
 			readonly documentId?: string;
 			readonly moveDocument?: boolean;
 			readonly behavior?: "duplicate" | "empty";
-			readonly orientation?: "horizontal" | "vertical";
+			readonly orientation?: EditorOrientation;
 			readonly expectedWorkspaceRevision?: number;
 	  })
 	| (EditorRequestBase & {
@@ -517,3 +517,115 @@ export type EditorOperationResult =
 			readonly receipts?: readonly ScratchpadExecutionReceiptDto[];
 			readonly skippedLines?: readonly EditorSkippedLineDto[];
 	  });
+
+export const RESOURCE_OPERATIONS = [
+	"editor.openScratchpad",
+	"editor.openResource",
+	"editor.resourceAction",
+	"editor.saveArtifact",
+	"editor.deleteScratchpad",
+] as const;
+
+export type ResourceOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof RESOURCE_OPERATIONS)[number] }
+>;
+
+export const EXECUTION_OPERATIONS = [
+	"editor.executeLine",
+	"editor.executeRange",
+	"editor.executeValidLines",
+] as const;
+
+export type ExecutionOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof EXECUTION_OPERATIONS)[number] }
+>;
+
+export const TEMPLATE_OPERATIONS = [
+	"editor.saveTemplate",
+	"editor.deleteTemplate",
+	"editor.openTemplateAsDocument",
+	"editor.updateTemplateLiteralArgs",
+] as const;
+
+export type TemplateOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof TEMPLATE_OPERATIONS)[number] }
+>;
+
+export const PERSISTENCE_OPERATIONS = [
+	"editor.openFile",
+	"editor.save",
+	"editor.saveScratchpad",
+] as const;
+
+export type PersistenceOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof PERSISTENCE_OPERATIONS)[number] }
+>;
+
+export const PREVIEW_OPERATIONS = [
+	"editor.previewLine",
+	"editor.previewRange",
+	"editor.previewDocument",
+] as const;
+
+export type PreviewOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof PREVIEW_OPERATIONS)[number] }
+>;
+
+export const DOCUMENT_LIFECYCLE_OPERATIONS = [
+	"editor.newScratchpad",
+	"editor.newScratchpadFromTemplate",
+	"editor.selectDocument",
+	"editor.closeDocument",
+	"editor.closeDocumentInGroup",
+	"editor.renameDocument",
+	"editor.duplicateDocument",
+] as const;
+
+export type DocumentLifecycleOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof DOCUMENT_LIFECYCLE_OPERATIONS)[number] }
+>;
+
+export const GROUP_OPERATIONS = [
+	"editor.createSplitGroup",
+	"editor.closeGroup",
+	"editor.resizeSplit",
+	"editor.focusGroup",
+	"editor.openDocumentInGroup",
+	"editor.moveDocumentToGroup",
+] as const;
+
+export type GroupOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof GROUP_OPERATIONS)[number] }
+>;
+
+export const TEXT_OPERATIONS = [
+	"editor.setCellDefault",
+	"editor.replaceText",
+	"editor.clearExecutedLines",
+	"editor.resetExecutionState",
+] as const;
+
+export type TextOperation = Extract<
+	EditorOperation,
+	{ readonly operation: (typeof TEXT_OPERATIONS)[number] }
+>;
+
+export const EDITOR_ORIENTATIONS = ["horizontal", "vertical"] as const;
+
+export type EditorOrientation = (typeof EDITOR_ORIENTATIONS)[number];
+
+export const ARTIFACT_LIFECYCLES = [
+	"ephemeral",
+	"project",
+	"extension",
+	"external",
+] as const;
+
+export type ArtifactLifecycle = (typeof ARTIFACT_LIFECYCLES)[number];

@@ -1,5 +1,6 @@
 import type {
 	DigitNormalizationPolicy,
+	ExtendedNumberWordConfig,
 	LocalizationPolicyConfig,
 	NumberWordConfig,
 	WordBoundaryPolicy,
@@ -306,6 +307,74 @@ export class UniversalNumberParser {
 
 		return total + blockTotal + temp;
 	}
+}
+
+export interface ParsedOrdinal {
+	readonly value: number;
+	readonly rawText: string;
+	readonly sourceForm: "word" | "numeric-prefix" | "numeric-suffix";
+	readonly matchedSpelling: string;
+}
+
+/**
+ * Resolves only explicitly configured ordinal spellings and affixes. This is
+ * intentionally separate from cardinal number-word normalization.
+ */
+export function parseOrdinalValue(
+	input: string,
+	config: ExtendedNumberWordConfig,
+): ParsedOrdinal | undefined {
+	const ordinal = config.ordinals;
+	if (!ordinal) return undefined;
+	const rawText = input.trim();
+	if (!rawText) return undefined;
+
+	for (const [valueText, configured] of Object.entries(
+		ordinal.ordinalAtoms ?? {},
+	)) {
+		const value = Number(valueText);
+		if (!Number.isInteger(value) || !Number.isFinite(value)) continue;
+		const spellings =
+			typeof configured === "string" ? [configured] : configured;
+		for (const spelling of spellings) {
+			if (rawText === spelling) {
+				return {
+					value,
+					rawText,
+					sourceForm: "word",
+					matchedSpelling: spelling,
+				};
+			}
+		}
+	}
+
+	if (ordinal.prefix && rawText.startsWith(ordinal.prefix)) {
+		const suffix = rawText.slice(ordinal.prefix.length);
+		if (/^\d+$/u.test(suffix)) {
+			return {
+				value: Number(suffix),
+				rawText,
+				sourceForm: "numeric-prefix",
+				matchedSpelling: ordinal.prefix,
+			};
+		}
+	}
+	if (ordinal.suffix && rawText.endsWith(ordinal.suffix)) {
+		const prefix = rawText.slice(0, -ordinal.suffix.length);
+		if (/^\d+$/u.test(prefix)) {
+			return {
+				value: Number(prefix),
+				rawText,
+				sourceForm: "numeric-suffix",
+				matchedSpelling: ordinal.suffix,
+			};
+		}
+	}
+	const numeric = /^\d+$/u.exec(rawText)?.[0];
+	if (!numeric) return undefined;
+	const value = Number(numeric);
+	if (!Number.isSafeInteger(value)) return undefined;
+	return undefined;
 }
 
 export function resolveQuotePairs(
