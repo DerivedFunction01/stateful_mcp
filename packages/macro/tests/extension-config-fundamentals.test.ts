@@ -7,31 +7,37 @@ describe("compiled extension fundamentals", () => {
 			fundamentals: [
 				{
 					id: "range",
-					variants: [{
-						id: "from-to",
-						prefix: [{ id: "from", text: "from" }],
-						connectors: [[{ id: "to", text: "to" }]],
-						slots: [{ id: "start" }, { id: "end" }],
-					}],
-				},
-			],
-			aliases: [{
-				id: "usd",
-				namespace: "canonical-id",
-				spellings: ["dollars"],
-				target: { kind: "canonical", value: "USD" },
-			}],
-			recipes: [{
-				id: "measurement-range",
-				root: {
-					kind: "fundamental",
-					groupId: "range",
-					children: [
-						{ kind: "terminal", consumerId: "measurement" },
-						{ kind: "terminal", consumerId: "measurement" },
+					variants: [
+						{
+							id: "from-to",
+							prefix: [{ id: "from", text: "from" }],
+							connectors: [[{ id: "to", text: "to" }]],
+							slots: [{ id: "start" }, { id: "end" }],
+						},
 					],
 				},
-			}],
+			],
+			aliases: [
+				{
+					id: "usd",
+					namespace: "canonical-id",
+					spellings: ["dollars"],
+					target: { kind: "canonical", value: "USD" },
+				},
+			],
+			recipes: [
+				{
+					id: "measurement-range",
+					root: {
+						kind: "fundamental",
+						groupId: "range",
+						children: [
+							{ kind: "terminal", consumerId: "measurement" },
+							{ kind: "terminal", consumerId: "measurement" },
+						],
+					},
+				},
+			],
 		});
 
 		expect(result.aliases?.diagnostics).toEqual([]);
@@ -51,14 +57,18 @@ describe("compiled extension fundamentals", () => {
 
 	test("marks invalid configured recipes as unusable", () => {
 		const result = compileDomainConfig({
-			recipes: [{
-				id: "broken",
-				root: { kind: "recipe", recipeId: "missing" },
-			}],
+			recipes: [
+				{
+					id: "broken",
+					root: { kind: "recipe", recipeId: "missing" },
+				},
+			],
 		});
 		expect(result.valid).toBe(false);
-		expect(result.diagnostics).toEqual(expect.arrayContaining([
-			expect.objectContaining({ errorCode: "UNKNOWN_RECIPE" }),
-		]));
+		expect(result.diagnostics).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ errorCode: "UNKNOWN_RECIPE" }),
+			]),
+		);
 	});
 });

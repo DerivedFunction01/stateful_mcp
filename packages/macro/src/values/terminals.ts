@@ -162,12 +162,12 @@ export function createBuiltinTerminals(
 			);
 			return resolved
 				? {
-					valid: true,
-					canonicalValue: resolved.canonicalUnit,
-					displayValue: resolved.matchedAlias,
-					metadata: { matchedAlias: resolved.matchedAlias },
-					stable: true,
-				}
+						valid: true,
+						canonicalValue: resolved.canonicalUnit,
+						displayValue: resolved.matchedAlias,
+						metadata: { matchedAlias: resolved.matchedAlias },
+						stable: true,
+					}
 				: { valid: false, stable: true };
 		},
 		operator: (_id, input, request) => {
@@ -177,11 +177,11 @@ export function createBuiltinTerminals(
 			);
 			return operator
 				? {
-					valid: true,
-					canonicalValue: operator,
-					displayValue: input.trim(),
-					stable: true,
-				}
+						valid: true,
+						canonicalValue: operator,
+						displayValue: input.trim(),
+						stable: true,
+					}
 				: { valid: false, stable: true };
 		},
 		statistic: (_id, input, request) => {
@@ -192,16 +192,16 @@ export function createBuiltinTerminals(
 			);
 			return statistic.qualifier
 				? {
-					valid: true,
-					canonicalValue: statistic.qualifier,
-					displayValue: input.trim(),
-					stable: true,
-				}
+						valid: true,
+						canonicalValue: statistic.qualifier,
+						displayValue: input.trim(),
+						stable: true,
+					}
 				: {
-					valid: false,
-					diagnostics: diagnostics(statistic.diagnostics),
-					stable: true,
-				};
+						valid: false,
+						diagnostics: diagnostics(statistic.diagnostics),
+						stable: true,
+					};
 		},
 		date: (_id, input, request) =>
 			parseDateTerminal(input, request?.grammar ?? grammar, "date"),
@@ -221,11 +221,11 @@ export function createBuiltinTerminals(
 			);
 			return value
 				? {
-					valid: true,
-					canonicalValue: value,
-					displayValue: input.trim(),
-					stable: true,
-				}
+						valid: true,
+						canonicalValue: value,
+						displayValue: input.trim(),
+						stable: true,
+					}
 				: { valid: false, stable: true };
 		},
 		frequency: (_id, input, request) => {
@@ -259,12 +259,12 @@ export function createBuiltinTerminals(
 		terminals[`alias:${namespace}`] = (_id, input, request) => {
 			const resolution = grammar.aliases
 				? resolveAlias(
-					grammar.aliases,
-					namespace,
-					input,
-					aliasContext(request?.context),
-					options.aliasResolvers,
-				)
+						grammar.aliases,
+						namespace,
+						input,
+						aliasContext(request?.context),
+						options.aliasResolvers,
+					)
 				: undefined;
 			if (!resolution) return { valid: false, stable: true };
 			return {

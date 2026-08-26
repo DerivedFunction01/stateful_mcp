@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { ExtensionRuntime } from "../src/extensions/runtime";
 import { createMacroRuntimeContext } from "../src/contracts/context";
+import { ExtensionRuntime } from "../src/extensions/runtime";
 
 describe("configured value runtime", () => {
 	test("scopes extension terminals and rejects unavailable recipe terminals", async () => {

@@ -2,8 +2,8 @@ import type {
 	CompiledDomainGrammar,
 	UserMacroProfile,
 } from "../contracts/extension-config";
-import { compileDomainConfig } from "../extensions/config";
 import type { ValueKind } from "../contracts/values";
+import { compileDomainConfig } from "../extensions/config";
 import type { ScannerSyntax } from "../parser/macro-scanner";
 import type { CurrencyFormatConfig } from "./currency";
 import { buildCurrencyPatternString } from "./currency";
@@ -267,7 +267,8 @@ export class ValuePatternCompiler {
 				allowOperator: true,
 				allowDataPointCount: false,
 			};
-			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar }).quantity!;
+			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar })
+				.quantity!;
 			const res = terminal("quantity", normalized, {
 				consumerId: "quantity",
 				input: normalized,
@@ -279,15 +280,21 @@ export class ValuePatternCompiler {
 				},
 			});
 			if (res.valid && res.canonicalValue) {
-				return createMeasurementValueFromQuantity(res.canonicalValue as Parameters<typeof createMeasurementValueFromQuantity>[0], {
-					rawText: trimmed,
-				});
+				return createMeasurementValueFromQuantity(
+					res.canonicalValue as Parameters<
+						typeof createMeasurementValueFromQuantity
+					>[0],
+					{
+						rawText: trimmed,
+					},
+				);
 			}
 			return createMeasurementValue(0, "", { rawText: trimmed });
 		}
 
 		if (kind === "currency") {
-			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar }).currency!;
+			const terminal = createBuiltinTerminals({ grammar: this.compiledGrammar })
+				.currency!;
 			const res = terminal("currency", normalized, {
 				consumerId: "currency",
 				input: normalized,

@@ -149,21 +149,29 @@ describe("configured extraction fundamentals", () => {
 	});
 
 	test("rejects mixed case policies within one variant instead of broadening it", () => {
-		const result = compileFundamentalGroups([{
-			id: "mixed",
-			variants: [{
-				id: "v",
-				prefix: [
-					{ id: "strict", text: "strict", caseSensitive: true },
-					{ id: "loose", text: "loose", caseSensitive: false },
+		const result = compileFundamentalGroups([
+			{
+				id: "mixed",
+				variants: [
+					{
+						id: "v",
+						prefix: [
+							{ id: "strict", text: "strict", caseSensitive: true },
+							{ id: "loose", text: "loose", caseSensitive: false },
+						],
+						slots: [{ id: "value" }],
+					},
 				],
-				slots: [{ id: "value" }],
-			}],
-		}]);
+			},
+		]);
 		expect(result.variants).toEqual([]);
-		expect(result.diagnostics).toEqual(expect.arrayContaining([
-			expect.objectContaining({ errorCode: "FUNDAMENTAL_CONFLICTING_CASE_POLICY" }),
-		]));
+		expect(result.diagnostics).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					errorCode: "FUNDAMENTAL_CONFLICTING_CASE_POLICY",
+				}),
+			]),
+		);
 	});
 
 	test("reports duplicate groups and variants structurally", () => {
@@ -187,21 +195,29 @@ describe("configured extraction fundamentals", () => {
 	});
 
 	test("operator and statistic aliases honor the shared case toggle", () => {
-		expect(resolveOperator("AT LEAST", {
-			prefixAliases: { greater_equal: ["at least"] },
-			caseSensitive: true,
-		})?.operator).toBeUndefined();
-		expect(resolveOperator("AT LEAST", {
-			prefixAliases: { greater_equal: ["at least"] },
-			caseSensitive: false,
-		})?.operator).toBe("greater_equal");
-		expect(resolveStatisticalQualifier("AVERAGE", {
-			qualifiers: { mean: ["average"] },
-			caseSensitive: true,
-		}).qualifier).toBeUndefined();
-		expect(resolveStatisticalQualifier("AVERAGE", {
-			qualifiers: { mean: ["average"] },
-			caseSensitive: false,
-		}).qualifier?.type).toBe("mean");
+		expect(
+			resolveOperator("AT LEAST", {
+				prefixAliases: { greater_equal: ["at least"] },
+				caseSensitive: true,
+			})?.operator,
+		).toBeUndefined();
+		expect(
+			resolveOperator("AT LEAST", {
+				prefixAliases: { greater_equal: ["at least"] },
+				caseSensitive: false,
+			})?.operator,
+		).toBe("greater_equal");
+		expect(
+			resolveStatisticalQualifier("AVERAGE", {
+				qualifiers: { mean: ["average"] },
+				caseSensitive: true,
+			}).qualifier,
+		).toBeUndefined();
+		expect(
+			resolveStatisticalQualifier("AVERAGE", {
+				qualifiers: { mean: ["average"] },
+				caseSensitive: false,
+			}).qualifier?.type,
+		).toBe("mean");
 	});
 });

@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { createMacroRuntimeContext } from "../src/contracts/context";
 import type { MacroSpec } from "../src/contracts/macro";
 import {
-	resolveArgumentPolicy,
 	compileDomainConfig,
+	resolveArgumentPolicy,
 } from "../src/extensions/config";
 import { parseMacroLine } from "../src/parser/macro-parser";
 import { compileMacroPayload } from "../src/payload/payload-compiler";

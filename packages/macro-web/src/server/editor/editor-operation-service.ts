@@ -243,8 +243,12 @@ export async function executeGroupOperation(
 	}
 }
 
-export function isTextOperation(operation: EditorOperation): operation is TextOperation {
-	return (TEXT_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
+export function isTextOperation(
+	operation: EditorOperation,
+): operation is TextOperation {
+	return (TEXT_OPERATIONS as readonly EditorOperation["operation"][]).includes(
+		operation.operation,
+	);
 }
 
 export async function executeTextOperation(
@@ -313,8 +317,12 @@ export async function executeTextOperation(
 	} as EditorOperationResult;
 }
 
-export function isPreviewOperation(operation: EditorOperation): operation is PreviewOperation {
-	return (PREVIEW_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
+export function isPreviewOperation(
+	operation: EditorOperation,
+): operation is PreviewOperation {
+	return (
+		PREVIEW_OPERATIONS as readonly EditorOperation["operation"][]
+	).includes(operation.operation);
 }
 
 export { isExecutionOperation } from "./execution-operations";
@@ -322,7 +330,9 @@ export { isExecutionOperation } from "./execution-operations";
 export function isDocumentLifecycleOperation(
 	operation: EditorOperation,
 ): operation is DocumentLifecycleOperation {
-	return (DOCUMENT_LIFECYCLE_OPERATIONS as readonly EditorOperation["operation"][]).includes(operation.operation);
+	return (
+		DOCUMENT_LIFECYCLE_OPERATIONS as readonly EditorOperation["operation"][]
+	).includes(operation.operation);
 }
 
 export async function executeDocumentLifecycleOperation(
@@ -605,7 +615,7 @@ export function createEditorOperationRouter(
 						sessionOwner: context.sessionOwner?.(session),
 						isResourceExposed: context.isResourceExposed
 							? (kind, resourceId) =>
-								context.isResourceExposed!(session, kind, resourceId)
+									context.isResourceExposed!(session, kind, resourceId)
 							: undefined,
 						materializeArtifact: context.materializeArtifact
 							? (token) => context.materializeArtifact!(session, token)

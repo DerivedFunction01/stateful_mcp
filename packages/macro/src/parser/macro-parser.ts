@@ -21,8 +21,8 @@ import {
 	matchFriendlyMacroForms,
 	resolveMacroArgumentMatches,
 } from "../matcher/friendly";
-import { escapeRegex, execAll } from "../values/regex";
 import { findConfiguredValueMatches } from "../values/engine";
+import { escapeRegex, execAll } from "../values/regex";
 import {
 	scanConceptTokenParts,
 	scanNamedAssignments,
