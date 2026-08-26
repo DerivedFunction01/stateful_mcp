@@ -1,6 +1,6 @@
 import type { FundamentalGroup, FundamentalPattern } from "../fundamentals";
 import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
-import type { DateTimeFormatRegistry } from "./types";
+import type { DateTimeFormatRegistry } from "./format-config";
 
 /**
  * Explicit, opt-in definitions supplied by the date-time built-in recipe

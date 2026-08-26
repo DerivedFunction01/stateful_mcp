@@ -7,7 +7,7 @@ import type {
 	DateTimeFormatConfig,
 	DateTimeFormatOptions,
 	TwoDigitYearCenturyConfig,
-} from "./types";
+} from "./format-config";
 
 /**
  * Builds an adaptive regex boundary with protective lookarounds

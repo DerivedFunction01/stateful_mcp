@@ -1,11 +1,7 @@
 import { createFundamentalFromAuthoredFormat } from "../fundamentals";
 import { buildNumericPatternString } from "../numeric";
-import type {
-	RecipeEvaluation,
-	RecipeOutputBuilder,
-	ValueRecipe,
-} from "../recipes";
-import { escapeRegex } from "../regex";
+import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
+import { buildMarkerPattern, slotValue } from "../recipes/shared";
 import {
 	CURRENCY_TOKENS,
 	type CurrencyToken,
@@ -23,27 +19,14 @@ export interface AuthoredCurrencyTemplateCompilation {
 	readonly recipes: readonly ValueRecipe[];
 }
 
-const slotValue = (
-	evaluation: RecipeEvaluation,
-	token: CurrencyToken,
-): unknown => {
-	if (evaluation.kind !== "fundamental") return undefined;
-	const slot = Object.keys(evaluation.slots).find((id) =>
-		id.startsWith(`${token}_`),
-	);
-	return slot && evaluation.slots[slot]?.kind === "terminal"
-		? evaluation.slots[slot].value
-		: undefined;
-};
-
-function markerPattern(config: CurrencyFormatConfig): string {
+function currencyMarkerValues(config: CurrencyFormatConfig): string[] {
 	const values: string[] = [];
 	for (const definition of config.definitions ?? STANDARD_CURRENCY_CATALOG) {
 		values.push(definition.code, ...(definition.symbols ?? []));
 	}
 	for (const [code, aliases] of Object.entries(config.currencies ?? {}))
 		values.push(code, ...aliases);
-	return `(?:${Array.from(new Set(values)).map(escapeRegex).join("|")})`;
+	return values;
 }
 
 export function compileAuthoredCurrencyTemplates(
@@ -60,8 +43,8 @@ export function compileAuthoredCurrencyTemplates(
 		if (format.tokens.length === 0) continue;
 		const id = `currency.template.${format.id ?? index}`;
 		const tokenSpecs: Record<CurrencyToken, { pattern: string }> = {
-			SYM: { pattern: markerPattern(config) },
-			CODE: { pattern: markerPattern(config) },
+			SYM: { pattern: buildMarkerPattern(currencyMarkerValues(config)) },
+			CODE: { pattern: buildMarkerPattern(currencyMarkerValues(config)) },
 			AMOUNT: { pattern: buildNumericPatternString(config) },
 			SUBUNITS: { pattern: buildNumericPatternString(config) },
 			OP: { pattern: ".+?" },

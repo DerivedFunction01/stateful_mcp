@@ -1,9 +1,6 @@
 import type { FundamentalGroup, FundamentalPattern } from "../fundamentals";
-import type {
-	RecipeEvaluation,
-	RecipeOutputBuilder,
-	ValueRecipe,
-} from "../recipes";
+import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
+import { buildAliasAlternation, slotValue } from "../recipes/shared";
 import { escapeRegex } from "../regex";
 import type { CadenceSchedule, FrequencyGrammarConfig } from "./types";
 
@@ -35,16 +32,6 @@ function aliasValues(
 	return Object.values(values ?? {}).flat();
 }
 
-function slotValue(
-	evaluation: RecipeEvaluation | undefined,
-	slotId: string,
-): unknown {
-	if (!evaluation || evaluation.kind !== "fundamental") return undefined;
-	return evaluation.slots[slotId]?.kind === "terminal"
-		? evaluation.slots[slotId].value
-		: undefined;
-}
-
 /**
  * Builds explicit frequency syntax from the configured vocabulary. The
  * factory does not register or activate anything by itself.
@@ -63,8 +50,6 @@ export function createFrequencyRecipeSet(
 		"[\\p{N}]+(?:[.,][\\p{N}]+)?",
 		...countAliases.map(escapeRegex),
 	].join("|");
-	const configuredPattern = (values: readonly string[]) =>
-		`(?:${values.map(escapeRegex).join("|")})`;
 	if (intervalPrefixes.length && units.length) {
 		groups.push({
 			id: "frequency.interval",
@@ -182,7 +167,10 @@ export function createFrequencyRecipeSet(
 				{
 					id: "marker-condition",
 					slots: [
-						{ id: "marker", pattern: configuredPattern(conditionalAliases) },
+						{
+							id: "marker",
+							pattern: buildAliasAlternation(conditionalAliases),
+						},
 						{ id: "condition", pattern: ".+" },
 					],
 					connectors: [aliases("condition-connector", conditionConnectors)],
@@ -222,7 +210,9 @@ export function createFrequencyRecipeSet(
 			variants: [
 				{
 					id: "anchor",
-					slots: [{ id: "anchor", pattern: configuredPattern(anchorAliases) }],
+					slots: [
+						{ id: "anchor", pattern: buildAliasAlternation(anchorAliases) },
+					],
 				},
 			],
 		});
@@ -245,8 +235,8 @@ export function createFrequencyRecipeSet(
 					slots: [
 						{ id: "magnitude", pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
 						{ id: "unit", pattern: unitPattern },
-						{ id: "direction", pattern: configuredPattern(offsetAliases) },
-						{ id: "anchor", pattern: configuredPattern(anchorAliases) },
+						{ id: "direction", pattern: buildAliasAlternation(offsetAliases) },
+						{ id: "anchor", pattern: buildAliasAlternation(anchorAliases) },
 					],
 					connectors: [
 						[

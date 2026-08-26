@@ -2,12 +2,12 @@ import type { CurrencyGrammarResult } from "../currency";
 import type { FundamentalGroup } from "../fundamentals";
 import { createFundamentalFromAuthoredFormat } from "../fundamentals";
 import type { QuantityGrammarResult } from "../quantity";
-import type {
-	RecipeEvaluation,
-	RecipeOutputBuilder,
-	ValueRecipe,
-} from "../recipes";
-import { escapeRegex } from "../regex";
+import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
+import {
+	buildAliasAlternation,
+	slotValue,
+	slotValues,
+} from "../recipes/shared";
 import {
 	parseFormatTemplate,
 	RATE_TOKENS,
@@ -19,31 +19,6 @@ import type { CompoundRateConfig, CompoundRateValue } from "./types";
 export interface AuthoredRateTemplateCompilation {
 	readonly fundamentals: readonly FundamentalGroup[];
 	readonly recipes: readonly ValueRecipe[];
-}
-
-function slotValue(evaluation: RecipeEvaluation, name: string): unknown {
-	if (evaluation.kind !== "fundamental") return undefined;
-	const slot = Object.keys(evaluation.slots).find((id) =>
-		id.startsWith(`${name}_`),
-	);
-	return slot && evaluation.slots[slot]?.kind === "terminal"
-		? evaluation.slots[slot].value
-		: undefined;
-}
-
-function slotValues(evaluation: RecipeEvaluation, name: string): unknown[] {
-	if (evaluation.kind !== "fundamental") return [];
-	return Object.keys(evaluation.slots)
-		.filter((id) => id.startsWith(`${name}_`))
-		.map((id) =>
-			evaluation.slots[id]?.kind === "terminal"
-				? evaluation.slots[id].value
-				: undefined,
-		);
-}
-
-function aliases(values: readonly string[] | undefined): string {
-	return `(?:${(values ?? []).map(escapeRegex).join("|")})`;
 }
 
 export function compileAuthoredRateTemplates(
@@ -60,7 +35,7 @@ export function compileAuthoredRateTemplates(
 		const id = `rate.template.${format.id ?? index}`;
 		const tokenSpecs: Record<RateToken, { pattern: string }> = {
 			NUMERATOR: { pattern: ".+?" },
-			RATE_DELIM: { pattern: aliases(config.rateDelimiters) },
+			RATE_DELIM: { pattern: buildAliasAlternation(config.rateDelimiters) },
 			DENOMINATOR: { pattern: ".+?" },
 			DIVISOR_MAG: { pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
 		};

@@ -10,7 +10,7 @@ import type {
 	RelativeTemporalConfig,
 	RelativeTemporalSlot,
 	TemporalModifierKind,
-} from "./types";
+} from "./anchor";
 
 function escapeRegex(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

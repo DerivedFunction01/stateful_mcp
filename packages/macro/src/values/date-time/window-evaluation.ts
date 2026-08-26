@@ -1,13 +1,15 @@
 import type {
+	RelativeDisambiguationPolicy,
+	RelativeTemporalSlot,
+} from "./anchor";
+import type {
 	CalendarWindowConfig,
 	MonthDayWindow,
 	PartOfDayConfig,
-	RelativeDisambiguationPolicy,
-	RelativeTemporalSlot,
 	ResolvedTemporalWindow,
 	TimeOfDayWindow,
-} from "./types";
-import { DEFAULT_QUARTER_WINDOWS } from "./types";
+} from "./window";
+import { DEFAULT_QUARTER_WINDOWS } from "./window";
 
 /**
  * Pure evaluation engine for anchor-relative temporal slots.

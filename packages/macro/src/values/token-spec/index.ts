@@ -1,1 +1,2 @@
-export * from "./token-spec";
+export * from "./catalog";
+export * from "./template";
