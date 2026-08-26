@@ -433,7 +433,7 @@ describe("project migration recovery on open", () => {
 				{ kind: "sqlite", path: ".macro/other.sqlite" },
 				reopened.descriptor.revision,
 			),
-		).rejects.toThrow("Another project migration is already in progress");
+		).rejects.toThrow("project.migration.alreadyInProgress");
 		expect(await fileExists(target)).toBe(true);
 		await reopened.close();
 	});
@@ -620,7 +620,7 @@ describe("project migration target vacancy", () => {
 				{ kind: "jsonl", path: ".macro/leftover.jsonl" },
 				project.descriptor.revision,
 			),
-		).rejects.toThrow("already exists");
+		).rejects.toThrow("project.migration.targetExists");
 		expect(project.manifest.backend.kind).toBe("sqlite");
 		expect(await fileExists(wal)).toBe(true);
 		await project.close();

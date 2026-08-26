@@ -285,7 +285,7 @@ export function scanNamedAssignments(
 		const nextStart = markers[index + 1]?.start ?? raw.length;
 		const limit =
 			delimiter &&
-				raw.slice(nextStart - delimiter.length, nextStart) === delimiter
+			raw.slice(nextStart - delimiter.length, nextStart) === delimiter
 				? nextStart - delimiter.length
 				: nextStart;
 

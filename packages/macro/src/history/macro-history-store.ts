@@ -140,7 +140,6 @@ export class MacroExecutionHistory {
 		history: readonly HistoryEvent<MacroExecutionAttempt>[],
 		recoveryDiagnostics: readonly {
 			code: string;
-			message?: string;
 			messageKey?: string;
 			messageParams?: Readonly<
 				Record<string, import("@stateful-mcp/macro-protocol").MessageParam>
@@ -170,7 +169,6 @@ export class MacroExecutionHistory {
 			diagnostics: [
 				...recoveryDiagnostics.map((item) => ({
 					code: item.code,
-					message: item.message,
 					...(item.messageKey !== undefined
 						? { messageKey: item.messageKey }
 						: {}),
@@ -201,7 +199,6 @@ const defaultMacroExecutor: import("./contracts").MacroExecutor = {
 
 function toDraftDiagnostic(diagnostic: {
 	code: string;
-	message?: string;
 	messageKey?: string;
 	messageParams?: Readonly<
 		Record<string, import("@stateful-mcp/macro-protocol").MessageParam>

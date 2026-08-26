@@ -90,7 +90,7 @@ export function parseMacroLine(
 		if (!argument) {
 			diagnostics.push({
 				code: "UNKNOWN_ARGUMENT",
-				message: "errors.unknownArgument",
+
 				messageKey: "errors.unknownArgument",
 				messageParams: { argumentName: segment.name },
 				start: segment.start,
@@ -103,7 +103,7 @@ export function parseMacroLine(
 			diagnostics.push({
 				code: "DUPLICATE_ARGUMENT",
 				argumentId: argument.argumentId,
-				message: "errors.duplicateArgument",
+
 				messageKey: "errors.duplicateArgument",
 				messageParams: { argumentName: argument.name },
 				start: segment.start,
@@ -130,7 +130,6 @@ export function parseMacroLine(
 			diagnostics.push({
 				code: "AMBIGUOUS_MATCH",
 				argumentId: argument.argumentId,
-				message: "errors.ambiguousMatch",
 				messageKey: "errors.ambiguousMatch",
 				messageParams: { argumentName: argument.name },
 				start: segment.valueSpan.start,
@@ -241,7 +240,7 @@ export function parseMacroLine(
 				diagnostics.push({
 					code: "MISSING_REQUIRED",
 					argumentId: argument.argumentId,
-					message: "errors.missingRequiredArgument",
+
 					messageKey: "errors.missingRequiredArgument",
 					messageParams: { argumentName: argument.name },
 				});
@@ -520,7 +519,7 @@ function findConfiguredArgumentMatches(
 		diagnostics.push({
 			code: "BACKEND_MISSING",
 			argumentId: argument.argumentId,
-			message: "errors.backendMissing",
+
 			messageKey: "errors.backendMissing",
 			messageParams: {
 				resolverId: argument.configuredValue?.consumerId ?? "configured-values",

@@ -761,7 +761,6 @@ function scratchpadDiagnostic(
 ): MacroDiagnostic {
 	return {
 		code: "NO_MATCH",
-		message: messageKey,
 		messageKey,
 		messageParams: { macroName },
 		start: 0,

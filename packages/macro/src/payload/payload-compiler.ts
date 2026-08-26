@@ -43,7 +43,6 @@ export function compileMacroPayload(
 			diagnostics: [
 				{
 					code: "NO_MATCH",
-					message: "errors.notAMacroLine",
 					messageKey: "errors.notAMacroLine",
 				},
 			],
@@ -178,7 +177,6 @@ function createArgumentResult(
 		diagnostics.push({
 			code: "NORMALIZATION_FAILED",
 			argumentId: argument.argumentId,
-			message: NORMALIZATION_FAILED_KEY,
 			messageKey: NORMALIZATION_FAILED_KEY,
 			messageParams: { argumentName: argument.name },
 		});
@@ -218,7 +216,6 @@ function validateCanonicalBounds(
 			diagnostics.push({
 				code: "NUMERIC_BOUNDS",
 				argumentId: argument.argumentId,
-				message: "errors.numericBoundsExceeded",
 				messageKey: "errors.numericBoundsExceeded",
 				messageParams: { argumentName: argument.name },
 			});
@@ -311,7 +308,6 @@ function writePath(
 		diagnostics.push({
 			code: "INVALID_PATH",
 			argumentId: result.argumentId,
-			message: "errors.invalidPayloadPath",
 			messageKey: "errors.invalidPayloadPath",
 			messageParams: { path },
 		});
@@ -330,7 +326,6 @@ function writePath(
 			diagnostics.push({
 				code: "PATH_CONFLICT",
 				argumentId: result.argumentId,
-				message: "errors.payloadPathConflict",
 				messageKey: "errors.payloadPathConflict",
 				messageParams: { path },
 			});
@@ -342,7 +337,6 @@ function writePath(
 		diagnostics.push({
 			code: "PATH_CONFLICT",
 			argumentId: result.argumentId,
-			message: "errors.payloadPathDuplicate",
 			messageKey: "errors.payloadPathDuplicate",
 			messageParams: { path },
 		});

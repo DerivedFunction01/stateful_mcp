@@ -117,7 +117,6 @@ describe("shared lexical scanner", () => {
 			expect.objectContaining({
 				code: "UNTERMINATED_QUOTE",
 				messageKey: "errors.unterminatedQuote",
-				message: "errors.unterminatedQuote",
 			}),
 		);
 
