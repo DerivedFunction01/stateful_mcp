@@ -1,0 +1,26 @@
+import type { CurrencyDefinition } from "./types";
+
+export const STANDARD_CURRENCY_CATALOG: readonly CurrencyDefinition[] = [
+	{ code: "USD", decimals: 2 },
+	{ code: "EUR", decimals: 2 },
+	{ code: "GBP", decimals: 2 },
+	{ code: "JPY", decimals: 0 },
+	{ code: "CNY", decimals: 2 },
+	{ code: "CAD", decimals: 2 },
+	{ code: "AUD", decimals: 2 },
+	{ code: "CHF", decimals: 2 },
+	{ code: "INR", decimals: 2 },
+	{ code: "RUB", decimals: 2 },
+	{ code: "BRL", decimals: 2 },
+	{ code: "KRW", decimals: 0 },
+	{ code: "MXN", decimals: 2 },
+	{ code: "SEK", decimals: 2 },
+	{ code: "NZD", decimals: 2 },
+	{ code: "SGD", decimals: 2 },
+	{ code: "HKD", decimals: 2 },
+	{ code: "NOK", decimals: 2 },
+	{ code: "TRY", decimals: 2 },
+	{ code: "ZAR", decimals: 2 },
+	{ code: "SAR", decimals: 2 },
+	{ code: "AED", decimals: 2 },
+];
