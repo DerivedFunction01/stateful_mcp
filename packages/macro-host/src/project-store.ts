@@ -208,9 +208,9 @@ export async function createMacroProject(
 	const macroPath = join(rootPath, MACRO_DIRECTORY);
 	const manifestPath = join(macroPath, MACRO_MANIFEST_FILE);
 	if (await exists(macroPath)) {
-		throw new MacroProjectConflictError("A Macro project already exists", {
-			rootPath,
-			manifestPath,
+		throw new MacroProjectConflictError({
+			messageKey: "project.conflict.exists",
+			safeDetails: { rootPath, manifestPath },
 		});
 	}
 	await mkdir(macroPath, { recursive: true });
@@ -422,14 +422,14 @@ class MacroProjectHandle implements MacroProject {
 			expectedRevision &&
 			(!current || hashJson(current) !== expectedRevision)
 		) {
-			throw new MacroProjectConflictError(
-				"History resource revision is stale",
-				{
+			throw new MacroProjectConflictError({
+				messageKey: "project.conflict.historyStale",
+				safeDetails: {
 					historyId: resource.historyId,
 					expectedRevision,
-					actualRevision: current ? hashJson(current) : undefined,
+					actualRevision: current ? hashJson(current) : null,
 				},
-			);
+			});
 		}
 		await this.history.save(resource);
 		const saved = await this.history.open(resource.historyId);
@@ -467,10 +467,10 @@ class MacroProjectHandle implements MacroProject {
 		const current = await this.history.open(historyId);
 		if (!current) return;
 		if (expectedRevision && hashJson(current) !== expectedRevision)
-			throw new MacroProjectConflictError(
-				"History resource revision is stale",
-				{ historyId },
-			);
+			throw new MacroProjectConflictError({
+				messageKey: "project.conflict.historyStale",
+				safeDetails: { historyId },
+			});
 		await this.history.delete(historyId);
 		await this.saveManifest(
 			{
@@ -535,14 +535,14 @@ class MacroProjectHandle implements MacroProject {
 			expectedRevision &&
 			(!current || hashJson(current) !== expectedRevision)
 		) {
-			throw new MacroProjectConflictError(
-				"Scratchpad resource revision is stale",
-				{
+			throw new MacroProjectConflictError({
+				messageKey: "project.conflict.scratchpadStale",
+				safeDetails: {
 					scratchpadId: resource.scratchpadId,
 					expectedRevision,
-					actualRevision: current ? hashJson(current) : undefined,
+					actualRevision: current ? hashJson(current) : null,
 				},
-			);
+			});
 		}
 		await this.scratchpads.save(resource);
 		const saved = await this.scratchpads.open(resource.scratchpadId);
@@ -590,10 +590,10 @@ class MacroProjectHandle implements MacroProject {
 		const current = await this.scratchpads.open(scratchpadId);
 		if (!current) return;
 		if (expectedRevision && hashJson(current) !== expectedRevision)
-			throw new MacroProjectConflictError(
-				"Scratchpad resource revision is stale",
-				{ scratchpadId },
-			);
+			throw new MacroProjectConflictError({
+				messageKey: "project.conflict.scratchpadStale",
+				safeDetails: { scratchpadId },
+			});
 		await this.scratchpads.delete(scratchpadId);
 		await this.saveManifest(
 			{
@@ -616,10 +616,10 @@ class MacroProjectHandle implements MacroProject {
 		) as MacroProjectManifest;
 		const diskRevision = hashJson(disk);
 		if (diskRevision !== expectedRevision)
-			throw new MacroProjectConflictError(
-				"Project manifest revision is stale",
-				{ expectedRevision, actualRevision: diskRevision },
-			);
+			throw new MacroProjectConflictError({
+				messageKey: "project.conflict.manifestStale",
+				safeDetails: { expectedRevision, actualRevision: diskRevision },
+			});
 		validateMacroProjectManifest(manifest);
 		await atomicWrite(this.manifestPath, JSON.stringify(manifest, null, 2));
 		this.currentManifest = manifest;
@@ -654,8 +654,9 @@ class MacroProjectHandle implements MacroProject {
 		await this.acquireMigrationJournal(lockPath);
 		const occupied = await existingBackendArtifact(target.kind, targetPath);
 		if (occupied)
-			throw new MacroProjectConflictError("Migration target already exists", {
-				targetPath: occupied,
+			throw new MacroProjectConflictError({
+				messageKey: "project.migration.targetExists",
+				safeDetails: { targetPath: occupied },
 			});
 		const historyReferences = dedupeReferences(
 			this.currentManifest.historyResources,
@@ -749,10 +750,13 @@ class MacroProjectHandle implements MacroProject {
 			// somebody else wrote to the project while we were copying.
 			const digestAfterCopy = await this.computeSourceDigest();
 			if (digestAfterCopy !== sourceDigest)
-				throw new MacroProjectConflictError(
-					"Project source changed during migration",
-					{ expectedDigest: sourceDigest, actualDigest: digestAfterCopy },
-				);
+				throw new MacroProjectConflictError({
+					messageKey: "project.migration.sourceChanged",
+					safeDetails: {
+						expectedDigest: sourceDigest,
+						actualDigest: digestAfterCopy,
+					},
+				});
 			const context: ProjectMigrationContext = {
 				projectRoot: this.rootPath,
 				sourceBackend: this.currentManifest.backend,
@@ -865,17 +869,21 @@ class MacroProjectHandle implements MacroProject {
 			{ force: false },
 		);
 		if (recovery.action !== "activeMigrationRetained") return;
-		throw new MacroProjectConflictError(
-			"Another project migration is already in progress",
-			{
+		const journal = recovery.journal!;
+		throw new MacroProjectConflictError({
+			messageKey: "project.migration.alreadyInProgress",
+			safeDetails: {
 				lockPath,
-				status: recovery.journal?.status,
-				resumable: recovery.journal?.resumable,
-				startedAt: recovery.journal?.startedAt,
-				updatedAt: recovery.journal?.updatedAt,
-				owner: recovery.journal?.owner,
+				status: journal.status,
+				resumable: journal.resumable,
+				startedAt: journal.startedAt,
+				updatedAt: journal.updatedAt,
+				owner: {
+					pid: journal.owner.pid,
+					hostname: journal.owner.hostname,
+				},
 			},
-		);
+		});
 	}
 
 	async close(): Promise<void> {

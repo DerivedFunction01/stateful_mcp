@@ -1,4 +1,8 @@
-import type { MessageParam } from "@stateful-mcp/macro-protocol";
+import type {
+	MessageParam,
+	StructuredError,
+} from "@stateful-mcp/macro-protocol";
+import { structuredError } from "@stateful-mcp/macro-protocol";
 
 export interface ExtensionErrorOptions {
 	readonly messageKey: string;
@@ -22,6 +26,16 @@ export class ExtensionError extends Error {
 		this.sourceFile = options.sourceFile;
 		this.cause = options.cause;
 		this.name = "ExtensionError";
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			safeDetails: this.extensionId
+				? { extensionId: this.extensionId }
+				: undefined,
+		});
 	}
 }
 

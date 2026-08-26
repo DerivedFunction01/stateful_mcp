@@ -13,12 +13,7 @@ describe("host-owned scratchpad projection", () => {
 	});
 
 	test("projects legacy Macro diagnostics with a messageKey derived from their code", () => {
-		expect(
-			toScratchpadDiagnosticDto(
-				{ code: "NO_MATCH", message: "Invalid macro" },
-				false,
-			),
-		).toEqual({
+		expect(toScratchpadDiagnosticDto({ code: "NO_MATCH" }, false)).toEqual({
 			severity: "error",
 			code: "NO_MATCH",
 			messageKey: "NO_MATCH",
@@ -30,7 +25,6 @@ describe("host-owned scratchpad projection", () => {
 			toScratchpadDiagnosticDto(
 				{
 					code: "INVALID_CANDIDATE_PROVENANCE",
-					message: "Candidate provenance is invalid",
 					messageKey: "errors.invalidCandidateProvenance",
 					messageParams: { reason: "untrusted-source" },
 				},
@@ -45,12 +39,7 @@ describe("host-owned scratchpad projection", () => {
 	});
 
 	test("always carries a structured messageKey, never a human-readable message", () => {
-		expect(
-			toScratchpadDiagnosticDto(
-				{ code: "NO_MATCH", message: "Invalid macro" },
-				true,
-			),
-		).toEqual({
+		expect(toScratchpadDiagnosticDto({ code: "NO_MATCH" }, true)).toEqual({
 			severity: "info",
 			code: "NO_MATCH",
 			messageKey: "NO_MATCH",

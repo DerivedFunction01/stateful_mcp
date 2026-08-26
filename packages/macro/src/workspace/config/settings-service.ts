@@ -359,11 +359,7 @@ export class WorkspaceSettingsService {
 			};
 		} catch (error) {
 			if (error instanceof SettingsBundleConflictError)
-				return {
-					status: "conflict",
-					expectedRevision: error.expectedRevision,
-					actualRevision: error.actualRevision,
-				};
+				return toBundleConflictResult(error);
 			throw error;
 		}
 	}
@@ -527,11 +523,7 @@ export class WorkspaceSettingsService {
 				this.bundleRevision = revision;
 			} catch (error) {
 				if (error instanceof SettingsBundleConflictError) {
-					return {
-						status: "conflict",
-						expectedRevision: error.expectedRevision,
-						actualRevision: error.actualRevision,
-					};
+					return toBundleConflictResult(error);
 				}
 				throw error;
 			}
@@ -697,6 +689,29 @@ export class WorkspaceSettingsService {
 
 function clone<T>(value: T): T {
 	return structuredClone(value);
+}
+
+/**
+ * Projects a bundle conflict into the service-level conflict result. Revision
+ * tokens travel in the error's `safeDetails`, so they are read back through the
+ * canonical structured-error shape instead of positional error fields.
+ */
+function toBundleConflictResult(
+	error: SettingsBundleConflictError,
+): SettingsSaveResult {
+	return {
+		status: "conflict",
+		expectedRevision: revisionDetail(error, "expectedRevision"),
+		actualRevision: revisionDetail(error, "actualRevision"),
+	};
+}
+
+function revisionDetail(
+	error: SettingsBundleConflictError,
+	key: "expectedRevision" | "actualRevision",
+): string {
+	const value = error.safeDetails?.[key];
+	return typeof value === "string" ? value : "";
 }
 function mergeMissing(
 	target: Record<string, unknown>,

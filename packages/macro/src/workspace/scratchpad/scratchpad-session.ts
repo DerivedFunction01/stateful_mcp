@@ -1,7 +1,11 @@
 import type {
+	JsonValue,
 	MessageDescriptor,
+	MessageParam,
 	PinnedMacroDto,
+	StructuredError,
 } from "@stateful-mcp/macro-protocol";
+import { structuredError } from "@stateful-mcp/macro-protocol";
 import type { MacroDiagnostic } from "../../contracts/input";
 import type { ExtensionRuntime } from "../../extensions/runtime";
 import { extractTokenChipsFromProjections } from "../editor/chips";
@@ -63,13 +67,32 @@ export interface ScratchpadExecutionBatchResult {
 }
 
 export class ScratchpadExecutionPolicyError extends Error {
-	constructor(
-		readonly code: "EDITOR_LINE_NOT_EXECUTABLE" | "EDITOR_RANGE_INVALID",
-		readonly lineNumber?: number,
-		readonly lineStatus?: ScratchpadLineStatus,
-	) {
-		super(code);
+	readonly code: string;
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	readonly safeDetails?: Readonly<Record<string, JsonValue>>;
+
+	constructor(options: {
+		readonly code: string;
+		readonly messageKey: string;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
+		readonly safeDetails?: Readonly<Record<string, JsonValue>>;
+	}) {
+		super(options.messageKey);
 		this.name = "ScratchpadExecutionPolicyError";
+		this.code = options.code;
+		this.messageKey = options.messageKey;
+		this.messageParams = options.messageParams;
+		this.safeDetails = options.safeDetails;
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			code: this.code,
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			safeDetails: this.safeDetails,
+		});
 	}
 }
 
@@ -653,11 +676,11 @@ export class ScratchpadSession {
 				continue;
 			}
 			if (lineStatus !== "valid")
-				throw new ScratchpadExecutionPolicyError(
-					"EDITOR_LINE_NOT_EXECUTABLE",
-					lineNumber,
-					lineStatus,
-				);
+				throw new ScratchpadExecutionPolicyError({
+					code: "EDITOR_LINE_NOT_EXECUTABLE",
+					messageKey: "editor.line.notExecutable",
+					safeDetails: { lineNumber, lineStatus },
+				});
 		}
 
 		const receipts: ScratchpadExecutionReceipt[] = [];
@@ -718,7 +741,10 @@ export class ScratchpadSession {
 			endLine < startLine ||
 			endLine > this.getTotalLineCount()
 		)
-			throw new ScratchpadExecutionPolicyError("EDITOR_RANGE_INVALID");
+			throw new ScratchpadExecutionPolicyError({
+				code: "EDITOR_RANGE_INVALID",
+				messageKey: "editor.range.invalid",
+			});
 	}
 }
 

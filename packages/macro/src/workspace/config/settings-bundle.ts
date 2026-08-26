@@ -1,3 +1,11 @@
+import {
+	type ErrorDescriptor,
+	errorDescriptor,
+	type JsonValue,
+	type MessageParam,
+	type StructuredError,
+	structuredError,
+} from "@stateful-mcp/macro-protocol";
 import type { SqlExecutor } from "../../../../core/src/adapters/storage/generic/SqlExecutor";
 import type { UserMacroProfile } from "../../contracts/extension-config";
 import type {
@@ -125,11 +133,13 @@ export class CoreKvSettingsBundleStorage implements SettingsBundleStorage {
 		await this.ensureInitialized();
 		const current = await this.load();
 		if (current.revision !== expectedRevision) {
-			throw new SettingsBundleConflictError(
-				"Settings bundle revision is stale",
-				expectedRevision,
-				current.revision,
-			);
+			throw new SettingsBundleConflictError({
+				messageKey: "settings.bundle.stale",
+				safeDetails: {
+					expectedRevision,
+					actualRevision: current.revision,
+				},
+			});
 		}
 
 		// Staged replacement: write to a staging key, then commit atomically.
@@ -213,11 +223,13 @@ export class CoreSqlSettingsBundleStorage implements SettingsBundleStorage {
 		await this.ensureInitialized();
 		const current = await this.load();
 		if (current.revision !== expectedRevision) {
-			throw new SettingsBundleConflictError(
-				"Settings bundle revision is stale",
-				expectedRevision,
-				current.revision,
-			);
+			throw new SettingsBundleConflictError({
+				messageKey: "settings.bundle.stale",
+				safeDetails: {
+					expectedRevision,
+					actualRevision: current.revision,
+				},
+			});
 		}
 
 		const stagingRevision = computeSettingsRevision({ ...next, revision: "" });
@@ -277,13 +289,32 @@ export class CoreSqlSettingsBundleStorage implements SettingsBundleStorage {
 
 export class SettingsBundleConflictError extends Error {
 	readonly code = "SETTINGS_REVISION_STALE";
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	readonly safeDetails?: Readonly<Record<string, JsonValue>>;
 
-	constructor(
-		message: string,
-		readonly expectedRevision: string,
-		readonly actualRevision: string,
-	) {
-		super(message);
+	constructor(options: {
+		readonly messageKey: string;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
+		readonly safeDetails?: Readonly<Record<string, JsonValue>>;
+	}) {
+		super(options.messageKey);
+		const descriptor: ErrorDescriptor = errorDescriptor(
+			options.messageKey,
+			options.messageParams,
+		);
+		this.messageKey = descriptor.messageKey;
+		this.messageParams = descriptor.messageParams;
+		this.safeDetails = options.safeDetails;
 		this.name = "SettingsBundleConflictError";
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			code: this.code,
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			safeDetails: this.safeDetails,
+		});
 	}
 }

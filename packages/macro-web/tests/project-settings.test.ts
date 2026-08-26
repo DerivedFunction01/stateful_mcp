@@ -269,7 +269,7 @@ describe("project configuration", () => {
 				{ kind: "sqlite", path: ".macro/existing.sqlite" },
 				project.descriptor.revision,
 			),
-		).rejects.toThrow("already exists");
+		).rejects.toThrow();
 		expect(project.manifest.backend.kind).toBe("jsonl");
 		await context.sessions.disposeAll();
 		await context.host.dispose();

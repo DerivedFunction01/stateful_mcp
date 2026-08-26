@@ -119,25 +119,46 @@ export interface ProjectRevision {
 	readonly revision: string;
 }
 
-export class MacroProjectConflictError extends Error {
-	readonly code = "MACRO_PROJECT_REVISION_CONFLICT";
-
-	constructor(
-		message: string,
-		readonly details: Readonly<Record<string, unknown>> = {},
-	) {
-		super(message);
-		this.name = "MacroProjectConflictError";
-	}
-}
-
 import {
 	type ErrorDescriptor,
 	errorDescriptor,
+	type JsonValue,
 	type MessageParam,
 	type StructuredError,
 	structuredError,
 } from "@stateful-mcp/macro-protocol";
+
+export class MacroProjectConflictError extends Error {
+	readonly code = "MACRO_PROJECT_REVISION_CONFLICT";
+	readonly messageKey: string;
+	readonly messageParams?: Readonly<Record<string, MessageParam>>;
+	readonly safeDetails?: Readonly<Record<string, JsonValue>>;
+
+	constructor(options: {
+		readonly messageKey: string;
+		readonly messageParams?: Readonly<Record<string, MessageParam>>;
+		readonly safeDetails?: Readonly<Record<string, JsonValue>>;
+	}) {
+		super(options.messageKey);
+		const descriptor: ErrorDescriptor = errorDescriptor(
+			options.messageKey,
+			options.messageParams,
+		);
+		this.messageKey = descriptor.messageKey;
+		this.messageParams = descriptor.messageParams;
+		this.safeDetails = options.safeDetails;
+		this.name = "MacroProjectConflictError";
+	}
+
+	toHostError(): StructuredError {
+		return structuredError({
+			code: this.code,
+			messageKey: this.messageKey,
+			messageParams: this.messageParams,
+			safeDetails: this.safeDetails,
+		});
+	}
+}
 
 export class MacroProjectFormatError extends Error {
 	readonly messageKey: string;
