@@ -166,7 +166,7 @@ export function buildCurrencyPatternString(config: CurrencyFormatConfig = {}): {
 	};
 }
 
-export function parseCurrency(
+export function evaluateCurrencyGrammar(
 	input: string,
 	config: CurrencyFormatConfig = {},
 	policy: CurrencyConsumerPolicy = {},

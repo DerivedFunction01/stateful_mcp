@@ -2,7 +2,7 @@ import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import {
 	type CurrencyFormatConfig,
 	type CurrencyGrammarResult,
-	parseCurrency,
+	evaluateCurrencyGrammar,
 } from "./currency";
 import {
 	type ExtractedOperatorResult,
@@ -11,7 +11,7 @@ import {
 	type OperatorMatch,
 } from "./operators";
 import {
-	parseQuantity,
+	evaluateQuantityGrammar,
 	type QuantityConsumerPolicy,
 	type QuantityGrammarConfig,
 	resolveUnitAlias,
@@ -72,7 +72,7 @@ export interface CompoundRateResolution {
  * Parses multi-divisor compound rates (e.g. "10 mg/kg/day", "0.5 mcg/kg/min", "$50/hr", ">= 100 km/h").
  * Does NOT inject hardcoded English words.
  */
-export function parseCompoundRate(
+export function evaluateRateGrammar(
 	input: string,
 	config: CompoundRateConfig = {},
 	policy: CompoundRateConsumerPolicy = {},
@@ -170,12 +170,15 @@ export function parseCompoundRate(
 	let numerator: CompoundRateNumerator | undefined;
 
 	// Try currency
-	const curRes = parseCurrency(numSegment, config.currencyConfig ?? {});
+	const curRes = evaluateCurrencyGrammar(
+		numSegment,
+		config.currencyConfig ?? {},
+	);
 	if (curRes.value) {
 		numerator = { type: "currency", currency: curRes.value };
 	} else {
 		// Try quantity
-		const qtyRes = parseQuantity(
+		const qtyRes = evaluateQuantityGrammar(
 			numSegment,
 			config.quantityConfig ?? {},
 			policy.quantityPolicy ?? { allowRange: false },
@@ -220,9 +223,13 @@ export function parseCompoundRate(
 		let magnitude = 1;
 		let unitStr = denSeg;
 
-		const denQty = parseQuantity(denSeg, config.quantityConfig ?? {}, {
-			allowRange: false,
-		});
+		const denQty = evaluateQuantityGrammar(
+			denSeg,
+			config.quantityConfig ?? {},
+			{
+				allowRange: false,
+			},
+		);
 
 		if (denQty.value) {
 			magnitude = denQty.value.primaryQuantity.magnitude;

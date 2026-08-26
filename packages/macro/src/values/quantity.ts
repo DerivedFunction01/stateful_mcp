@@ -93,7 +93,19 @@ export type ConceptResolver = (
 	},
 ) => Promise<ConceptResolution | undefined> | ConceptResolution | undefined;
 
-import type { QuantityToken, ValueFormatConfig } from "./token-spec";
+import { createFundamentalFromAuthoredFormat } from "./fundamentals";
+import type {
+	RecipeEvaluation,
+	RecipeOutputBuilder,
+	ValueRecipe,
+} from "./recipes";
+import type { TemplateTokenSpec } from "./template-compiler";
+import {
+	parseFormatTemplate,
+	QUANTITY_TOKENS,
+	type QuantityToken,
+	type ValueFormatConfig,
+} from "./token-spec";
 
 export interface QuantityGrammarConfig
 	extends NumericParseOptions,
@@ -123,6 +135,81 @@ export interface QuantityGrammarConfig
 	readonly locales?: string | readonly string[];
 	/** Explicit extraction fundamentals used by this quantity consumer. */
 	readonly fundamentalGroups?: readonly FundamentalGroup[];
+}
+
+export interface AuthoredQuantityTemplateCompilation {
+	readonly fundamentals: readonly FundamentalGroup[];
+	readonly recipes: readonly ValueRecipe[];
+}
+
+const quantityTemplateConsumer: Readonly<Record<QuantityToken, string>> = {
+	NUM: "quantity-amount",
+	NUM_LOW: "quantity-amount",
+	NUM_HIGH: "quantity-amount",
+	UNIT: "quantity-unit",
+	PKG_CLASSIFIER: "quantity-packaging",
+	FILLER: "quantity-filler",
+	OP_PREFIX: "operator",
+	OP_POSTFIX: "operator",
+	OP_SUFFIX: "operator",
+	STAT_QUALIFIER: "statistic",
+	CONCEPT: "concept",
+};
+
+/** Compiles configured quantity templates without generating alternate orderings. */
+export function compileAuthoredQuantityTemplates(
+	config: QuantityGrammarConfig,
+): AuthoredQuantityTemplateCompilation {
+	const fundamentals: FundamentalGroup[] = [];
+	const recipes: ValueRecipe[] = [];
+	const aliases = Object.entries(config.unitAliases ?? {}).flatMap(
+		([unit, values]) => [unit, ...values],
+	);
+	const packaging = Object.entries(config.packagingClassifiers ?? {}).flatMap(
+		([unit, values]) => [unit, ...(Array.isArray(values) ? values : [])],
+	);
+	const tokenSpecs: Record<QuantityToken, TemplateTokenSpec> = {
+		NUM: { pattern: buildNumericPatternString({ ...config }) },
+		NUM_LOW: { pattern: buildNumericPatternString({ ...config }) },
+		NUM_HIGH: { pattern: buildNumericPatternString({ ...config }) },
+		UNIT: { pattern: `(?:${aliases.map(escapeRegex).join("|")})` },
+		PKG_CLASSIFIER: { pattern: `(?:${packaging.map(escapeRegex).join("|")})` },
+		FILLER: {
+			pattern: `(?:${(config.fillerConnectors ?? []).map(escapeRegex).join("|")})`,
+		},
+		OP_PREFIX: { pattern: ".+?" },
+		OP_POSTFIX: { pattern: ".+?" },
+		OP_SUFFIX: { pattern: ".+?" },
+		STAT_QUALIFIER: { pattern: ".+?" },
+		CONCEPT: { pattern: "[\\p{L}\\p{N}][\\p{L}\\p{N} _-]*" },
+	};
+	for (const [index, template] of (config.templates ?? []).entries()) {
+		const format =
+			typeof template === "string"
+				? parseFormatTemplate(template, QUANTITY_TOKENS)
+				: template;
+		if (format.tokens.length === 0) continue;
+		const groupId = `quantity.template.${format.id ?? index}`;
+		fundamentals.push(
+			createFundamentalFromAuthoredFormat(groupId, format, tokenSpecs),
+		);
+		recipes.push({
+			id: groupId,
+			root: {
+				kind: "fundamental",
+				groupId,
+				children: format.tokens.map((token) => ({
+					kind: "terminal" as const,
+					consumerId: quantityTemplateConsumer[token],
+				})),
+			},
+			outputBuilderId:
+				format.tokens.filter((token) => token.startsWith("NUM")).length > 1
+					? "quantity.compound"
+					: "quantity.template",
+		});
+	}
+	return { fundamentals, recipes };
 }
 
 export interface QuantityConsumerPolicy {
@@ -195,10 +282,207 @@ export function resolveUnitAlias(
 		: undefined;
 }
 
+/** Constructs one quantity from already-bounded, terminal-parsed slots. */
+export function createSingleQuantity(
+	magnitude: number,
+	unitToken: string,
+	config: Pick<
+		QuantityGrammarConfig,
+		"unitAliases" | "locales" | "conversionRegistry"
+	> = {},
+	rawText: string,
+): SingleQuantity | undefined {
+	if (!Number.isFinite(magnitude)) return undefined;
+	const resolved = resolveUnitAlias(
+		unitToken,
+		config.unitAliases,
+		config.locales,
+	);
+	if (!resolved) return undefined;
+	const quantity: SingleQuantity = {
+		magnitude,
+		unit: resolved.canonicalUnit,
+		rawText: rawText.trim(),
+	};
+	const canonical = config.conversionRegistry?.convertToCanonicalByUnit(
+		resolved.canonicalUnit,
+		magnitude,
+	);
+	return canonical
+		? {
+				...quantity,
+				canonicalUnit: canonical.canonicalUnit,
+				canonicalMagnitude: canonical.canonicalAmount,
+			}
+		: quantity;
+}
+
+function evaluationSlot(evaluation: RecipeEvaluation, slotId: string): unknown {
+	if (evaluation.kind !== "fundamental") return undefined;
+	return evaluation.slots[slotId]?.kind === "terminal"
+		? evaluation.slots[slotId].value
+		: undefined;
+}
+
+function firstEvaluationSlot(
+	evaluation: RecipeEvaluation,
+	name: string,
+): unknown {
+	if (evaluation.kind !== "fundamental") return undefined;
+	const key = Object.keys(evaluation.slots).find((slotId) =>
+		slotId.startsWith(`${name}_`),
+	);
+	return key ? evaluationSlot(evaluation, key) : undefined;
+}
+
+function quantityFromEvaluation(
+	evaluation: RecipeEvaluation,
+	config: QuantityGrammarConfig,
+	rawText: string,
+	amountSlot = "amount",
+	unitSlot = "unit",
+): SingleQuantity | undefined {
+	const amount = evaluationSlot(evaluation, amountSlot);
+	const unit = evaluationSlot(evaluation, unitSlot);
+	if (typeof amount !== "number" || typeof unit !== "string") return undefined;
+	return createSingleQuantity(amount, unit, config, rawText);
+}
+
+/** Output builders for authored quantity recipes. */
+export function createQuantityOutputBuilders(): Readonly<
+	Record<string, RecipeOutputBuilder>
+> {
+	return {
+		"quantity.single": ({ evaluation, input, grammar, policy }) => {
+			if (!grammar) return { valid: false };
+			const quantity = quantityFromEvaluation(
+				evaluation,
+				grammar.quantity,
+				input,
+			);
+			if (!quantity) return { valid: false };
+			const quantityPolicy = policy?.quantityConsumerPolicy;
+			if (
+				quantityPolicy?.allowedUnits &&
+				!quantityPolicy.allowedUnits.includes(quantity.unit)
+			)
+				return { valid: false };
+			return {
+				valid: true,
+				value: { primaryQuantity: quantity, rawText: input.trim() },
+				displayValue: input.trim(),
+			};
+		},
+		"quantity.template": ({ evaluation, input, grammar, policy }) => {
+			if (!grammar || evaluation.kind !== "fundamental")
+				return { valid: false };
+			const amount = firstEvaluationSlot(evaluation, "NUM");
+			const explicitUnit = firstEvaluationSlot(evaluation, "UNIT");
+			const packaging = firstEvaluationSlot(evaluation, "PKG_CLASSIFIER");
+			const unit = explicitUnit ?? packaging;
+			if (typeof amount !== "number" || typeof unit !== "string")
+				return { valid: false };
+			const quantity = createSingleQuantity(
+				amount,
+				unit,
+				grammar.quantity,
+				input,
+			);
+			if (!quantity) return { valid: false };
+			const filler = firstEvaluationSlot(evaluation, "FILLER");
+			const concept = firstEvaluationSlot(evaluation, "CONCEPT");
+			const quantityPolicy = policy?.quantityConsumerPolicy;
+			if (
+				quantityPolicy?.allowedUnits &&
+				!quantityPolicy.allowedUnits.includes(quantity.unit)
+			)
+				return { valid: false };
+			const conceptValue =
+				concept && typeof concept === "object" && "conceptId" in concept
+					? (concept as {
+							conceptId: string;
+							term?: string;
+							standardCode?: string;
+							metadata?: Record<string, unknown>;
+						})
+					: undefined;
+			const value: QuantityGrammarResult = {
+				primaryQuantity: {
+					...quantity,
+					conceptDetails: conceptValue
+						? {
+								conceptTerm:
+									conceptValue.term ?? String(conceptValue.conceptId),
+								conceptId: conceptValue.conceptId,
+								...(packaging ? { packagingUnit: String(packaging) } : {}),
+								...(filler ? { fillerConnector: String(filler) } : {}),
+								...(conceptValue.standardCode
+									? { standardCode: conceptValue.standardCode }
+									: {}),
+								...(conceptValue.metadata
+									? { metadata: conceptValue.metadata }
+									: {}),
+							}
+						: undefined,
+				},
+				rawText: input.trim(),
+			};
+			return { valid: true, value, displayValue: input.trim() };
+		},
+		"quantity.range": ({ evaluation, input, grammar, policy }) => {
+			if (!grammar || evaluation.kind !== "fundamental")
+				return { valid: false };
+			const start = evaluationSlot(evaluation, "start");
+			const end = evaluationSlot(evaluation, "end");
+			if (
+				!start ||
+				!end ||
+				typeof start !== "object" ||
+				typeof end !== "object" ||
+				!("primaryQuantity" in start) ||
+				!("primaryQuantity" in end)
+			)
+				return { valid: false };
+			const startQuantity = (start as QuantityGrammarResult).primaryQuantity;
+			const endQuantity = (end as QuantityGrammarResult).primaryQuantity;
+			const quantityPolicy = policy?.quantityConsumerPolicy;
+			if (quantityPolicy?.allowRange === false) return { valid: false };
+			if (
+				quantityPolicy?.allowedUnits &&
+				(!quantityPolicy.allowedUnits.includes(startQuantity.unit) ||
+					!quantityPolicy.allowedUnits.includes(endQuantity.unit))
+			)
+				return { valid: false };
+			const direction =
+				startQuantity.magnitude < endQuantity.magnitude
+					? "ascending"
+					: startQuantity.magnitude > endQuantity.magnitude
+						? "descending"
+						: "equal";
+			if (
+				direction === "descending" &&
+				quantityPolicy?.allowDirectionalRange === false
+			)
+				return { valid: false };
+			const value: QuantityGrammarResult = {
+				primaryQuantity: startQuantity,
+				range: {
+					start: startQuantity,
+					end: endQuantity,
+					direction,
+					rawText: input.trim(),
+				},
+				rawText: input.trim(),
+			};
+			return { valid: true, value, displayValue: input.trim() };
+		},
+	};
+}
+
 /**
  * Parses free text into a single quantity, heterogeneous range, directional range, or chained steps.
  */
-export function parseQuantity(
+export function evaluateQuantityGrammar(
 	input: string,
 	config: QuantityGrammarConfig = {},
 	policy: QuantityConsumerPolicy = {},

@@ -6,7 +6,10 @@ import type {
 	CompiledAliasRegistry,
 } from "../values/aliases";
 import type { MultiUnitCanonicalTarget } from "../values/compound";
-import type { CurrencyFormatConfig } from "../values/currency";
+import type {
+	CurrencyConsumerPolicy,
+	CurrencyFormatConfig,
+} from "../values/currency";
 import type {
 	DateTimeFormatConfig,
 	DateTimeFormatRegistry,
@@ -17,7 +20,10 @@ import type {
 	TemporalModifierKind,
 	TwoDigitYearCenturyConfig,
 } from "../values/date-time";
-import type { FrequencyGrammarConfig } from "../values/frequency";
+import type {
+	FrequencyConsumerPolicy,
+	FrequencyGrammarConfig,
+} from "../values/frequency";
 import type {
 	FundamentalCompileResult,
 	FundamentalGroup,
@@ -28,7 +34,10 @@ import type {
 	QuantityGrammarConfig,
 	QuantityStatisticsPolicy,
 } from "../values/quantity";
-import type { CompoundRateConfig } from "../values/rates";
+import type {
+	CompoundRateConfig,
+	CompoundRateConsumerPolicy,
+} from "../values/rates";
 import type { RecipeCompileResult, ValueRecipe } from "../values/recipes";
 import type { MacroSyntax } from "./syntax";
 import type { NumericBounds } from "./values";
@@ -146,6 +155,9 @@ export interface MacroArgumentPolicy {
 	readonly allowOperator?: boolean;
 	/** Whether data point counts are allowed */
 	readonly allowDataPointCount?: boolean;
+	readonly frequency?: FrequencyConsumerPolicy;
+	readonly rate?: CompoundRateConsumerPolicy;
+	readonly currency?: CurrencyConsumerPolicy;
 	/** Explicit value recipes accepted by this argument. */
 	readonly enabledRecipes?: readonly string[];
 	/** Consumer-specific ordering overrides for enabled recipes. */
@@ -242,4 +254,7 @@ export interface CompiledArgumentPolicy {
 	readonly rangeDelimiters?: readonly string[];
 	readonly enabledRecipes?: readonly string[];
 	readonly priorityOverrides?: Readonly<Record<string, number>>;
+	readonly frequencyConsumerPolicy?: FrequencyConsumerPolicy;
+	readonly rateConsumerPolicy?: CompoundRateConsumerPolicy;
+	readonly currencyConsumerPolicy?: CurrencyConsumerPolicy;
 }

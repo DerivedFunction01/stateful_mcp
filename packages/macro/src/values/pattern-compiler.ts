@@ -233,7 +233,7 @@ export class ValuePatternCompiler {
 	/**
 	 * Parses a raw clause value into a structured fundamental value according to the active grammar.
 	 */
-	parseClauseValue(
+	parseConfiguredClauseValue(
 		kind: PatternCompilerValueKind,
 		rawText: string,
 		consumerPolicy?: QuantityConsumerPolicy,

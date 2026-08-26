@@ -3,7 +3,9 @@ import type {
 	CompiledDomainGrammar,
 } from "../contracts/extension-config";
 import {
+	type AsyncTerminalParser,
 	parseValueRecipes,
+	parseValueRecipesAsync,
 	type RecipeCandidate,
 	type RecipeOutputBuilder,
 	type RecipeParseResult,
@@ -14,8 +16,13 @@ export interface ValueEngineOptions {
 	readonly terminals: Readonly<Record<string, TerminalParser>>;
 	readonly outputBuilders?: Readonly<Record<string, RecipeOutputBuilder>>;
 	readonly context?: Readonly<Record<string, unknown>>;
-	readonly terminalPolicy?: CompiledArgumentPolicy;
+	readonly terminalPolicy?: Partial<CompiledArgumentPolicy>;
 	readonly allowedConsumerId?: string;
+}
+
+export interface AsyncValueEngineOptions
+	extends Omit<ValueEngineOptions, "terminals"> {
+	readonly terminals: Readonly<Record<string, AsyncTerminalParser>>;
 }
 
 export interface ConfiguredValueRuntime extends ValueEngineOptions {
@@ -40,7 +47,7 @@ export interface ConfiguredValueMatch {
 export function parseConfiguredValue(
 	input: string,
 	grammar: CompiledDomainGrammar,
-	policy: Pick<CompiledArgumentPolicy, "enabledRecipes" | "priorityOverrides">,
+	policy: Partial<CompiledArgumentPolicy>,
 	options: ValueEngineOptions,
 ): RecipeParseResult {
 	if (grammar.valid === false) {
@@ -90,11 +97,89 @@ export function parseConfiguredValue(
 			}
 		},
 		options.outputBuilders,
+		{
+			grammar,
+			policy,
+			context: options.context,
+		},
 	);
 	return {
 		...result,
 		diagnostics: Object.freeze([...result.diagnostics, ...terminalDiagnostics]),
 	};
+}
+
+/** Async counterpart used by resolver-backed terminals such as concepts. */
+export async function parseConfiguredValueAsync(
+	input: string,
+	grammar: CompiledDomainGrammar,
+	policy: Partial<CompiledArgumentPolicy>,
+	options: AsyncValueEngineOptions,
+): Promise<RecipeParseResult> {
+	if (grammar.valid === false) {
+		return {
+			candidates: [],
+			ambiguous: false,
+			diagnostics: grammar.diagnostics,
+		};
+	}
+	const result = await parseValueRecipesAsync(
+		input,
+		grammar.recipes?.recipes ?? [],
+		{
+			enabledRecipes: policy.enabledRecipes ?? [],
+			priorityOverrides: policy.priorityOverrides,
+		},
+		async (consumerId, value, request) => {
+			const parser = options.terminals[consumerId];
+			if (
+				!parser ||
+				(options.allowedConsumerId !== undefined &&
+					consumerId !== options.allowedConsumerId)
+			)
+				return { valid: false };
+			try {
+				return await parser(consumerId, value, {
+					...request,
+					consumerId,
+					input: value,
+					grammar,
+					policy: options.terminalPolicy,
+					context: options.context,
+				});
+			} catch {
+				return {
+					valid: false,
+					diagnostics: [
+						{
+							errorCode: "TERMINAL_FAILURE",
+							messageKey: "values.terminal.failure",
+							messageParams: { consumerId },
+						},
+					],
+				};
+			}
+		},
+		options.outputBuilders,
+		{ grammar, policy, context: options.context },
+	);
+	return result;
+}
+
+export async function parseConfiguredArgumentAsync(
+	input: string,
+	runtime: Omit<ConfiguredValueRuntime, "terminals"> & {
+		readonly terminals: Readonly<Record<string, AsyncTerminalParser>>;
+	},
+	argumentId: string,
+	consumerId?: string,
+): Promise<RecipeParseResult> {
+	const policy = runtime.policies?.[argumentId] ?? {};
+	return parseConfiguredValueAsync(input, runtime.grammar, policy, {
+		...runtime,
+		terminalPolicy: policy,
+		allowedConsumerId: consumerId ?? runtime.allowedConsumerId,
+	});
 }
 
 /** Parse one complete value using the policy attached to a macro argument. */
@@ -108,10 +193,7 @@ export function parseConfiguredArgument(
 	return parseConfiguredValue(
 		input,
 		runtime.grammar,
-		{
-			enabledRecipes: policy?.enabledRecipes ?? [],
-			priorityOverrides: policy?.priorityOverrides,
-		},
+		policy ?? { enabledRecipes: [] },
 		{
 			...runtime,
 			terminalPolicy: policy,

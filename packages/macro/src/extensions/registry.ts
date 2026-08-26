@@ -330,16 +330,7 @@ export class ExtensionRegistry {
 }
 
 function referencedBackends(spec: MacroSpec): string[] {
-	return spec.arguments.flatMap((argument) => {
-		const matchers = argument.matcher
-			? Array.isArray(argument.matcher)
-				? argument.matcher
-				: [argument.matcher]
-			: [];
-		return matchers.flatMap((matcher) =>
-			matcher.kind === "expression" ? [matcher.backendId] : [],
-		);
-	});
+	return [];
 }
 
 export type { MacroExtensionManifest };

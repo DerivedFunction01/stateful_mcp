@@ -3,30 +3,10 @@ import type { ParseListener } from "../contracts/listeners";
 import type { MacroSpec } from "../contracts/macro";
 import type { ExtensionConfig } from "../extensions/config";
 import type { ExtensionSeedServices } from "../extensions/seed";
-import type {
-	DictionaryResource,
-	DictionaryResourceFactory,
-} from "../resources/contracts";
+import type { DictionaryResourceFactory } from "../resources/contracts";
 import type { ResourceScope } from "../resources/resource-scope";
 import type { RecipeOutputBuilder, TerminalParser } from "../values/recipes";
 import type { ExtensionDependencyResolver } from "./dependency-resolver";
-
-export interface MatcherFactory {
-	expression(
-		resource: DictionaryResource,
-	): Extract<
-		NonNullable<MacroSpec["arguments"][number]["matcher"]>,
-		{ kind: "expression" }
-	>;
-	literal(
-		text: string,
-		value?: unknown,
-	): { kind: "literal"; text: string; value?: unknown };
-	pattern(
-		pattern: string | RegExp,
-		flags?: string,
-	): { kind: "pattern"; pattern: string | RegExp; flags?: string };
-}
 
 export interface MacroRegistryWriter {
 	register(spec: MacroSpec): void;
@@ -87,7 +67,6 @@ export interface ExtensionContext {
 	domainConfig?: ExtensionDomainConfig;
 	compiledDomainGrammar?: CompiledDomainGrammar;
 	dictionaries: DictionaryResourceFactory;
-	matchers: MatcherFactory;
 	macros: MacroRegistryWriter;
 	listeners: ListenerRegistryWriter;
 	values: ValueRegistryWriter;

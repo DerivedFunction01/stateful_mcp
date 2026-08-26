@@ -51,6 +51,33 @@ export interface TemplateParseResult<
 	readonly diagnostics: readonly TemplateDiagnostic[];
 }
 
+export interface AuthoredTemplateTokenContext {
+	readonly tokenId: string;
+	readonly field: string;
+	readonly rawText: string;
+	readonly start: number;
+	readonly end: number;
+}
+
+export type AuthoredTemplateTokenParser = (
+	context: AuthoredTemplateTokenContext,
+) => unknown | Promise<unknown>;
+
+export interface AuthoredTemplateComponent {
+	readonly tokenId: string;
+	readonly field: string;
+	readonly rawText: string;
+	readonly value: unknown;
+	readonly start: number;
+	readonly end: number;
+}
+
+export interface AuthoredTemplateComponentResult {
+	readonly matched: boolean;
+	readonly components: readonly AuthoredTemplateComponent[];
+	readonly diagnostics: readonly TemplateDiagnostic[];
+}
+
 const MAX_TEMPLATE_CACHE_SIZE = 500;
 const templateCache = new Map<string, CompiledTemplate<any>>();
 
@@ -275,4 +302,149 @@ export function parseWithTemplate<
 		options,
 	);
 	return parseTemplateString(input, compiled);
+}
+
+/**
+ * Compiles an already-tokenized authored format. The authored token order and
+ * separators are preserved exactly; no permutations or domain templates are
+ * generated.
+ */
+export function compileAuthoredTemplate<TToken extends string = string>(
+	format: {
+		readonly tokens: readonly TToken[];
+		readonly separators: readonly string[];
+	},
+	tokenSpecs: Readonly<Record<TToken, TemplateTokenSpec>>,
+	options: CompileTemplateOptions = {},
+): CompiledTemplate {
+	let template = "";
+	for (let index = 0; index < format.tokens.length; index++) {
+		template += format.separators[index] ?? "";
+		template += format.tokens[index];
+	}
+	template += format.separators[format.tokens.length] ?? "";
+	return compileFormatTemplate(template, tokenSpecs, options);
+}
+
+/** Parses authored template components synchronously. */
+export function parseAuthoredTemplate(
+	input: string,
+	format: {
+		readonly tokens: readonly string[];
+		readonly separators: readonly string[];
+	},
+	compiled: CompiledTemplate,
+	parsers: Readonly<Record<string, AuthoredTemplateTokenParser>>,
+): AuthoredTemplateComponentResult {
+	const parsed = parseTemplateString(input, compiled);
+	if (!parsed.matched) {
+		return { matched: false, components: [], diagnostics: parsed.diagnostics };
+	}
+	const components: AuthoredTemplateComponent[] = [];
+	let searchOffset = 0;
+	for (let index = 0; index < format.tokens.length; index++) {
+		const tokenId = format.tokens[index]!;
+		const field = compiled.tokenOrder[index]!;
+		const rawText = parsed.rawMatches[field];
+		if (rawText === undefined) continue;
+		const start = input.indexOf(rawText, searchOffset);
+		const safeStart = start < 0 ? searchOffset : start;
+		const end = safeStart + rawText.length;
+		const parser = parsers[tokenId];
+		if (!parser)
+			return {
+				matched: false,
+				components: [],
+				diagnostics: [
+					{
+						code: "missing_token_parser",
+						messageKey: "errors.templateMissingTokenParser",
+					},
+				],
+			};
+		const value = parser({ tokenId, field, rawText, start: safeStart, end });
+		if (value instanceof Promise) {
+			return {
+				matched: false,
+				components: [],
+				diagnostics: [
+					{
+						code: "async_token_parser",
+						messageKey: "errors.templateAsyncTokenParser",
+					},
+				],
+			};
+		}
+		components.push({ tokenId, field, rawText, value, start: safeStart, end });
+		searchOffset = end;
+	}
+	return { matched: true, components, diagnostics: parsed.diagnostics };
+}
+
+/** Parses authored template components with sync or async token parsers. */
+export async function parseAuthoredTemplateAsync(
+	input: string,
+	format: {
+		readonly tokens: readonly string[];
+		readonly separators: readonly string[];
+	},
+	compiled: CompiledTemplate,
+	parsers: Readonly<Record<string, AuthoredTemplateTokenParser>>,
+): Promise<AuthoredTemplateComponentResult> {
+	const parsed = parseTemplateString(input, compiled);
+	if (!parsed.matched) {
+		return { matched: false, components: [], diagnostics: parsed.diagnostics };
+	}
+	const components: AuthoredTemplateComponent[] = [];
+	let searchOffset = 0;
+	for (let index = 0; index < format.tokens.length; index++) {
+		const tokenId = format.tokens[index]!;
+		const field = compiled.tokenOrder[index]!;
+		const rawText = parsed.rawMatches[field];
+		if (rawText === undefined) continue;
+		const start = input.indexOf(rawText, searchOffset);
+		const safeStart = start < 0 ? searchOffset : start;
+		const end = safeStart + rawText.length;
+		const parser = parsers[tokenId];
+		if (!parser)
+			return {
+				matched: false,
+				components: [],
+				diagnostics: [
+					{
+						code: "missing_token_parser",
+						messageKey: "errors.templateMissingTokenParser",
+					},
+				],
+			};
+		let value: unknown;
+		try {
+			value = await parser({ tokenId, field, rawText, start: safeStart, end });
+		} catch {
+			return {
+				matched: false,
+				components: [],
+				diagnostics: [
+					{
+						code: "token_parser_failed",
+						messageKey: "errors.templateTokenParserFailed",
+					},
+				],
+			};
+		}
+		if (value === undefined)
+			return {
+				matched: false,
+				components: [],
+				diagnostics: [
+					{
+						code: "token_unresolved",
+						messageKey: "errors.templateTokenUnresolved",
+					},
+				],
+			};
+		components.push({ tokenId, field, rawText, value, start: safeStart, end });
+		searchOffset = end;
+	}
+	return { matched: true, components, diagnostics: parsed.diagnostics };
 }

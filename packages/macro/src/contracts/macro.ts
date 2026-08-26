@@ -1,11 +1,7 @@
 import type { ConfiguredValueRuntime } from "../values/engine";
 import type { ExpressionBackend } from "./backends";
 import type { MacroRuntimeContext } from "./context";
-import type {
-	MacroArgumentForm,
-	MacroAuthoringTemplate,
-	NamedGroupContract,
-} from "./matching";
+import type { MacroArgumentForm, MacroAuthoringTemplate } from "./matching";
 import type { NumericBounds, ScalarType, ValueKind } from "./values";
 
 export const MACRO_RUN_MODES = ["live", "execute", "replay"] as const;
@@ -20,23 +16,12 @@ export type MacroOverlapStrategy = (typeof MACRO_OVERLAP_STRATEGIES)[number];
 export const MACRO_BLANK_POLICIES = ["reject", "allow", "skip"] as const;
 export type MacroBlankPolicy = (typeof MACRO_BLANK_POLICIES)[number];
 
-export type MacroMatcher =
-	| {
-			kind: "pattern";
-			pattern: string | RegExp;
-			flags?: string;
-			namedGroups?: NamedGroupContract;
-	  }
-	| { kind: "literal"; text: string; value?: unknown }
-	| { kind: "expression"; backendId: string };
-
 export interface MacroArgumentSpec {
 	argumentId: string;
 	name: string;
 	aliases?: readonly string[];
 	position?: number;
 	path: string;
-	matcher?: MacroMatcher | readonly MacroMatcher[];
 	/** Typed values are parsed only through the explicitly supplied recipes. */
 	configuredValue?: {
 		consumerId: string;

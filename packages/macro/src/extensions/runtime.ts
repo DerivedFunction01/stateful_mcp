@@ -6,7 +6,6 @@ import type {
 	ExtensionStorageServices,
 	ListenerRegistryWriter,
 	MacroRegistryWriter,
-	MatcherFactory,
 } from "../context/extension-context";
 import type { ExpressionBackend } from "../contracts/backends";
 import type {
@@ -197,30 +196,12 @@ export class ExtensionRuntime {
 			},
 			list: () => [...localListeners],
 		};
-		const matcherFactory: MatcherFactory = {
-			expression: (resource) => {
-				const backendId = resource.id;
-				scope.registerBackend(backendId, resource.expressionBackend());
-				return { kind: "expression", backendId };
-			},
-			literal: (text, value) => ({
-				kind: "literal",
-				text,
-				...(value === undefined ? {} : { value }),
-			}),
-			pattern: (pattern, flags) => ({
-				kind: "pattern",
-				pattern,
-				...(flags === undefined ? {} : { flags }),
-			}),
-		};
 		const context = createContext(
 			manifest,
 			sourceFile,
 			scope,
 			macroWriter,
 			listenerWriter,
-			matcherFactory,
 			this.extensions,
 			this.options,
 			resolveExtensionConfig(
@@ -530,7 +511,6 @@ function createContext(
 	scope: ResourceScope,
 	macros: MacroRegistryWriter,
 	listeners: ListenerRegistryWriter,
-	matchers: MatcherFactory,
 	registry: ExtensionRegistry,
 	options: ExtensionRuntime["options"],
 	config: ExtensionConfig,
@@ -581,7 +561,6 @@ function createContext(
 					),
 				),
 		},
-		matchers,
 		macros,
 		listeners,
 		values: {

@@ -54,6 +54,7 @@ export * from "./scratchpad/contracts";
 export * from "./scratchpad/resource-store";
 export * from "./slots/macro-slots";
 export * from "./values/aliases";
+export * from "./values/authoring";
 export * from "./values/compound";
 export * from "./values/conversion";
 export * from "./values/currency";

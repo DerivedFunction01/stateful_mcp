@@ -417,6 +417,9 @@ export function resolveArgumentPolicy(
 		rangeDelimiters: policy?.rangeDelimiters,
 		enabledRecipes: policy?.enabledRecipes,
 		priorityOverrides: policy?.priorityOverrides,
+		frequencyConsumerPolicy: policy?.frequency,
+		rateConsumerPolicy: policy?.rate,
+		currencyConsumerPolicy: policy?.currency,
 	};
 }
 

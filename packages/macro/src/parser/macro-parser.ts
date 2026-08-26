@@ -1,8 +1,4 @@
 import type {
-	ExpressionBackend,
-	ExpressionCandidate,
-} from "../contracts/backends";
-import type {
 	MacroArgumentInput,
 	MacroDiagnostic,
 	MacroInput,
@@ -10,21 +6,15 @@ import type {
 } from "../contracts/input";
 import type {
 	MacroArgumentSpec,
-	MacroMatcher,
 	MacroParseOptions,
 	MacroSpec,
 } from "../contracts/macro";
 import type { MacroArgumentMatch } from "../contracts/matching";
 import { spansOverlap } from "../contracts/matching";
 import type { MacroSyntax } from "../contracts/syntax";
-import {
-	matchFriendlyMacroForms,
-	resolveMacroArgumentMatches,
-} from "../matcher/friendly";
+import { resolveMacroArgumentMatches } from "../matcher/friendly";
 import { findConfiguredValueMatches } from "../values/engine";
-import { escapeRegex, execAll } from "../values/regex";
 import {
-	scanConceptTokenParts,
 	scanNamedAssignments,
 	scanUntilWhitespace,
 	skipWhitespace,
@@ -127,16 +117,7 @@ export function parseMacroLine(
 			segment.sourceSpan.start,
 			segment.sourceSpan.end,
 		);
-		const sourceMatches = argument.matcher
-			? matchArgument(
-					argument,
-					sourceValue,
-					segment.sourceSpan.start,
-					true,
-					options,
-					diagnostics,
-				)
-			: [];
+		const sourceMatches: MacroArgumentMatch[] = [];
 		const semanticMatches = matchArgument(
 			argument,
 			segment.value,
@@ -224,7 +205,7 @@ export function parseMacroLine(
 		}
 	}
 
-	const friendly = matchFriendlyMacroForms(raw, envelope.body.start, spec);
+	const friendly: MacroArgumentMatch[] = [];
 	allCandidates.push(...friendly);
 	for (const match of friendly) {
 		if (used.has(match.argumentId)) continue;
@@ -353,23 +334,10 @@ function inferPositionalMatches(
 				const endToken = startToken + relativeEndToken;
 				const sourceStart = token.start;
 				const sourceEnd = tokens[endToken]!.end;
-				const tokenPrefix = findLookupToken(raw, sourceStart, argument, syntax);
-				const isConceptToken = Boolean(
-					tokenPrefix && tokenPrefix === syntax.conceptToken,
-				);
-				const conceptParts = isConceptToken
-					? scanConceptTokenParts(
-							raw.slice(sourceStart, sourceEnd),
-							sourceStart,
-							syntax,
-						)
-					: undefined;
-				const lookupStart = conceptParts
-					? conceptParts.termSpan.start
-					: tokenPrefix
-						? sourceStart + tokenPrefix.length
-						: sourceStart;
-				const lookupEnd = conceptParts ? conceptParts.termSpan.end : sourceEnd;
+				const tokenPrefix = undefined;
+				const conceptParts = undefined;
+				const lookupStart = sourceStart;
+				const lookupEnd = sourceEnd;
 				const matches = matchArgument(
 					argument,
 					raw.slice(lookupStart, lookupEnd),
@@ -393,7 +361,7 @@ function inferPositionalMatches(
 							rawValue: tokenPrefix
 								? raw.slice(sourceStart, sourceEnd)
 								: match.rawValue,
-							conceptId: conceptParts?.conceptCode ?? match.conceptId,
+							conceptId: match.conceptId,
 							lookupToken: tokenPrefix,
 						}) as MacroArgumentMatch & { lookupToken?: string },
 				);
@@ -526,24 +494,6 @@ function isBetterAssignment(
 	);
 }
 
-function findLookupToken(
-	raw: string,
-	start: number,
-	argument: MacroArgumentSpec,
-	syntax?: Partial<MacroSyntax>,
-): string | undefined {
-	if (
-		!asMatchers(argument.matcher).some(
-			(matcher) => matcher.kind === "expression",
-		)
-	) {
-		return undefined;
-	}
-	return [syntax?.expressionToken, syntax?.conceptToken].find((token) =>
-		Boolean(token && raw.startsWith(token, start)),
-	);
-}
-
 function matchArgument(
 	argument: MacroArgumentSpec,
 	text: string,
@@ -569,13 +519,7 @@ function matchArgument(
 			? { start: match.anchor.start + offset, end: match.anchor.end + offset }
 			: undefined,
 	}));
-	if (
-		matches.length ||
-		!isNamed ||
-		argument.matcher ||
-		argument.configuredValue
-	)
-		return matches;
+	if (matches.length || !isNamed || argument.configuredValue) return matches;
 	const trimmed = text.trim();
 	if (!trimmed) return [];
 	const start = offset + text.indexOf(trimmed);
@@ -606,6 +550,10 @@ function findArgumentMatches(
 			diagnostics,
 		);
 	}
+
+	/* Legacy matcher branch removed. Non-configured arguments do not match. */
+	return [];
+	/*
 	return asMatchers(argument.matcher).flatMap((matcher) => {
 		if (matcher.kind === "expression") {
 			const backend = options.backends?.[matcher.backendId];
@@ -772,6 +720,7 @@ function findArgumentMatches(
 		}
 		return scanPatternMatches(argument, matcher, raw, region, diagnostics);
 	});
+	*/
 }
 
 function matchDefault(
@@ -849,120 +798,6 @@ function findConfiguredArgumentMatches(
 		matchKind: "exact",
 		stability: ambiguous ? "ambiguous" : "stable",
 	}));
-}
-
-function scanPatternMatches(
-	argument: MacroArgumentSpec,
-	matcher: Extract<MacroMatcher, { kind: "pattern" | "literal" }>,
-	raw: string,
-	region: MacroSpan,
-	diagnostics: MacroDiagnostic[],
-): MacroArgumentMatch[] {
-	const pattern =
-		matcher.kind === "literal" ? escapeRegex(matcher.text) : matcher.pattern;
-	const source = typeof pattern === "string" ? pattern : pattern.source;
-	const flags =
-		matcher.kind === "pattern"
-			? (matcher.flags ?? (typeof pattern === "string" ? "" : pattern.flags))
-			: "";
-	try {
-		const cleanFlags = flags.replace(/g/g, "");
-		const withU = cleanFlags.includes("u") ? cleanFlags : `${cleanFlags}u`;
-		const expression = new RegExp(`(?:${source})`, `${withU}gid`);
-		return execAll(expression, raw.slice(region.start)).flatMap((match) => {
-			if (!match.indices) return [];
-			const start = region.start + match.index;
-			const end = start + match[0].trimEnd().length;
-			if (end <= start) return [];
-			const captureSpans = Object.entries(match.groups ?? {}).flatMap(
-				([name, value]) => {
-					const span = match.indices?.groups?.[name];
-					return span
-						? [
-								{
-									name,
-									value,
-									start: region.start + span[0],
-									end: region.start + span[1],
-								},
-							]
-						: [];
-				},
-			);
-			return [
-				{
-					argumentId: argument.argumentId,
-					source: "inferred",
-					extraction: { start, end },
-					rawValue: raw.slice(start, end),
-					captures: match.groups ?? {},
-					captureSpans,
-					matchKind:
-						matcher.kind === "literal"
-							? ("literal" as const)
-							: ("pattern" as const),
-				},
-			];
-		});
-	} catch {
-		diagnostics.push({
-			code: "INVALID_PATTERN",
-			argumentId: argument.argumentId,
-			message: "errors.invalidPattern",
-			messageKey: "errors.invalidPattern",
-			messageParams: { argumentName: argument.name },
-			start: region.start,
-			end: region.end,
-		});
-		return [];
-	}
-}
-
-function expressionMatch(
-	argument: MacroArgumentSpec,
-	candidate: ExpressionCandidate,
-	offset: number,
-	resolverId: string,
-	resolverVersion?: string | number,
-	snapshotVersion?: string | number,
-	backend?: ExpressionBackend,
-	snapshot?: import("../contracts/composition").MacroCandidateSnapshot,
-): MacroArgumentMatch {
-	const ownerExtensionId =
-		candidate.ownerExtensionId ??
-		snapshot?.ownerExtensionId ??
-		backend?.ownerExtensionId;
-	const resourceId =
-		candidate.resourceId ?? snapshot?.resourceId ?? backend?.resourceId;
-	return {
-		argumentId: argument.argumentId,
-		source: "expression",
-		extraction: {
-			start: offset + candidate.start,
-			end: offset + candidate.end,
-		},
-		rawValue: candidate.term,
-		canonicalValue: candidate.canonicalValue,
-		backendId: resolverId,
-		resolverId,
-		resolverVersion,
-		snapshotVersion,
-		ownerExtensionId,
-		resourceId,
-		sourceId: candidate.id,
-		conceptId: candidate.conceptId,
-		priority: candidate.priority,
-		matchKind: candidate.matchKind,
-		captures: { value: candidate.term },
-		metadata: candidate.metadata,
-	};
-}
-
-function asMatchers(matcher: MacroArgumentSpec["matcher"]): MacroMatcher[] {
-	if (!matcher) return [];
-	return Array.isArray(matcher)
-		? Array.from(matcher)
-		: [matcher as MacroMatcher];
 }
 
 function resolveArgument(

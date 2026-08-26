@@ -5,22 +5,14 @@ import {
 	type ResolverContext,
 	resolveAlias,
 } from "./aliases";
-import { parseCurrency } from "./currency";
-import {
-	buildDatePatternString,
-	buildDayPeriodMap,
-	compileDateRegex,
-	createDateTimeRegistry,
-	type DateTimeComponents,
-	parseRelativeTemporal,
-	resolveTwoDigitYear,
-} from "./date-time";
-import { parseCadenceSchedule } from "./frequency";
+import type { CurrencyFormatConfig } from "./currency";
+import { evaluateCurrencyGrammar } from "./currency";
 import { checkNumericBounds, parseNumericValue } from "./numeric";
 import { resolveOperator } from "./operators";
-import { parseQuantity, resolveUnitAlias } from "./quantity";
-import { parseCompoundRate } from "./rates";
+import type { QuantityGrammarResult } from "./quantity";
+import { evaluateQuantityGrammar, resolveUnitAlias } from "./quantity";
 import type {
+	AsyncTerminalParser,
 	RecipeDiagnostic,
 	TerminalParseResult,
 	TerminalParser,
@@ -36,18 +28,28 @@ export const BUILTIN_VALUE_TERMINAL_IDS = Object.freeze([
 	"number",
 	"numeric",
 	"quantity",
+	"quantity-amount",
+	"quantity-unit",
+	"quantity-packaging",
+	"quantity-filler",
 	"currency",
 	"concept",
 	"text",
 	"unit",
 	"operator",
 	"statistic",
-	"date",
-	"date-time",
-	"relative-time",
-	"frequency",
-	"cadence",
-	"rate",
+	"frequency-count",
+	"frequency-unit",
+	"frequency-alias",
+	"frequency-anchor",
+	"frequency-direction",
+	"rate-denominator",
+	"currency-marker",
+	"currency-amount",
+	"date-year",
+	"date-month",
+	"date-day",
+	"date-month-name",
 	"alias:canonical-id",
 	"alias:literal",
 	"alias:resolver",
@@ -101,7 +103,7 @@ export function createBuiltinTerminals(
 		},
 		quantity: (_id, input, request) => {
 			const activeGrammar = request?.grammar ?? grammar;
-			const parsed = parseQuantity(
+			const parsed = evaluateQuantityGrammar(
 				input,
 				activeGrammar.quantity,
 				request?.policy?.quantityConsumerPolicy ?? {},
@@ -120,20 +122,87 @@ export function createBuiltinTerminals(
 						{
 							errorCode: "NUMERIC_BOUNDS",
 							messageKey: "values.numeric.outOfBounds",
-							messageParams: { argumentId: request.policy.path },
+							messageParams: request.policy.path
+								? { argumentId: request.policy.path }
+								: undefined,
 						},
 					],
 				};
 			}
 			return result(parsed.value, parsed.diagnostics);
 		},
+		"quantity-amount": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).quantity;
+			const parsed = parseNumericValue(input, config);
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"quantity-unit": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).quantity;
+			const resolved = resolveUnitAlias(
+				input,
+				config.unitAliases,
+				config.locales,
+			);
+			return resolved
+				? {
+						valid: true,
+						value: resolved.canonicalUnit,
+						canonicalValue: resolved.canonicalUnit,
+						displayValue: resolved.matchedAlias,
+						metadata: { matchedAlias: resolved.matchedAlias },
+					}
+				: { valid: false, stable: true };
+		},
+		"quantity-packaging": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).quantity;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config.locales as string);
+			if (Array.isArray(config.packagingClassifiers)) {
+				return config.packagingClassifiers.some(
+					(alias) =>
+						alias.toLocaleLowerCase(config.locales as string) === normalized,
+				)
+					? result(input.trim(), [])
+					: { valid: false, stable: true };
+			}
+			const entries = Object.entries(config.packagingClassifiers ?? {}) as [
+				string,
+				readonly string[],
+			][];
+			for (const [canonical, aliases] of entries) {
+				if (
+					canonical.toLocaleLowerCase(config.locales as string) ===
+						normalized ||
+					(typeof aliases !== "string" &&
+						aliases.some(
+							(alias) =>
+								alias.toLocaleLowerCase(config.locales as string) ===
+								normalized,
+						))
+				)
+					return result(canonical, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"quantity-filler": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).quantity;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config.locales as string);
+			return config.fillerConnectors?.some(
+				(alias) =>
+					alias.toLocaleLowerCase(config.locales as string) === normalized,
+			)
+				? result(input.trim(), [])
+				: { valid: false, stable: true };
+		},
 		currency: (_id, input, request) => {
-			const parsed = parseCurrency(
+			const parsed = evaluateCurrencyGrammar(
 				input,
 				(request?.grammar ?? grammar).currency ?? {},
-				{
-					allowedCurrencies: request?.policy?.allowedCurrencies,
-				},
 			);
 			return result(parsed.value, parsed.diagnostics);
 		},
@@ -203,47 +272,236 @@ export function createBuiltinTerminals(
 						stable: true,
 					};
 		},
-		date: (_id, input, request) =>
-			parseDateTerminal(input, request?.grammar ?? grammar, "date"),
-		"date-time": (_id, input, request) =>
-			parseDateTerminal(input, request?.grammar ?? grammar, "datetime"),
-		"relative-time": (_id, input, request) => {
-			const context = request?.context;
-			if (
-				!(context?.nowUtc instanceof Date) ||
-				typeof context.timezone !== "string" ||
-				typeof context.calendar !== "string"
-			)
-				return { valid: false, stable: false };
-			const value = parseRelativeTemporal(
+		"frequency-count": (_id, input, request) => {
+			const activeGrammar = request?.grammar ?? grammar;
+			const config = activeGrammar.frequency;
+			const numeric = parseNumericValue(input, config?.numericConfig);
+			if (numeric.parsed)
+				return result(numeric.parsed.value, numeric.diagnostics);
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [count, aliases] of Object.entries(
+				config?.multiplierAliases ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(Number(count), []);
+			}
+			return result(undefined, numeric.diagnostics);
+		},
+		"frequency-unit": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [unit, aliases] of Object.entries(
+				config?.timeUnitAliases ?? {},
+			)) {
+				if (
+					unit.toLocaleLowerCase(config?.locales as string) === normalized ||
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(unit, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-alias": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [alias, schedule] of Object.entries(
+				config?.frequencyAliases ?? {},
+			)) {
+				if (alias.toLocaleLowerCase(config?.locales as string) === normalized)
+					return result({ ...schedule, rawText: input.trim() }, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-anchor": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [anchor, aliases] of Object.entries(
+				config?.eventAnchorAliases ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					) ||
+					anchor.toLocaleLowerCase(config?.locales as string) === normalized
+				)
+					return result(anchor, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-direction": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [direction, aliases] of Object.entries(
+				config?.relativeOffsetConnectors ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(direction, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"rate-denominator": (_id, input, request) => {
+			const activeGrammar = request?.grammar ?? grammar;
+			const parsed = evaluateQuantityGrammar(
 				input,
-				(request?.grammar ?? grammar).relativeTemporal ?? {},
+				activeGrammar.quantity,
+				request?.policy?.quantityConsumerPolicy ?? {},
 			);
-			return value
-				? {
+			if (parsed.value) {
+				return {
+					valid: true,
+					value: parsed.value,
+					canonicalValue: parsed.value,
+					stable: true,
+				};
+			}
+			const unit = resolveUnitAlias(input, activeGrammar.quantity.unitAliases);
+			if (unit) {
+				const fallback: QuantityGrammarResult = {
+					primaryQuantity: {
+						magnitude: 1,
+						unit: unit.canonicalUnit,
+						rawText: input.trim(),
+					},
+					rawText: input.trim(),
+				};
+				return {
+					valid: true,
+					value: fallback,
+					canonicalValue: fallback,
+					stable: true,
+				};
+			}
+			return {
+				valid: false,
+				diagnostics: parsed.diagnostics.map((d) => ({
+					errorCode: d.code,
+					messageKey: d.messageKey ?? "values.terminal.invalid",
+					messageParams: d.messageParams,
+				})),
+				stable: true,
+			};
+		},
+		"currency-marker": (_id, input, request) => {
+			const config: CurrencyFormatConfig =
+				(request?.grammar ?? grammar).currency ?? {};
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config.locales as string);
+			for (const definition of config.definitions ?? []) {
+				if (
+					definition.code.toLocaleLowerCase(config.locales as string) ===
+					normalized
+				) {
+					return {
 						valid: true,
-						canonicalValue: value,
-						displayValue: input.trim(),
+						value: {
+							code: definition.code,
+							symbol: definition.symbols?.[0] ?? definition.code,
+						},
+						canonicalValue: {
+							code: definition.code,
+							symbol: definition.symbols?.[0] ?? definition.code,
+						},
 						stable: true,
+					};
+				}
+				for (const symbol of definition.symbols ?? []) {
+					if (
+						symbol.toLocaleLowerCase(config.locales as string) === normalized
+					) {
+						return {
+							valid: true,
+							value: { code: definition.code, symbol },
+							canonicalValue: { code: definition.code, symbol },
+							stable: true,
+						};
 					}
-				: { valid: false, stable: true };
+				}
+			}
+			for (const [code, aliases] of Object.entries(config.currencies ?? {})) {
+				if (code.toLocaleLowerCase(config.locales as string) === normalized) {
+					return {
+						valid: true,
+						value: { code, symbol: aliases[0] ?? code },
+						canonicalValue: { code, symbol: aliases[0] ?? code },
+						stable: true,
+					};
+				}
+				for (const alias of aliases) {
+					if (
+						alias.toLocaleLowerCase(config.locales as string) === normalized
+					) {
+						return {
+							valid: true,
+							value: { code, symbol: alias },
+							canonicalValue: { code, symbol: alias },
+							stable: true,
+						};
+					}
+				}
+			}
+			return { valid: false, stable: true };
 		},
-		frequency: (_id, input, request) => {
-			const parsed = parseCadenceSchedule(
-				input,
-				(request?.grammar ?? grammar).frequency ?? {},
-			);
-			return result(parsed.value, parsed.diagnostics);
+		"currency-amount": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).currency;
+			const parsed = parseNumericValue(input, config ?? {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
 		},
-		rate: (_id, input, request) => {
-			const parsed = parseCompoundRate(
-				input,
-				(request?.grammar ?? grammar).rates ?? {},
-				{
-					quantityPolicy: request?.policy?.quantityConsumerPolicy,
-				},
+		"date-year": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-month": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-day": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-month-name": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).date;
+			const monthNames = config?.options?.monthNames ?? [];
+			const monthAliases = config?.options?.monthAliases ?? [];
+			const locales = (request?.grammar ?? grammar).localization?.locale;
+			const normalized = input.trim().toLocaleLowerCase(locales as string);
+			const allNames = [...monthNames, ...monthAliases.flat()];
+			const match = allNames.find(
+				(name) => name.toLocaleLowerCase(locales as string) === normalized,
 			);
-			return result(parsed.value, parsed.diagnostics);
+			return match ? result(match, []) : { valid: false, stable: true };
 		},
 	};
 	terminals.numeric = terminals.number!;
@@ -284,64 +542,49 @@ export function createBuiltinTerminals(
 	return terminals;
 }
 
-function parseDateTerminal(
-	input: string,
-	grammar: CompiledDomainGrammar,
-	kind: "date" | "datetime",
-): TerminalParseResult {
-	const registry = grammar.dateTime ?? createDateTimeRegistry(grammar.date);
-	const definitions = Object.values(registry.formats)
-		.filter(
-			(definition) =>
-				definition.parserEnabled !== false && definition.kind === kind,
-		)
-		.sort(
-			(left, right) => (right.parserPriority ?? 0) - (left.parserPriority ?? 0),
-		);
-	for (const definition of definitions) {
-		const separators =
-			definition.separators.length === definition.tokens.length - 1
-				? definition.separators
-				: definition.separators.slice(1);
-		const pattern = buildDatePatternString(definition.tokens, separators, {
-			...definition.options,
-			exact: true,
-		});
-		const match = compileDateRegex(pattern.pattern, "u").exec(input.trim());
-		if (!match?.groups) continue;
-		const components: DateTimeComponents = {};
-		if (match.groups.YYYY) components.year = Number(match.groups.YYYY);
-		else if (match.groups.YY)
-			components.year = resolveTwoDigitYear(
-				match.groups.YY,
-				definition.options?.twoDigitYear,
-			);
-		if (match.groups.MM) components.month = Number(match.groups.MM);
-		if (match.groups.DD) components.day = Number(match.groups.DD);
-		if (match.groups.DDD) components.dayOfYear = Number(match.groups.DDD);
-		if (match.groups.HH) components.hour = Number(match.groups.HH);
-		if (match.groups.min) components.minute = Number(match.groups.min);
-		if (match.groups.SS) components.second = Number(match.groups.SS);
-		if (match.groups.ampm) {
-			const periods = buildDayPeriodMap(definition.options?.dayPeriods);
-			components.dayPeriod =
-				periods.get(match.groups.ampm.toLocaleLowerCase()) ??
-				(match.groups.ampm.toLocaleLowerCase().startsWith("p") ? "pm" : "am");
-		}
-		if (match.groups.tz) components.timeZone = match.groups.tz;
-		return {
-			valid: true,
-			canonicalValue: {
-				kind: definition.kind,
-				formatId: definition.id,
-				components,
-			},
-			displayValue: input.trim(),
-			metadata: { formatId: definition.id },
-			stable: true,
-		};
-	}
-	return { valid: false, stable: true };
+/**
+ * Async terminal set for authored templates containing resolver-backed
+ * concepts. A concept is accepted only after the configured resolver returns
+ * a canonical resolution.
+ */
+export function createAsyncBuiltinTerminals(
+	options: BuiltinTerminalOptions,
+): Readonly<Record<string, AsyncTerminalParser>> {
+	const syncTerminals = createBuiltinTerminals(options);
+	const asyncTerminals: Record<string, AsyncTerminalParser> = {
+		...syncTerminals,
+		concept: async (_id, input, request) => {
+			const config = (request?.grammar ?? options.grammar).quantity;
+			const resolver = config.conceptResolver;
+			if (!resolver) return { valid: false, stable: true };
+			try {
+				const resolution = await resolver(input.trim(), {
+					locales: config.locales,
+					packagingUnit:
+						(request?.context?.packagingUnit as string | undefined) ??
+						undefined,
+				});
+				if (!resolution?.conceptId) return { valid: false, stable: true };
+				return {
+					valid: true,
+					value: resolution,
+					canonicalValue: {
+						conceptId: resolution.conceptId,
+						term: resolution.canonicalTerm ?? input.trim(),
+						rawText: input.trim(),
+						...(resolution.standardCode
+							? { standardCode: resolution.standardCode }
+							: {}),
+						...(resolution.metadata ? { metadata: resolution.metadata } : {}),
+					},
+					stable: true,
+				};
+			} catch {
+				return { valid: false, stable: true };
+			}
+		},
+	};
+	return asyncTerminals;
 }
 
 function aliasContext(

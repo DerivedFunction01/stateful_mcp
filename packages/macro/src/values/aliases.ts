@@ -291,7 +291,8 @@ export function compileAliasRegistry(
 
 		const caseSensitive = definition.caseSensitive ?? true;
 		const boundary = definition.boundary ?? "none";
-		const bucket = (namespaces[definition.namespace] ??= []);
+		const bucket = namespaces[definition.namespace] ?? [];
+		namespaces[definition.namespace] = bucket;
 		for (const spelling of definition.spellings) {
 			const key = `${definition.namespace}:${caseSensitive ? spelling : spelling.toLowerCase()}`;
 			const existing = seenSpellings.get(key);

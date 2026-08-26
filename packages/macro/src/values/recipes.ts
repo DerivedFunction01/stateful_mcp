@@ -104,7 +104,7 @@ export interface TerminalParseRequest {
 	readonly recipeId?: string;
 	readonly slotId?: string;
 	readonly grammar?: CompiledDomainGrammar;
-	readonly policy?: CompiledArgumentPolicy;
+	readonly policy?: Partial<CompiledArgumentPolicy>;
 	readonly context?: Readonly<Record<string, unknown>>;
 }
 
@@ -127,6 +127,12 @@ export type TerminalParser = (
 	input: string,
 	request?: TerminalParseRequest,
 ) => TerminalParseResult;
+
+export type AsyncTerminalParser = (
+	consumerId: string,
+	input: string,
+	request?: TerminalParseRequest,
+) => TerminalParseResult | Promise<TerminalParseResult>;
 
 export type RecipeEvaluation =
 	| {
@@ -153,6 +159,9 @@ export interface RecipeOutputBuilderContext {
 	readonly input: string;
 	readonly evaluation: RecipeEvaluation;
 	readonly captures: Readonly<Record<string, string>>;
+	readonly grammar?: CompiledDomainGrammar;
+	readonly policy?: Partial<CompiledArgumentPolicy>;
+	readonly context?: Readonly<Record<string, unknown>>;
 }
 
 export interface RecipeOutputBuilderResult {
@@ -480,12 +489,198 @@ function cartesianEvaluations(
 	);
 }
 
+async function evaluateNodeAsync(
+	node: CompiledRecipeNode,
+	input: string,
+	parseTerminal: AsyncTerminalParser,
+	recipeId: string,
+	slotId?: string,
+): Promise<NodeEvaluation[]> {
+	if (node.kind === "terminal") {
+		const result = await parseTerminal(node.consumerId, input, {
+			consumerId: node.consumerId,
+			input,
+			recipeId,
+			slotId,
+		});
+		return result.valid
+			? [
+					{
+						valid: true,
+						captures: {},
+						captureSpans: {},
+						evaluation: {
+							kind: "terminal",
+							consumerId: node.consumerId,
+							input,
+							value: result.canonicalValue ?? result.value,
+							displayValue: result.displayValue,
+							metadata: result.metadata,
+						},
+						variantPath: [],
+						diagnostics: [...(result.diagnostics ?? [])],
+					},
+				]
+			: [];
+	}
+	const results: NodeEvaluation[] = [];
+	for (const variant of node.variants) {
+		const extraction = extractFundamental(input, variant);
+		if (!extraction) continue;
+		const childResults = await Promise.all(
+			node.children.map((child, index) =>
+				evaluateNodeAsync(
+					child,
+					extraction.slots[variant.slots[index]?.id ?? ""] ?? "",
+					parseTerminal,
+					recipeId,
+					variant.slots[index]?.id,
+				),
+			),
+		);
+		if (childResults.some((items) => items.length === 0)) continue;
+		for (const combination of cartesianEvaluations(childResults)) {
+			const slots: Record<string, RecipeEvaluation> = {};
+			const captures: Record<string, string> = { ...extraction.slots };
+			const captureSpans = { ...extraction.slotSpans };
+			const diagnostics: RecipeDiagnostic[] = [];
+			let variantPath = [variant.variantId];
+			for (let index = 0; index < combination.length; index++) {
+				const slot = variant.slots[index]!;
+				const child = combination[index]!;
+				if (child.evaluation) slots[slot.id] = child.evaluation;
+				Object.assign(captures, child.captures);
+				Object.assign(captureSpans, child.captureSpans);
+				diagnostics.push(...child.diagnostics);
+				variantPath = [...variantPath, ...child.variantPath];
+			}
+			results.push({
+				valid: true,
+				captures,
+				captureSpans,
+				variantPath,
+				diagnostics,
+				evaluation: {
+					kind: "fundamental",
+					groupId: node.groupId,
+					variantId: variant.variantId,
+					slots,
+					captures,
+					captureSpans,
+				},
+			});
+		}
+	}
+	return results;
+}
+
+export async function parseValueRecipesAsync(
+	input: string,
+	recipes: readonly CompiledRecipe[],
+	policy: ConsumerRecipePolicy,
+	parseTerminal: AsyncTerminalParser,
+	outputBuilders: Readonly<Record<string, RecipeOutputBuilder>> = {},
+	builderContext: Pick<
+		RecipeOutputBuilderContext,
+		"grammar" | "policy" | "context"
+	> = {},
+): Promise<RecipeParseResult> {
+	const candidates: RecipeCandidate[] = [];
+	const diagnostics: RecipeDiagnostic[] = [];
+	for (const recipe of recipes) {
+		if (policy.enabledRecipes && !policy.enabledRecipes.includes(recipe.id))
+			continue;
+		const evaluations = await evaluateNodeAsync(
+			recipe.root,
+			input,
+			parseTerminal,
+			recipe.id,
+		);
+		for (const evaluated of evaluations) {
+			if (!evaluated.evaluation) continue;
+			const terminalValues = flattenEvaluationValues(evaluated.evaluation);
+			let value: unknown =
+				terminalValues.length === 1 ? terminalValues[0] : undefined;
+			let displayValue: string | undefined;
+			const candidateDiagnostics = [...evaluated.diagnostics];
+			if (recipe.outputBuilderId) {
+				const builder = outputBuilders[recipe.outputBuilderId];
+				if (!builder) {
+					diagnostics.push(
+						diagnostic(
+							"MISSING_BUILDER",
+							"values.recipe.missingBuilder",
+							{ builderId: recipe.outputBuilderId },
+							{ recipeId: recipe.id },
+						),
+					);
+					continue;
+				}
+				const built = builder({
+					recipeId: recipe.id,
+					input,
+					evaluation: evaluated.evaluation,
+					captures: evaluated.captures,
+					...builderContext,
+				});
+				if (!built.valid) {
+					candidateDiagnostics.push(...(built.diagnostics ?? []));
+					continue;
+				}
+				value = built.value;
+				displayValue = built.displayValue;
+			}
+			candidates.push({
+				recipeId: recipe.id,
+				canonicalValue: value,
+				displayValue,
+				captures: evaluated.captures,
+				captureSpans: evaluated.captureSpans,
+				evaluation: evaluated.evaluation,
+				variantPath: evaluated.variantPath,
+				priority: policy.priorityOverrides?.[recipe.id] ?? recipe.priority ?? 0,
+				explicitPriority:
+					policy.priorityOverrides?.[recipe.id] !== undefined ||
+					recipe.priority !== undefined,
+				diagnostics: candidateDiagnostics,
+			});
+		}
+	}
+	return selectRecipeCandidates(candidates, diagnostics);
+}
+
+function selectRecipeCandidates(
+	candidates: readonly RecipeCandidate[],
+	diagnostics: readonly RecipeDiagnostic[],
+): RecipeParseResult {
+	const ranked = [...candidates].sort(
+		(left, right) => right.priority - left.priority,
+	);
+	const selected =
+		ranked.length > 0 &&
+		ranked
+			.slice(1)
+			.every((candidate) => candidate.priority < ranked[0]!.priority)
+			? ranked[0]
+			: undefined;
+	return {
+		candidates: Object.freeze(ranked),
+		selected,
+		ambiguous: ranked.length > 1 && selected === undefined,
+		diagnostics: Object.freeze([...diagnostics]),
+	};
+}
+
 export function parseValueRecipes(
 	input: string,
 	recipes: readonly CompiledRecipe[],
 	policy: ConsumerRecipePolicy,
 	parseTerminal: TerminalParser,
 	outputBuilders: Readonly<Record<string, RecipeOutputBuilder>> = {},
+	builderContext: Pick<
+		RecipeOutputBuilderContext,
+		"grammar" | "policy" | "context"
+	> = {},
 ): RecipeParseResult {
 	const candidates: RecipeCandidate[] = [];
 	const diagnostics: RecipeDiagnostic[] = [];
@@ -521,6 +716,7 @@ export function parseValueRecipes(
 					input,
 					evaluation: evaluated.evaluation!,
 					captures: evaluated.captures,
+					...builderContext,
 				});
 				if (!built.valid) {
 					candidateDiagnostics.push(...(built.diagnostics ?? []));

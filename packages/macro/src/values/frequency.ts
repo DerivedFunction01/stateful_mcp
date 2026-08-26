@@ -101,7 +101,7 @@ export interface CadenceScheduleResolution<
  * Parses a free-text frequency, cadence, rate schedule, or shorthand into a structured CadenceSchedule.
  * Zero hardcoded language fallbacks. If aliases/connectors/templates are not configured, nothing is parsed.
  */
-export function parseCadenceSchedule<
+export function evaluateCadenceGrammar<
 	TAnchor extends string = string,
 	TUnit extends string = string,
 >(

@@ -1,5 +1,4 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
-import type { MacroCaptureSpan } from "../contracts/input";
 import type { MacroSpec } from "../contracts/macro";
 import {
 	type MacroArgumentForm,
@@ -7,14 +6,12 @@ import {
 	type MacroAuthoringTemplatePart,
 	spansOverlap,
 } from "../contracts/matching";
-import { escapeRegex, execAll } from "../values/regex";
 
 export interface TemplateValidationIssue {
 	code:
 		| "UNKNOWN_TEMPLATE_ARGUMENT"
 		| "DUPLICATE_TEMPLATE_OCCURRENCE"
 		| "INVALID_TEMPLATE_FORM";
-	message: string;
 	/** Structured message key; preferred over `message` when present. */
 	messageKey: string;
 	messageParams?: Readonly<Record<string, MessageParam>>;
@@ -35,7 +32,6 @@ export function validateMacroTemplates(
 				code: "INVALID_TEMPLATE_FORM",
 				messageKey: "templates.validation.invalidForm",
 				messageParams: { formId: form.formId },
-				message: `Template form '${form.formId}' must contain a slot`,
 			});
 			continue;
 		}
@@ -47,7 +43,6 @@ export function validateMacroTemplates(
 					argumentId: slot.argumentId,
 					messageKey: "templates.validation.unknownArgument",
 					messageParams: { argumentId: slot.argumentId },
-					message: `Template references unknown argument '${slot.argumentId}'`,
 				});
 			}
 			const key = `${slot.argumentId}:${slot.occurrence}`;
@@ -57,25 +52,12 @@ export function validateMacroTemplates(
 					argumentId: slot.argumentId,
 					messageKey: "templates.validation.duplicateOccurrence",
 					messageParams: { key },
-					message: `Template repeats occurrence '${key}'`,
 				});
 			}
 			occurrences.add(key);
 		}
 	}
 	return issues;
-}
-
-export function matchFriendlyMacroForms(
-	raw: string,
-	bodyStart: number,
-	spec: MacroSpec,
-): MacroArgumentMatch[] {
-	const results: MacroArgumentMatch[] = [];
-	for (const form of definitionForms(spec)) {
-		results.push(...matchForm(raw, bodyStart, form, spec));
-	}
-	return resolveMacroArgumentMatches(results, spec);
 }
 
 export function resolveMacroArgumentMatches(
@@ -111,75 +93,13 @@ export function resolveMacroArgumentMatches(
 		.sort((left, right) => left.extraction.start - right.extraction.start);
 }
 
-function matchForm(
-	raw: string,
-	bodyStart: number,
-	form: MacroArgumentForm,
-	spec: MacroSpec,
-): MacroArgumentMatch[] {
-	const slots = form.template.parts.filter(isSlot);
-	if (!slots.length) return [];
-	const patterns = slots.map((slot) => {
-		const argument = spec.arguments.find(
-			(candidate) => candidate.argumentId === slot.argumentId,
-		);
-		return argument?.matcher
-			? asMatchers(argument.matcher)
-					.filter((matcher) => matcher.kind === "pattern")
-					.map((matcher) => typePattern(matcher.pattern))
-			: [];
-	});
-	if (patterns.some((values) => values.length === 0)) return [];
-
-	const results: MacroArgumentMatch[] = [];
-	for (const combination of cartesian(patterns)) {
-		const groupNames = slots.map((_, index) => `__macro_slot_${index}`);
-		let expression: RegExp;
-		try {
-			expression = new RegExp(
-				form.template.parts
-					.map((part) => {
-						if (part.kind === "literal") return escapeRegex(part.text);
-						const index = slots.indexOf(part);
-						return `(?<${groupNames[index]}>${combination[index]})`;
-					})
-					.join(""),
-				"gidu",
-			);
-		} catch {
-			continue;
-		}
-		for (const match of execAll(expression, raw.slice(bodyStart))) {
-			if (!match.indices) continue;
-			const matchStart = bodyStart + match.index;
-			for (const [index, slot] of slots.entries()) {
-				const span = match.indices.groups?.[groupNames[index]!];
-				if (!span) continue;
-				const start = bodyStart + span[0];
-				const end = bodyStart + span[1];
-				results.push({
-					argumentId: slot.argumentId,
-					occurrence: slot.occurrence,
-					formId: form.formId,
-					source: "friendly",
-					anchor: { start: matchStart, end: start },
-					extraction: { start, end },
-					friendlyText: raw.slice(matchStart, start),
-					rawValue: raw.slice(start, end),
-					captures: filteredCaptures(match, groupNames),
-					captureSpans: captureSpans(match, bodyStart, groupNames),
-					matchKind: "pattern",
-				});
-			}
-		}
-	}
-	return results;
-}
-
 function definitionForms(spec: MacroSpec): MacroArgumentForm[] {
 	const forms = spec.arguments.flatMap((argument) => argument.forms ?? []);
 	for (const [index, template] of (spec.authoringTemplates ?? []).entries()) {
-		const slot = template.parts.find(isSlot);
+		const slot = template.parts.find(
+			(part): part is Extract<MacroAuthoringTemplatePart, { kind: "slot" }> =>
+				part.kind === "slot",
+		);
 		if (slot) {
 			forms.push({
 				formId: `template:${index}:${slot.argumentId}:${slot.occurrence}`,
@@ -196,49 +116,6 @@ function isSlot(
 	part: MacroAuthoringTemplatePart,
 ): part is Extract<MacroAuthoringTemplatePart, { kind: "slot" }> {
 	return part.kind === "slot";
-}
-
-function asMatchers(
-	matcher: NonNullable<MacroSpec["arguments"][number]["matcher"]>,
-) {
-	return Array.isArray(matcher) ? matcher : [matcher];
-}
-
-function typePattern(pattern: string | RegExp): string {
-	return typeof pattern === "string" ? pattern : pattern.source;
-}
-
-function cartesian<T>(values: readonly (readonly T[])[]): T[][] {
-	return values.reduce<T[][]>(
-		(results, current) =>
-			results.flatMap((prefix) => current.map((value) => [...prefix, value])),
-		[[]],
-	);
-}
-
-function filteredCaptures(
-	match: RegExpExecArray,
-	excludedNames: readonly string[],
-): Record<string, string | undefined> {
-	return Object.fromEntries(
-		Object.entries(match.groups ?? {}).filter(
-			([name]) => !excludedNames.includes(name),
-		),
-	);
-}
-
-function captureSpans(
-	match: RegExpExecArray,
-	offset: number,
-	excludedNames: readonly string[],
-): MacroCaptureSpan[] {
-	return Object.entries(match.groups ?? {}).flatMap(([name, value]) => {
-		if (excludedNames.includes(name)) return [];
-		const span = match.indices?.groups?.[name];
-		return span
-			? [{ name, value, start: offset + span[0], end: offset + span[1] }]
-			: [];
-	});
 }
 
 function isCompatible(

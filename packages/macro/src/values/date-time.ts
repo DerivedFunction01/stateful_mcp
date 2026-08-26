@@ -1140,7 +1140,7 @@ export interface RelativeTemporalConfig extends BaseValueGrammarConfig {
  * (shorthand definitions/dictionary, modifier + target, prefix offset, postfix offset, part-of-day/calendar window).
  * Does NOT inject hardcoded English assumptions.
  */
-export function parseRelativeTemporal(
+export function evaluateRelativeTemporalGrammar(
 	input: string,
 	config: RelativeTemporalConfig = {},
 ): RelativeTemporalSlot | undefined {

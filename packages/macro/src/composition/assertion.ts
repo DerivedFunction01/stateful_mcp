@@ -88,34 +88,18 @@ export function createAssertionMacro(
 		syntax: options.syntax,
 	});
 
-	const subjectPattern =
-		spec.subjectValueKind === "string"
-			? compiler.compileWordPattern()
-			: compiler.compileConceptPattern();
-
 	const subjectArg: MacroArgumentSpec = {
 		argumentId: spec.subjectSlotId,
 		name: spec.subjectSlotId,
 		position: 0,
 		path: `${spec.macroName}.${spec.subjectSlotId}`,
-		matcher: { kind: "pattern", pattern: subjectPattern },
+		configuredValue: {
+			consumerId: spec.subjectValueKind === "string" ? "text" : "concept",
+		},
 		required: true,
 	};
 
 	const clauseArgs: MacroArgumentSpec[] = spec.clauses.map((clause) => {
-		let pattern: string;
-		if (clause.valueKind === "concept") {
-			pattern = compiler.compileConceptPattern();
-		} else if (clause.valueKind === "quantity") {
-			pattern = compiler.compileQuantityPattern();
-		} else if (clause.valueKind === "currency") {
-			pattern = compiler.compileCurrencyPattern();
-		} else if (clause.valueKind === "date") {
-			pattern = compiler.compileDatePattern();
-		} else {
-			pattern = compiler.compileWordPattern();
-		}
-
 		const expandedConnectors = new Set<string>();
 		for (const conn of clause.connectors ?? []) {
 			if (!conn.includes(clause.slotId)) {
@@ -155,7 +139,16 @@ export function createAssertionMacro(
 			argumentId: clause.slotId,
 			name: clause.slotId,
 			path: `${spec.macroName}.${clause.slotId}`,
-			matcher: { kind: "pattern", pattern },
+			configuredValue: {
+				consumerId:
+					clause.valueKind === "quantity"
+						? "quantity"
+						: clause.valueKind === "currency"
+							? "currency"
+							: clause.valueKind === "string"
+								? "text"
+								: "concept",
+			},
 			required: false,
 			repeatable: clause.repeatable,
 			itemDelimiter: clause.itemDelimiter,
@@ -296,7 +289,10 @@ export function createAssertionMacro(
 										rawItem,
 										compiler,
 									)
-								: compiler.parseClauseValue(clause.valueKind, rawItem);
+								: compiler.parseConfiguredClauseValue(
+										clause.valueKind,
+										rawItem,
+									);
 						const clauseBinding: AssertionClauseBinding = {
 							role: clause.role,
 							slotId: clause.slotId,
@@ -345,5 +341,5 @@ function canonicalInputValue(
 ): unknown {
 	return input.match?.canonicalValue !== undefined
 		? input.match.canonicalValue
-		: compiler.parseClauseValue(kind, raw);
+		: compiler.parseConfiguredClauseValue(kind, raw);
 }
