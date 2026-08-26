@@ -1,7 +1,7 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { QuantityDimension, UnitId } from "../conversion/contracts";
 import type { QuantityConversionRegistry } from "../conversion/conversion-registry";
-import type { FundamentalGroup } from "../fundamentals";
+import type { FundamentalGroup, RangeComponent } from "../fundamentals";
 import type { BaseValueGrammarConfig, NumericParseOptions } from "../numeric";
 import type { OperatorConfig, OperatorMatch } from "../operators";
 import type { ValueRecipe } from "../recipes";
@@ -68,11 +68,10 @@ export interface QuantityGrammarConfig
 		| readonly string[];
 	readonly fillerConnectors?: readonly string[];
 	readonly conceptResolver?: ConceptResolver;
-	readonly rangeDelimiters?: readonly string[];
+	readonly rangeComponents?: readonly RangeComponent[];
 	readonly operatorConfig?: OperatorConfig;
 	readonly statisticalConfig?: StatisticalConfig;
 	readonly conversionRegistry?: QuantityConversionRegistry;
-	readonly descendingDelimiters?: readonly string[];
 	readonly locales?: string | readonly string[];
 	readonly fundamentalGroups?: readonly FundamentalGroup[];
 }

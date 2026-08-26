@@ -285,7 +285,6 @@ describe("Adverse & Multi-lingual Assertion Tests (Zero Hardcoded Heuristics)", 
 					unitAliases: {
 						bar: ["bar", "Bar"],
 					},
-					rangeDelimiters: ["bis"],
 				},
 				syntax: {
 					expressionToken: "#",

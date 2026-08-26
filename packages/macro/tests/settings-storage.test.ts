@@ -36,7 +36,6 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 			"mass::milligram": ["mg"],
 			"volume::milliliter": ["mL"],
 		},
-		rangeDelimiters: ["-", "to"],
 	};
 
 	test("CoreKvSettingsStorageDriver persists settings, profiles, and extensions", async () => {
@@ -60,7 +59,6 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 				},
 			},
 			unitAliases: { "mass::milligram": ["miligramos"] },
-			rangeDelimiters: ["hasta"],
 		};
 		await driver.saveProfile("spanish", {
 			...spanishDelta,
@@ -132,7 +130,6 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 				"mass::milligram": ["miligramos"],
 				"packaging::box": ["caja"],
 			},
-			rangeDelimiters: ["hasta", "a"],
 		} as any);
 
 		const resolved = await resolveProfile("spanish", driver);
@@ -152,9 +149,6 @@ describe("Settings Storage & Profile Inheritance Engine", () => {
 		]);
 		expect(resolved.unitAliases?.["volume::milliliter"]).toEqual(["mL"]);
 		expect(resolved.unitAliases?.["packaging::box"]).toEqual(["caja"]);
-
-		// Additive arrays (rangeDelimiters) are unioned
-		expect(resolved.rangeDelimiters).toEqual(["-", "to", "hasta", "a"]);
 	});
 
 	test("ProfileResolver detects circular inheritance chains", async () => {

@@ -1,4 +1,5 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
+import type { RangeComponent } from "../fundamentals";
 import type { BaseValueGrammarConfig } from "../numeric";
 import type { FrequencyToken, ValueFormatConfig } from "../token-spec";
 
@@ -56,7 +57,7 @@ export interface FrequencyGrammarConfig<
 	readonly conditionConnectors?: readonly string[];
 	readonly intervalPrefixes?: readonly string[];
 	readonly recurrenceConnectors?: readonly string[];
-	readonly rangeDelimiters?: readonly string[];
+	readonly rangeComponents?: readonly RangeComponent[];
 	readonly relativeOffsetConnectors?: Readonly<
 		Record<"before" | "after" | "at" | "with", readonly string[]>
 	>;

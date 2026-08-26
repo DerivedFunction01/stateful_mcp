@@ -33,7 +33,6 @@ export interface CadenceParseContext<
 	readonly conditionalAliases: readonly string[];
 	readonly intervalPrefixes: readonly string[];
 	readonly recurrenceConnectors: readonly string[];
-	readonly rangeDelimiters: readonly string[];
 	readonly relativeOffsetConnectors: Partial<
 		Record<"before" | "after" | "at" | "with", readonly string[]>
 	>;
@@ -67,7 +66,6 @@ export function createParseContext<
 	const conditionalAliases = config.conditionalAliases ?? [];
 	const intervalPrefixes = config.intervalPrefixes ?? [];
 	const recurrenceConnectors = config.recurrenceConnectors ?? [];
-	const rangeDelimiters = config.rangeDelimiters ?? [];
 	const relativeOffsetConnectors = config.relativeOffsetConnectors ?? {};
 	const conditionConnectors = config.conditionConnectors ?? [];
 
@@ -117,7 +115,6 @@ export function createParseContext<
 		conditionalAliases,
 		intervalPrefixes,
 		recurrenceConnectors,
-		rangeDelimiters,
 		relativeOffsetConnectors,
 		conditionConnectors,
 		resolveTimeUnit,

@@ -93,7 +93,12 @@ describe("opt-in built-in recipe factories", () => {
 	test("parses configured interval ranges", () => {
 		const frequency: FrequencyGrammarConfig = {
 			intervalPrefixes: ["every"],
-			rangeDelimiters: ["to"],
+			rangeComponents: [
+				{
+					id: "interval-range",
+					connector: [{ id: "to", text: "to" }],
+				},
+			],
 			timeUnitAliases: { hour: ["hour", "hours"] },
 		};
 		const builtins = createFrequencyRecipeSet(frequency);

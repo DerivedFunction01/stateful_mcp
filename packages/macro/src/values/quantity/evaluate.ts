@@ -16,15 +16,10 @@ import type {
 	QuantityGrammarConfig,
 	QuantityGrammarResolution,
 	QuantityGrammarResult,
-	QuantityRange,
 	RangeDirection,
 	SingleQuantity,
 } from "./contracts";
-import {
-	parseSingleQuantityPart,
-	splitQuantityRange,
-	validateUnitPolicy,
-} from "./parse";
+import { parseSingleQuantityPart, validateUnitPolicy } from "./parse";
 
 /**
  * Parses free text into a single quantity, heterogeneous range, directional range, or chained steps.
@@ -91,7 +86,7 @@ export function evaluateQuantityGrammar(
 		}
 	}
 
-	// 3. Check for Range / Chained Delimiters
+	// 3. Check for explicitly authored ranges.
 	if (config.fundamentalGroups) {
 		const compiled = compileFundamentalGroups(config.fundamentalGroups);
 		const rangeVariants = compiled.variants.filter(
@@ -149,157 +144,6 @@ export function evaluateQuantityGrammar(
 				},
 				diagnostics: EMPTY_DIAGNOSTICS,
 			};
-		}
-	}
-	const rangeDelimiters = config.rangeDelimiters ?? [];
-	const descendingDelimiters = config.descendingDelimiters ?? [];
-	const allDelimiters = [...rangeDelimiters, ...descendingDelimiters];
-
-	if (!config.fundamentalGroups && allDelimiters.length > 0) {
-		const splitResult = splitQuantityRange(text, allDelimiters);
-		if (splitResult && splitResult.parts.length >= 2) {
-			if (policy.allowRange === false) {
-				return {
-					diagnostics: [
-						{
-							code: "range_not_allowed",
-							messageKey: "errors.quantityRangeNotAllowed",
-						},
-					],
-				};
-			}
-
-			const parts = splitResult.parts;
-			if (parts.length > 2 && policy.allowChainedSteps === false) {
-				return {
-					diagnostics: [
-						{
-							code: "chained_steps_not_allowed",
-							messageKey: "errors.quantityChainedStepsNotAllowed",
-						},
-					],
-				};
-			}
-
-			// Parse steps from right to left to inherit unit across steps
-			const parsedParts: SingleQuantity[] = [];
-			let currentInheritedUnit: string | undefined;
-			let rangeParseFailed = false;
-
-			for (let i = parts.length - 1; i >= 0; i--) {
-				const partText = parts[i]!;
-				const parsed = parseSingleQuantityPart(
-					partText,
-					config,
-					currentInheritedUnit,
-				);
-				if (!parsed) {
-					rangeParseFailed = true;
-					break;
-				}
-				currentInheritedUnit = parsed.unit;
-				parsedParts.unshift(parsed);
-			}
-
-			if (!rangeParseFailed && parsedParts.length >= 2) {
-				// Validate compatibility across steps
-				const firstStep = parsedParts[0]!;
-				const lastStep = parsedParts[parsedParts.length - 1]!;
-
-				if (policy.allowHeterogeneousUnits === false) {
-					const allSame = parsedParts.every((p) => p.unit === firstStep.unit);
-					if (!allSame) {
-						return {
-							diagnostics: [
-								{
-									code: "heterogeneous_units_not_allowed",
-									messageKey: "errors.quantityHeterogeneousUnitsNotAllowed",
-								},
-							],
-						};
-					}
-				}
-
-				// Validate dimension compatibility if registry present
-				if (
-					config.conversionRegistry &&
-					firstStep.canonicalUnit &&
-					lastStep.canonicalUnit
-				) {
-					const dim1 = config.conversionRegistry.getUnit(
-						firstStep.canonicalUnit as UnitId,
-					)?.dimension;
-					const dim2 = config.conversionRegistry.getUnit(
-						lastStep.canonicalUnit as UnitId,
-					)?.dimension;
-					if (dim1 && dim2 && dim1 !== dim2) {
-						return {
-							diagnostics: [
-								{
-									code: "incompatible_range_dimensions",
-									messageKey: "errors.quantityIncompatibleRangeDimensions",
-									messageParams: {
-										dimension1: dim1,
-										unit1: firstStep.unit,
-										dimension2: dim2,
-										unit2: lastStep.unit,
-									},
-								},
-							],
-						};
-					}
-				}
-
-				const isExplicitDescending = descendingDelimiters.includes(
-					splitResult.delimiter,
-				);
-				const startVal = firstStep.canonicalMagnitude ?? firstStep.magnitude;
-				const endVal = lastStep.canonicalMagnitude ?? lastStep.magnitude;
-
-				let direction: RangeDirection = "equal";
-				if (isExplicitDescending || startVal > endVal) {
-					direction = "descending";
-				} else if (startVal < endVal) {
-					direction = "ascending";
-				}
-
-				if (
-					direction === "descending" &&
-					policy.allowDirectionalRange === false
-				) {
-					return {
-						diagnostics: [
-							{
-								code: "descending_range_not_allowed",
-								messageKey: "errors.quantityDescendingRangeNotAllowed",
-							},
-						],
-					};
-				}
-
-				const isHeterogeneous = firstStep.unit !== lastStep.unit;
-				const rangeValue: QuantityRange = {
-					start: firstStep,
-					end: lastStep,
-					direction,
-					...(isHeterogeneous ? { isHeterogeneousUnits: true } : {}),
-					...(parts.length > 2 ? { chainedSteps: parsedParts } : {}),
-					rawText,
-				};
-
-				const resultValue: QuantityGrammarResult = {
-					primaryQuantity: firstStep,
-					range: rangeValue,
-					...(operatorMatch ? { operator: operatorMatch } : {}),
-					...(statisticalQualifier ? { statisticalQualifier } : {}),
-					rawText,
-				};
-
-				return {
-					value: resultValue,
-					diagnostics: EMPTY_DIAGNOSTICS,
-				};
-			}
 		}
 	}
 

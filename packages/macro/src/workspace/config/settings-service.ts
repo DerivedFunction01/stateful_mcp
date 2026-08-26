@@ -623,7 +623,6 @@ export class WorkspaceSettingsService {
 			syntax: draft.syntax as any,
 			values: draft.values as any,
 			unitAliases: draft.unitAliases as any,
-			rangeDelimiters: draft.rangeDelimiters as any,
 			operatorAliases: draft.operatorAliases as any,
 			statisticalAliases: draft.statisticalAliases as any,
 			excludePrefixes: draft.excludePrefixes as any,

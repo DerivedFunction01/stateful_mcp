@@ -32,6 +32,15 @@ function aliasValues(
 	return Object.values(values ?? {}).flat();
 }
 
+function normalizePatterns(
+	patterns: readonly FundamentalPattern[],
+): FundamentalPattern[] {
+	return patterns.map((pattern) => ({
+		...pattern,
+		caseSensitive: pattern.caseSensitive ?? false,
+	}));
+}
+
 /**
  * Builds explicit frequency syntax from the configured vocabulary. The
  * factory does not register or activate anything by itself.
@@ -72,30 +81,32 @@ export function createFrequencyRecipeSet(
 						],
 					],
 				},
-				...(config.rangeDelimiters?.length
-					? [
+				...(config.rangeComponents ?? []).map((component) => ({
+					id: `range-${component.id}`,
+					prefix: normalizePatterns([
+						...aliases("interval-prefix", intervalPrefixes),
+						...(component.prefix ?? []),
+					]),
+					slots: [
+						{ id: "lower", pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
+						{ id: "upper", pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
+						{ id: "unit", pattern: unitPattern },
+					],
+					connectors: [
+						normalizePatterns(component.connector),
+						normalizePatterns([
 							{
-								id: "prefix-count-range-unit",
-								prefix: aliases("interval-prefix", intervalPrefixes),
-								slots: [
-									{ id: "lower", pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
-									{ id: "upper", pattern: "[\\p{N}]+(?:[.,][\\p{N}]+)?" },
-									{ id: "unit", pattern: unitPattern },
-								],
-								connectors: [
-									aliases("interval-range", config.rangeDelimiters),
-									[
-										{
-											id: "range-space",
-											text: " ",
-											boundary: "none" as const,
-											caseSensitive: false,
-										},
-									],
-								],
+								id: `range-space-${component.id}`,
+								text: " ",
+								boundary: "none" as const,
+								caseSensitive: false,
 							},
-						]
-					: []),
+						]),
+					],
+					postfix: component.suffix
+						? normalizePatterns(component.suffix)
+						: undefined,
+				})),
 			],
 		});
 		recipes.push({
@@ -111,13 +122,15 @@ export function createFrequencyRecipeSet(
 			},
 			outputBuilderId: "frequency.interval",
 		});
-		if (config.rangeDelimiters?.length) {
+		if (config.rangeComponents?.length) {
 			recipes.push({
 				id: "frequency.interval-range",
 				root: {
 					kind: "fundamental",
 					groupId: "frequency.interval",
-					variantIds: ["prefix-count-range-unit"],
+					variantIds: config.rangeComponents.map(
+						(component) => `range-${component.id}`,
+					),
 					children: [
 						{ kind: "terminal", consumerId: "frequency-count" },
 						{ kind: "terminal", consumerId: "frequency-count" },

@@ -15,7 +15,11 @@ import type {
 	CurrencyFormatConfig,
 } from "../values/currency";
 import type { DateTimeFormatConfig } from "../values/date-time";
-import { compileFundamentalGroups } from "../values/fundamentals";
+import {
+	compileFundamentalGroups,
+	type FundamentalPattern,
+	type RangeComponent,
+} from "../values/fundamentals";
 import type {
 	QuantityConsumerPolicy,
 	QuantityGrammarConfig,
@@ -70,12 +74,13 @@ export function compileDomainConfig(
 		}
 	}
 
-	const combinedRangeDelimiters = Array.from(
-		new Set([
-			...(profile?.rangeDelimiters ?? []),
-			...(config?.rangeDelimiters ?? []),
-			...(config?.overrides?.rangeDelimiters ?? []),
-		]),
+	const combinedQuantityRangeComponents = mergeRangeComponents(
+		profile?.values?.quantity?.rangeComponents,
+		config?.overrides?.values?.quantity?.rangeComponents,
+	);
+	const combinedFrequencyRangeComponents = mergeRangeComponents(
+		profile?.values?.frequency?.rangeComponents,
+		config?.overrides?.values?.frequency?.rangeComponents,
 	);
 
 	const combinedOperatorAliases: Record<string, string[]> = {};
@@ -149,7 +154,7 @@ export function compileDomainConfig(
 		...(profile?.values?.quantity ?? {}),
 		...(config?.overrides?.values?.quantity ?? {}),
 		unitAliases: combinedUnitAliases,
-		rangeDelimiters: combinedRangeDelimiters,
+		rangeComponents: combinedQuantityRangeComponents,
 		...(decimalSeparator ? { decimalSeparator } : {}),
 		...(Object.keys(combinedOperatorAliases).length
 			? { operatorConfig: { operators: combinedOperatorAliases } }
@@ -161,6 +166,7 @@ export function compileDomainConfig(
 	const frequency = {
 		...(profile?.values?.frequency ?? {}),
 		...(config?.overrides?.values?.frequency ?? {}),
+		rangeComponents: combinedFrequencyRangeComponents,
 	};
 	const rates = {
 		...(profile?.values?.rates ?? {}),
@@ -438,13 +444,48 @@ export function resolveArgumentPolicy(
 		allowedCurrencies: policy?.allowedCurrencies,
 		targetCanonicalUnit: policy?.targetCanonicalUnit,
 		bounds: resolvedBounds,
-		rangeDelimiters: policy?.rangeDelimiters,
 		enabledRecipes: policy?.enabledRecipes,
 		priorityOverrides: policy?.priorityOverrides,
 		frequencyConsumerPolicy: policy?.frequency,
 		rateConsumerPolicy: policy?.rate,
 		currencyConsumerPolicy: policy?.currency,
 	};
+}
+
+function mergeRangeComponents(
+	...sources: readonly (readonly RangeComponent[] | undefined)[]
+): readonly RangeComponent[] {
+	const components = new Map<string, RangeComponent>();
+	for (const source of sources) {
+		for (const component of source ?? []) {
+			const existing = components.get(component.id);
+			if (!existing) {
+				components.set(component.id, component);
+				continue;
+			}
+			components.set(component.id, {
+				...existing,
+				...(component.prefix !== undefined
+					? { prefix: mergeRangePatterns(existing.prefix, component.prefix) }
+					: {}),
+				connector: mergeRangePatterns(existing.connector, component.connector),
+				...(component.suffix !== undefined
+					? { suffix: mergeRangePatterns(existing.suffix, component.suffix) }
+					: {}),
+			});
+		}
+	}
+	return [...components.values()];
+}
+
+function mergeRangePatterns(
+	base: readonly FundamentalPattern[] | undefined,
+	override: readonly FundamentalPattern[],
+): readonly FundamentalPattern[] {
+	const patterns = new Map<string, FundamentalPattern>();
+	for (const pattern of base ?? []) patterns.set(pattern.id, pattern);
+	for (const pattern of override) patterns.set(pattern.id, pattern);
+	return [...patterns.values()];
 }
 
 function mergeRecords(

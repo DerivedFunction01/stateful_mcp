@@ -122,8 +122,6 @@ export interface UserMacroProfile {
 	readonly excludePrefixes?: readonly string[];
 	/** Master general spelling aliases (e.g. British vs US spellings, standard SI/Imperial) */
 	readonly unitAliases?: Readonly<Record<string, readonly string[]>>;
-	/** Universal range delimiters (e.g. ["-", "to", "/"]) */
-	readonly rangeDelimiters?: readonly string[];
 	/** Universal operator aliases (e.g. { "gte": [">=", "at least"], "gt": [">", "greater than"] }) */
 	readonly operatorAliases?: Readonly<Record<string, readonly string[]>>;
 	/** Universal statistical qualifiers (e.g. { "mean": ["mean", "average", "avg"] }) */
@@ -145,8 +143,6 @@ export interface MacroArgumentPolicy {
 	readonly bounds?: string | NumericBounds;
 	/** Whether ranges (e.g. '120-140') are permitted */
 	readonly allowRange?: boolean;
-	/** Custom range delimiters for this argument */
-	readonly rangeDelimiters?: readonly string[];
 	/** Overridden parameter path (defaults to {extId}.{macroName}.{argId}) */
 	readonly path?: string;
 	/** Statistics policy */
@@ -192,9 +188,6 @@ export interface ExtensionDomainConfig {
 
 	/** Specialized domain currency formatting */
 	readonly currency?: CurrencyFormatConfig;
-
-	/** Domain range delimiters */
-	readonly rangeDelimiters?: readonly string[];
 
 	/** Domain operator aliases */
 	readonly operatorAliases?: Readonly<Record<string, readonly string[]>>;
@@ -251,7 +244,6 @@ export interface CompiledArgumentPolicy {
 	readonly allowedCurrencies?: readonly string[];
 	readonly targetCanonicalUnit?: MultiUnitCanonicalTarget;
 	readonly bounds?: NumericBounds;
-	readonly rangeDelimiters?: readonly string[];
 	readonly enabledRecipes?: readonly string[];
 	readonly priorityOverrides?: Readonly<Record<string, number>>;
 	readonly frequencyConsumerPolicy?: FrequencyConsumerPolicy;

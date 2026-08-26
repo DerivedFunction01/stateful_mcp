@@ -57,8 +57,6 @@ export class ValuePatternCompiler {
 			const valQuantity = profile?.values?.quantity;
 			this.quantityConfig = {
 				unitAliases: profile?.unitAliases ?? valQuantity?.unitAliases ?? {},
-				rangeDelimiters:
-					profile?.rangeDelimiters ?? valQuantity?.rangeDelimiters ?? [],
 				...(profile?.operatorAliases || valQuantity?.operatorConfig
 					? {
 							operatorConfig: valQuantity?.operatorConfig ?? {
@@ -131,16 +129,8 @@ export class ValuePatternCompiler {
 		// Unit suffixes
 		const unitPattern = `(?:[\\p{L}\\p{Sc}_°'%/]+|\\[[a-zA-Z0-9_]+\\])?`;
 
-		// Range connectors (only if configured)
-		const rangeDels = (this.quantityConfig.rangeDelimiters ?? []).map(
-			escapeRegex,
-		);
-		const rangePattern =
-			rangeDels.length > 0
-				? `(?:\\s*(?:${rangeDels.join("|")})\\s*${num}\\s*${unitPattern})?`
-				: "";
-
-		return `${opPattern}${num}\\s*${unitPattern}${rangePattern}`;
+		// Ranges are parsed only through authored fundamentals and enabled recipes.
+		return `${opPattern}${num}\\s*${unitPattern}`;
 	}
 
 	/**

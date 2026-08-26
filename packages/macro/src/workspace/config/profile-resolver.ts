@@ -1,4 +1,8 @@
 import type { UserMacroProfile } from "../../contracts/extension-config";
+import type {
+	FundamentalPattern,
+	RangeComponent,
+} from "../../values/fundamentals";
 import type { SettingsStorageDriver } from "./storage-driver";
 
 /**
@@ -63,10 +67,12 @@ export function mergeProfile(
 				baseVal,
 				val as Record<string, readonly string[]>,
 			);
-		} else if (key === "rangeDelimiters" || key === "excludePrefixes") {
+		} else if (key === "excludePrefixes") {
 			const bArr = Array.isArray(baseVal) ? baseVal : [];
 			const dArr = Array.isArray(val) ? val : [];
 			result[key] = Array.from(new Set([...bArr, ...dArr]));
+		} else if (key === "values") {
+			result[key] = mergeProfileValues(baseVal, val);
 		} else if (
 			key === "localization" ||
 			key === "numberWords" ||
@@ -83,6 +89,72 @@ export function mergeProfile(
 	}
 
 	return Object.freeze(result as UserMacroProfile);
+}
+
+function mergeProfileValues(
+	base: unknown,
+	override: unknown,
+): Record<string, any> {
+	const result =
+		mergeRecords(
+			base as Record<string, any> | undefined,
+			override as Record<string, any> | undefined,
+		) ?? {};
+	for (const domain of ["quantity", "frequency"]) {
+		const baseConfig = (base as Record<string, any> | undefined)?.[domain];
+		const overrideConfig = (override as Record<string, any> | undefined)?.[
+			domain
+		];
+		const components = mergeRangeComponents(
+			baseConfig?.rangeComponents,
+			overrideConfig?.rangeComponents,
+		);
+		if (components !== undefined) {
+			result[domain] = {
+				...(result[domain] ?? {}),
+				rangeComponents: components,
+			};
+		}
+	}
+	return result;
+}
+
+function mergeRangeComponents(
+	...sources: readonly (readonly RangeComponent[] | undefined)[]
+): readonly RangeComponent[] | undefined {
+	if (!sources.some((source) => source !== undefined)) return undefined;
+	const components = new Map<string, RangeComponent>();
+	for (const source of sources) {
+		for (const component of source ?? []) {
+			const existing = components.get(component.id);
+			components.set(
+				component.id,
+				existing
+					? {
+							...existing,
+							...(component.prefix !== undefined
+								? { prefix: mergePatterns(existing.prefix, component.prefix) }
+								: {}),
+							connector: mergePatterns(existing.connector, component.connector),
+							...(component.suffix !== undefined
+								? { suffix: mergePatterns(existing.suffix, component.suffix) }
+								: {}),
+						}
+					: component,
+			);
+		}
+	}
+	return [...components.values()];
+}
+
+function mergePatterns(
+	base: readonly FundamentalPattern[] | undefined,
+	override: readonly FundamentalPattern[],
+): readonly FundamentalPattern[] {
+	const patterns = new Map<string, FundamentalPattern>();
+	for (const pattern of base ?? []) patterns.set(pattern.id, pattern);
+	for (const pattern of override) patterns.set(pattern.id, pattern);
+	return [...patterns.values()];
 }
 
 /**

@@ -5,7 +5,6 @@ import {
 	extractPostfixAlias,
 	extractPrefixAlias,
 	flattenAndSortAliases,
-	splitByDelimiters,
 } from "../token-matcher";
 import type {
 	ConceptCountDetails,
@@ -15,13 +14,6 @@ import type {
 	SingleQuantity,
 } from "./contracts";
 import { resolveUnitAlias } from "./unit-alias";
-
-export function splitQuantityRange(
-	text: string,
-	delimiters: readonly string[],
-): { parts: string[]; delimiter: string } | undefined {
-	return splitByDelimiters(text, delimiters, { requireBoundaries: true });
-}
 
 export function parseSingleQuantityPart(
 	partText: string,

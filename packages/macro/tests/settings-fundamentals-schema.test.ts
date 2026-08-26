@@ -70,7 +70,7 @@ describe("Fundamentals Settings Schema (Modular Architecture)", () => {
 		expect(esTzEntry?.title).toBe("Zona horaria predeterminada");
 	});
 
-	test("quantity schema configures STANDARD_UNIT_BUNDLES, range delimiters, prefixes, and suffixes", () => {
+	test("quantity schema configures STANDARD_UNIT_BUNDLES and range components", () => {
 		const schema = createQuantitySchema(enKernel);
 		const systemEntry = schema.find(
 			(e) => e.path.join(".") === "values.quantity.defaultSystem",
@@ -80,9 +80,11 @@ describe("Fundamentals Settings Schema (Modular Architecture)", () => {
 		expect(systemEntry?.enumValues).toEqual([...STANDARD_UNIT_BUNDLES]);
 
 		const paths = schema.map((e) => e.path.join("."));
-		expect(paths).toContain("values.quantity.rangeDelimiters");
-		expect(paths).toContain("values.quantity.rangePrefixes");
-		expect(paths).toContain("values.quantity.rangeSuffixes");
+		expect(paths).toContain("values.quantity.rangeComponents");
+		expect(
+			schema.find((e) => e.path.join(".") === "values.quantity.rangeComponents")
+				?.type,
+		).toBe("json");
 	});
 
 	test("frequency schema binds to CADENCE_TYPES", () => {

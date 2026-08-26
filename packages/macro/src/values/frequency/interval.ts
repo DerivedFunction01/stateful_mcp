@@ -17,7 +17,6 @@ export function tryInterval<
 	const {
 		config,
 		intervalPrefixes,
-		rangeDelimiters,
 		workingText,
 		isConditional,
 		conditionReason,
@@ -33,16 +32,8 @@ export function tryInterval<
 			? `^${escapeRegex(prefix)}\\s*`
 			: `^${escapeRegex(prefix)}(?:\\s+|(?=[\\d\\p{Nd}]))`;
 
-		const sortedRangeDelims = [...rangeDelimiters].sort(
-			(a, b) => b.length - a.length,
-		);
-		const rangeDelimPattern =
-			sortedRangeDelims.length > 0
-				? `(?:\\s*(?:${sortedRangeDelims.map(escapeRegex).join("|")})\\s*(?<high>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?))?`
-				: "";
-
 		const intRegex = new RegExp(
-			`${prefixPattern}(?<low>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)${rangeDelimPattern}\\s*(?<unit>[\\p{L}]+)$`,
+			`${prefixPattern}(?<low>[\\d\\p{Nd}]+(?:[.,][\\d\\p{Nd}]+)?)\\s*(?<unit>[\\p{L}]+)$`,
 			"iu",
 		);
 		const match = workingText.match(intRegex);

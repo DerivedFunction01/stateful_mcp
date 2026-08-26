@@ -400,7 +400,6 @@ function isArgumentPolicy(value: unknown): boolean {
 	for (const items of [
 		value.allowedUnits,
 		value.allowedCurrencies,
-		value.rangeDelimiters,
 		value.enabledRecipes,
 	]) {
 		if (

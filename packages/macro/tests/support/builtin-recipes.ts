@@ -265,7 +265,7 @@ export function createFrequencyRecipeSet(
 						],
 					],
 				},
-				...(config.rangeDelimiters?.length
+				...(config.rangeComponents?.length
 					? [
 							{
 								id: "prefix-count-range-unit",
@@ -276,7 +276,10 @@ export function createFrequencyRecipeSet(
 									{ id: "unit", pattern: unitPattern },
 								],
 								connectors: [
-									aliases("interval-range", config.rangeDelimiters),
+									config.rangeComponents[0]!.connector.map((pattern) => ({
+										...pattern,
+										caseSensitive: pattern.caseSensitive ?? false,
+									})),
 									[
 										{
 											id: "range-space",
@@ -304,7 +307,7 @@ export function createFrequencyRecipeSet(
 			},
 			outputBuilderId: "frequency.interval",
 		});
-		if (config.rangeDelimiters?.length) {
+		if (config.rangeComponents?.length) {
 			recipes.push({
 				id: "frequency.interval-range",
 				root: {

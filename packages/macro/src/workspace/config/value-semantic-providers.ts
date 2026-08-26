@@ -108,7 +108,7 @@ function quantityRuntimeTokens(
 	if (config.statisticalConfig) available.add("STAT_QUALIFIER");
 	if (config.templates?.some((template) => typeof template !== "string"))
 		available.add("FILLER");
-	if ((config.rangeDelimiters ?? []).length > 0) available.add("UNIT");
+	if ((config.rangeComponents ?? []).length > 0) available.add("UNIT");
 	return available;
 }
 
@@ -143,7 +143,7 @@ export const quantitySettingsSemanticProvider: SettingsSemanticProvider = {
 	id: "values.quantity",
 	settingPaths: [
 		["values", "quantity", "templates"],
-		["values", "quantity", "rangeDelimiters"],
+		["values", "quantity", "rangeComponents"],
 		["values", "quantity", "fillerConnectors"],
 	],
 	describe: () => ({
@@ -217,7 +217,7 @@ export const frequencySettingsSemanticProvider: SettingsSemanticProvider = {
 		["values", "frequency", "recurrenceConnectors"],
 		["values", "frequency", "conditionalAliases"],
 		["values", "frequency", "conditionConnectors"],
-		["values", "frequency", "rangeDelimiters"],
+		["values", "frequency", "rangeComponents"],
 	],
 	describe: () => ({
 		providerId: "values.frequency",

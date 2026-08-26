@@ -80,5 +80,33 @@ export function compileAuthoredQuantityTemplates(
 					: "quantity.template",
 		});
 	}
+	if (config.rangeComponents?.length) {
+		const groupId = "quantity.range";
+		fundamentals.push({
+			id: groupId,
+			variants: config.rangeComponents.map((component) => ({
+				id: component.id,
+				prefix: component.prefix,
+				slots: [
+					{ id: "start", parserId: "quantity", pattern: ".+?" },
+					{ id: "end", parserId: "quantity", pattern: ".+?" },
+				],
+				connectors: [component.connector],
+				postfix: component.suffix,
+			})),
+		});
+		recipes.push({
+			id: groupId,
+			root: {
+				kind: "fundamental",
+				groupId,
+				children: [
+					{ kind: "terminal", consumerId: "quantity" },
+					{ kind: "terminal", consumerId: "quantity" },
+				],
+			},
+			outputBuilderId: "quantity.range",
+		});
+	}
 	return { fundamentals, recipes };
 }

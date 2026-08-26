@@ -2,6 +2,13 @@ import type { ErrorDescriptor } from "@stateful-mcp/macro-protocol";
 
 export type FundamentalPosition = "prefix" | "connector" | "postfix";
 
+export interface RangeComponent {
+	readonly id: string;
+	readonly prefix?: readonly FundamentalPattern[];
+	readonly connector: readonly FundamentalPattern[];
+	readonly suffix?: readonly FundamentalPattern[];
+}
+
 export interface FundamentalPattern {
 	readonly id: string;
 	readonly text: string;
