@@ -760,7 +760,7 @@ export function createDateTimeRecipeSet(
 	const builders: Record<string, RecipeOutputBuilder> = {};
 	for (const [formatId, format] of Object.entries(registry.formats)) {
 		const patterns: FundamentalPattern[] = [];
-		for (const token of format.tokens) {
+		for (const token of format.tokens ?? []) {
 			if (token === "YYYY" || token === "YY") {
 				patterns.push({
 					id: `${formatId}-${token}`,
@@ -797,7 +797,7 @@ export function createDateTimeRecipeSet(
 			root: {
 				kind: "fundamental",
 				groupId: group.id,
-				children: format.tokens.map((token) => ({
+				children: (format.tokens ?? []).map((token) => ({
 					kind: "terminal" as const,
 					consumerId:
 						token === "YYYY" || token === "YY"

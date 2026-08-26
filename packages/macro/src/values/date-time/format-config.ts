@@ -1,5 +1,9 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
-import type { DateTimeToken } from "../token-spec";
+import {
+	DATE_TIME_TOKENS,
+	type DateTimeToken,
+	parseFormatTemplate,
+} from "../token-spec";
 
 export type DateTimeValueKind = "date" | "time" | "datetime";
 export type DateTimeField =
@@ -41,13 +45,45 @@ export interface DateTimeFormatConfig {
 	options?: DateTimeFormatOptions;
 }
 
-export interface DateTimeFormatDefinition extends DateTimeFormatConfig {
+export interface DateTimeFormatDefinition {
 	readonly id: string;
 	readonly kind: DateTimeValueKind;
+	readonly source?: string;
+	readonly tokens?: readonly DateTimeToken[];
+	readonly separators?: readonly string[];
 	readonly fields?: readonly DateTimeField[];
 	readonly parserEnabled?: boolean;
 	readonly parserPriority?: number;
 	readonly displayLabel?: string;
+	readonly options?: DateTimeFormatOptions;
+}
+
+export function deriveDateTimeFields(
+	tokens: readonly DateTimeToken[],
+): readonly DateTimeField[] {
+	const fields: DateTimeField[] = [];
+	for (const token of tokens) {
+		if ((token === "YYYY" || token === "YY") && !fields.includes("year"))
+			fields.push("year");
+		else if (
+			(token === "MM" || token === "MM_name") &&
+			!fields.includes("month")
+		)
+			fields.push("month");
+		else if (token === "DD" && !fields.includes("day")) fields.push("day");
+		else if (token === "DDD" && !fields.includes("dayOfYear"))
+			fields.push("dayOfYear");
+		else if (token === "HH" && !fields.includes("hour")) fields.push("hour");
+		else if (token === "min" && !fields.includes("minute"))
+			fields.push("minute");
+		else if (token === "SS" && !fields.includes("second"))
+			fields.push("second");
+		else if (token === "ampm" && !fields.includes("dayPeriod"))
+			fields.push("dayPeriod");
+		else if (token === "tz" && !fields.includes("timeZone"))
+			fields.push("timeZone");
+	}
+	return Object.freeze(fields);
 }
 
 export interface DateTimeFormatRegistry {
@@ -113,9 +149,23 @@ export function inferDateTimeKind(
 export function normalizeDateTimeFormatDefinition(
 	definition: DateTimeFormatDefinition,
 ): DateTimeFormatDefinition {
-	const inferredFields = fieldsForDateTimeTokens(definition.tokens);
+	let tokens = definition.tokens;
+	let separators = definition.separators;
+	if ((!tokens || tokens.length === 0) && definition.source) {
+		const parsed = parseFormatTemplate(
+			definition.source,
+			DATE_TIME_TOKENS,
+			definition.id,
+		);
+		tokens = parsed.tokens;
+		separators = parsed.separators;
+	}
+	const safeTokens = tokens ?? [];
+	const inferredFields = fieldsForDateTimeTokens(safeTokens);
 	return {
 		...definition,
+		tokens: safeTokens,
+		separators: separators ?? [],
 		fields: definition.fields ?? inferredFields,
 	};
 }
@@ -133,7 +183,7 @@ export function createDateTimeRegistry(
 	const definition = normalizeDateTimeFormatDefinition({
 		...legacy,
 		id,
-		kind: inferDateTimeKind(fieldsForDateTimeTokens(legacy.tokens)),
+		kind: inferDateTimeKind(fieldsForDateTimeTokens(legacy.tokens ?? [])),
 	});
 	return {
 		formats: { [id]: definition },
@@ -161,7 +211,7 @@ export function validateDateTimeRegistry(
 				formatId: definition.id,
 			});
 		seen.add(definition.id);
-		const inferred = new Set(fieldsForDateTimeTokens(definition.tokens));
+		const inferred = new Set(fieldsForDateTimeTokens(definition.tokens ?? []));
 		if ((definition.fields ?? []).some((field) => !inferred.has(field)))
 			diagnostics.push({
 				code: "field-mismatch",
@@ -206,7 +256,7 @@ export function selectDateTimeFormats(
 		)
 		.filter((definition) => {
 			const fields = new Set(
-				definition.fields ?? fieldsForDateTimeTokens(definition.tokens),
+				definition.fields ?? fieldsForDateTimeTokens(definition.tokens ?? []),
 			);
 			return (
 				[...required].every((field) => fields.has(field)) &&

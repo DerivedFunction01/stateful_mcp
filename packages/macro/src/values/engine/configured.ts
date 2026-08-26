@@ -4,7 +4,25 @@ import type {
 	AsyncValueEngineOptions,
 	ConfiguredValueRuntime,
 	ValueEngineOptions,
+	ValueRequest,
 } from "./types";
+
+function matchesValueRequest(
+	capability: import("../recipes").RecipeCapability | undefined,
+	request: import("./types").ValueRequest,
+): boolean {
+	if (!capability) return true;
+	if (capability.valueKind !== request.valueKind) return false;
+	const provided = capability.providedFields ?? [];
+	const required = request.requiredFields ?? [];
+	if (!required.every((field) => provided.includes(field))) return false;
+	if (
+		request.allowAdditionalFields === false &&
+		provided.length !== required.length
+	)
+		return false;
+	return true;
+}
 
 export function parseConfiguredValue(
 	input: string,
@@ -19,9 +37,15 @@ export function parseConfiguredValue(
 			diagnostics: grammar.diagnostics,
 		};
 	const terminalDiagnostics = [] as RecipeParseResult["diagnostics"][number][];
+	const allRecipes = grammar.recipes?.recipes ?? [];
+	const filteredRecipes = options.valueRequest
+		? allRecipes.filter((r) =>
+				matchesValueRequest(r.capability, options.valueRequest!),
+			)
+		: allRecipes;
 	const result = parseValueRecipes(
 		input,
-		grammar.recipes?.recipes ?? [],
+		filteredRecipes,
 		{
 			enabledRecipes: policy.enabledRecipes ?? [],
 			priorityOverrides: policy.priorityOverrides,
@@ -77,9 +101,15 @@ export async function parseConfiguredValueAsync(
 			ambiguous: false,
 			diagnostics: grammar.diagnostics,
 		};
+	const allRecipes = grammar.recipes?.recipes ?? [];
+	const filteredRecipes = options.valueRequest
+		? allRecipes.filter((r) =>
+				matchesValueRequest(r.capability, options.valueRequest!),
+			)
+		: allRecipes;
 	return parseValueRecipesAsync(
 		input,
-		grammar.recipes?.recipes ?? [],
+		filteredRecipes,
 		{
 			enabledRecipes: policy.enabledRecipes ?? [],
 			priorityOverrides: policy.priorityOverrides,
@@ -126,12 +156,14 @@ export async function parseConfiguredArgumentAsync(
 	},
 	argumentId: string,
 	consumerId?: string,
+	valueRequest?: ValueRequest,
 ): Promise<RecipeParseResult> {
 	const policy = runtime.policies?.[argumentId] ?? {};
 	return parseConfiguredValueAsync(input, runtime.grammar, policy, {
 		...runtime,
 		terminalPolicy: policy,
 		allowedConsumerId: consumerId ?? runtime.allowedConsumerId,
+		valueRequest: valueRequest ?? runtime.valueRequest,
 	});
 }
 
@@ -140,6 +172,7 @@ export function parseConfiguredArgument(
 	runtime: ConfiguredValueRuntime,
 	argumentId: string,
 	consumerId?: string,
+	valueRequest?: ValueRequest,
 ): RecipeParseResult {
 	const policy = runtime.policies?.[argumentId];
 	return parseConfiguredValue(
@@ -150,6 +183,7 @@ export function parseConfiguredArgument(
 			...runtime,
 			terminalPolicy: policy,
 			allowedConsumerId: consumerId ?? runtime.allowedConsumerId,
+			valueRequest: valueRequest ?? runtime.valueRequest,
 		},
 	);
 }

@@ -42,6 +42,7 @@ export interface AliasDefinition {
 	readonly caseSensitive?: boolean;
 	readonly boundary?: AliasBoundary;
 	readonly target: AliasTarget;
+	readonly lexiconId?: string;
 }
 
 /** Explicit runtime context handed to registered resolvers. */

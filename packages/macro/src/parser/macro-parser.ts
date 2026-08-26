@@ -529,12 +529,16 @@ function findConfiguredArgumentMatches(
 		});
 		return [];
 	}
+	const valueRequest =
+		argument.configuredValue?.valueRequest ??
+		(argument.valueKind ? { valueKind: argument.valueKind } : undefined);
 	const configuredMatches = findConfiguredValueMatches(
 		raw,
 		runtime,
 		argument.argumentId,
 		[region],
 		argument.configuredValue?.consumerId,
+		valueRequest,
 	);
 	const ambiguous = configuredMatches.length > 1;
 	return configuredMatches.map(({ candidate, start, end, rawText }) => ({

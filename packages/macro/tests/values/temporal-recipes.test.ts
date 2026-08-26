@@ -208,6 +208,9 @@ describe("temporal authored recipe factories", () => {
 
 		expect(parsed.selected?.canonicalValue).toEqual({
 			rawText: "2026-08-17",
+			year: 2026,
+			month: 8,
+			day: 17,
 		});
 		expect(parsed.selected?.displayValue).toBe("2026-08-17");
 	});

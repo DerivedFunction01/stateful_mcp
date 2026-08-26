@@ -67,7 +67,7 @@ describe("value authoring settings foundation", () => {
 				},
 			],
 			recipes: [
-				...profile.recipes,
+				...(profile.recipes ?? []),
 				{ id: "wrapped-recipe", root: { kind: "recipe", recipeId: "text" } },
 			],
 			aliasResolvers: {

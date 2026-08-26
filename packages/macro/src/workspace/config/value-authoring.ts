@@ -12,7 +12,7 @@ import type {
 	AliasTarget,
 } from "../../values/aliases";
 import {
-	type AuthoredValueGraph,
+	authoredValueGraphFingerprint,
 	compileAuthoredValueGraph,
 } from "../../values/authoring";
 import type { FundamentalGroup } from "../../values/fundamentals";
@@ -23,20 +23,21 @@ import type { SettingsDiagnostic } from "./settings-service";
  * The persisted settings/wizard model. The value definitions deliberately use
  * the runtime contracts directly; this is not a second grammar model.
  */
-export interface ValueAuthoringProfile {
+export interface ValueAuthoringProfile extends UserMacroProfile {
 	readonly id: string;
 	readonly label?: string;
 	readonly scope?: SettingsScope;
-	readonly aliases: readonly AliasDefinition[];
+	readonly aliases?: readonly AliasDefinition[];
 	/** Resolver implementations are injected at runtime and never persisted. */
 	readonly aliasResolvers?: Readonly<Record<string, AliasResolver>>;
-	readonly fundamentals: readonly FundamentalGroup[];
-	readonly recipes: readonly ValueRecipe[];
-	readonly argumentPolicies: Readonly<Record<string, MacroArgumentPolicy>>;
+	readonly fundamentals?: readonly FundamentalGroup[];
+	readonly recipes?: readonly ValueRecipe[];
+	readonly argumentPolicies?: Readonly<Record<string, MacroArgumentPolicy>>;
 	readonly unitAliases?: UserMacroProfile["unitAliases"];
 	readonly localization?: UserMacroProfile["localization"];
 	readonly numberWords?: UserMacroProfile["numberWords"];
 	readonly values?: UserMacroProfile["values"];
+	readonly removedIds?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface ValueAuthoringDraft {
@@ -62,34 +63,169 @@ export interface CompiledValueAuthoringPolicies {
 	readonly diagnostics: readonly SettingsDiagnostic[];
 }
 
-/** Convert the settings model into the profile shape consumed by the compiler. */
-export function toAuthoredValueGraph(
-	profile: ValueAuthoringProfile,
-): AuthoredValueGraph {
+/**
+ * Resolves a derived profile against its base/parent profile using stable IDs:
+ * - Replaces definitions sharing the same stable ID.
+ * - Appends definitions with new stable IDs.
+ * - Suppresses definitions listed in `removedIds`.
+ */
+export function resolveEffectiveProfile(
+	derived: UserMacroProfile,
+	parent?: UserMacroProfile,
+): UserMacroProfile {
+	if (!parent) return derived;
+
+	const removedIds = derived.removedIds ?? {};
+	const removedAliases = new Set(removedIds.aliases ?? []);
+	const removedFundamentals = new Set(removedIds.fundamentals ?? []);
+	const removedRecipes = new Set(removedIds.recipes ?? []);
+	const removedDateTimeFormats = new Set(removedIds.dateTimeFormats ?? []);
+
+	// Merge aliases
+	const parentAliases = (parent.aliases ?? []).filter(
+		(a) => !removedAliases.has(a.id),
+	);
+	const derivedAliases = derived.aliases ?? [];
+	const aliasMap = new Map<string, AliasDefinition>();
+	for (const a of parentAliases) aliasMap.set(a.id, a);
+	for (const a of derivedAliases) {
+		if (!removedAliases.has(a.id)) {
+			aliasMap.set(a.id, a);
+		}
+	}
+	const mergedAliases = Array.from(aliasMap.values());
+
+	// Merge fundamentals
+	const parentFundamentals = (parent.fundamentals ?? []).filter(
+		(f) => !removedFundamentals.has(f.id),
+	);
+	const derivedFundamentals = derived.fundamentals ?? [];
+	const fundamentalMap = new Map<string, FundamentalGroup>();
+	for (const f of parentFundamentals) fundamentalMap.set(f.id, f);
+	for (const f of derivedFundamentals) {
+		if (!removedFundamentals.has(f.id)) {
+			fundamentalMap.set(f.id, f);
+		}
+	}
+	const mergedFundamentals = Array.from(fundamentalMap.values());
+
+	// Merge recipes
+	const parentRecipes = (parent.recipes ?? []).filter(
+		(r) => !removedRecipes.has(r.id),
+	);
+	const derivedRecipes = derived.recipes ?? [];
+	const recipeMap = new Map<string, ValueRecipe>();
+	for (const r of parentRecipes) recipeMap.set(r.id, r);
+	for (const r of derivedRecipes) {
+		if (!removedRecipes.has(r.id)) {
+			recipeMap.set(r.id, r);
+		}
+	}
+	const mergedRecipes = Array.from(recipeMap.values());
+
+	// Merge values.dateTime.formats
+	const parentDateTimeFormats = {
+		...(parent.values?.dateTime?.formats ?? {}),
+	};
+	for (const id of removedDateTimeFormats) {
+		delete parentDateTimeFormats[id];
+	}
+	const mergedDateTimeFormats = {
+		...parentDateTimeFormats,
+		...(derived.values?.dateTime?.formats ?? {}),
+	};
+	for (const id of removedDateTimeFormats) {
+		delete mergedDateTimeFormats[id];
+	}
+
+	const mergedValues: UserMacroProfile["values"] = {
+		...parent.values,
+		...derived.values,
+		...(Object.keys(mergedDateTimeFormats).length > 0 ||
+		parent.values?.dateTime ||
+		derived.values?.dateTime
+			? {
+					dateTime: {
+						...parent.values?.dateTime,
+						...derived.values?.dateTime,
+						formats: mergedDateTimeFormats,
+					},
+				}
+			: {}),
+	};
+
 	return {
-		aliases: profile.aliases,
-		aliasResolvers: profile.aliasResolvers,
-		fundamentals: profile.fundamentals,
-		recipes: profile.recipes,
-		unitAliases: profile.unitAliases,
-		localization: profile.localization,
-		numberWords: profile.numberWords,
-		values: profile.values,
+		...parent,
+		...derived,
+		syntax:
+			parent.syntax || derived.syntax
+				? {
+						...parent.syntax,
+						...derived.syntax,
+					}
+				: undefined,
+		unitAliases:
+			parent.unitAliases || derived.unitAliases
+				? {
+						...parent.unitAliases,
+						...derived.unitAliases,
+					}
+				: undefined,
+		operatorAliases:
+			parent.operatorAliases || derived.operatorAliases
+				? {
+						...parent.operatorAliases,
+						...derived.operatorAliases,
+					}
+				: undefined,
+		statisticalAliases:
+			parent.statisticalAliases || derived.statisticalAliases
+				? {
+						...parent.statisticalAliases,
+						...derived.statisticalAliases,
+					}
+				: undefined,
+		localization:
+			parent.localization || derived.localization
+				? {
+						...parent.localization,
+						...derived.localization,
+					}
+				: undefined,
+		numberWords:
+			parent.numberWords || derived.numberWords
+				? ({
+						...parent.numberWords,
+						...derived.numberWords,
+					} as UserMacroProfile["numberWords"])
+				: undefined,
+		aliases: mergedAliases,
+		fundamentals: mergedFundamentals,
+		recipes: mergedRecipes,
+		values: mergedValues,
 	};
 }
 
-/** Stable identity for authored data; object key order does not affect it. */
-export function authoredValueGraphFingerprint(
-	graph: AuthoredValueGraph,
-): string {
-	return `authored-values-v1-${fnv1a(stableSerialize(stripRuntimeResolvers(graph)))}`;
+/** Convert the settings model into the profile shape consumed by the compiler. */
+export function toAuthoredValueGraph(
+	profile: UserMacroProfile,
+): UserMacroProfile {
+	return profile;
 }
+
+export { authoredValueGraphFingerprint };
 
 /** Serialize only JSON-safe authored data; resolver functions are not persisted. */
 export function serializeValueAuthoringProfile(
-	profile: ValueAuthoringProfile,
+	profile: UserMacroProfile,
 ): JsonValue {
-	const persisted = stripRuntimeResolvers(profile);
+	const persisted = stripRuntimeResolvers({
+		...profile,
+		aliases: profile.aliases ?? [],
+		fundamentals: profile.fundamentals ?? [],
+		recipes: profile.recipes ?? [],
+		argumentPolicies: (profile as ValueAuthoringProfile).argumentPolicies ?? {},
+	});
 	if (!isJsonValue(persisted))
 		throw new TypeError("Value authoring profile contains non-JSON data");
 	const value = JSON.parse(JSON.stringify(persisted)) as unknown;
@@ -140,7 +276,8 @@ export function deserializeValueAuthoringProfile(
 				typeof alias.caseSensitive !== "boolean") ||
 			(alias.boundary !== undefined &&
 				alias.boundary !== "none" &&
-				alias.boundary !== "word")
+				alias.boundary !== "word") ||
+			(alias.lexiconId !== undefined && typeof alias.lexiconId !== "string")
 		)
 			throw new TypeError(`Invalid value authoring profile: aliases[${index}]`);
 	}
@@ -186,8 +323,7 @@ export function roundTripValueAuthoringProfile(
 export function compileValueAuthoringProfile(
 	profile: ValueAuthoringProfile,
 ): ValueAuthoringValidation {
-	const graph = toAuthoredValueGraph(profile);
-	const result = compileAuthoredValueGraph(graph);
+	const result = compileAuthoredValueGraph(profile);
 	const diagnostics = [
 		...result.diagnostics.map(toSettingsDiagnostic),
 		...compileValueAuthoringPolicies(profile, result.grammar).diagnostics,
@@ -197,7 +333,7 @@ export function compileValueAuthoringProfile(
 			result.valid &&
 			diagnostics.every((diagnostic) => diagnostic.severity !== "error"),
 		diagnostics,
-		graphFingerprint: authoredValueGraphFingerprint(graph),
+		graphFingerprint: authoredValueGraphFingerprint(profile),
 	};
 }
 
@@ -211,7 +347,9 @@ export function compileValueAuthoringPolicies(
 		grammar.recipes?.recipes.map((recipe) => recipe.id) ?? [],
 	);
 	const policies: Record<string, CompiledArgumentPolicy> = {};
-	for (const [argumentId, policy] of Object.entries(profile.argumentPolicies)) {
+	for (const [argumentId, policy] of Object.entries(
+		profile.argumentPolicies ?? {},
+	)) {
 		for (const recipeId of policy.enabledRecipes ?? []) {
 			if (!recipeIds.has(recipeId))
 				diagnostics.push({
@@ -256,9 +394,10 @@ export function createValueAuthoringDraft(
 ): ValueAuthoringDraft {
 	const validation = compileValueAuthoringProfile(profile);
 	const hasAuthoredGraph =
-		profile.aliases.length > 0 ||
-		profile.fundamentals.length > 0 ||
-		profile.recipes.length > 0;
+		(profile.aliases?.length ?? 0) > 0 ||
+		(profile.fundamentals?.length ?? 0) > 0 ||
+		(profile.recipes?.length ?? 0) > 0 ||
+		Object.keys(profile.values?.dateTime?.formats ?? {}).length > 0;
 	return {
 		profile,
 		activeDomain: options.activeDomain,

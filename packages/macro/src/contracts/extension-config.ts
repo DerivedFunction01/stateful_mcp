@@ -130,6 +130,7 @@ export interface UserMacroProfile {
 	readonly aliasResolvers?: Readonly<Record<string, AliasResolver>>;
 	readonly fundamentals?: readonly FundamentalGroup[];
 	readonly recipes?: readonly ValueRecipe[];
+	readonly removedIds?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface MacroArgumentPolicy {
@@ -220,6 +221,7 @@ export interface CompiledDomainGrammar {
 		readonly groupId?: string;
 		readonly variantId?: string;
 	})[];
+	readonly syntax?: Partial<MacroSyntax>;
 	readonly quantity: QuantityGrammarConfig;
 	readonly frequency?: FrequencyGrammarConfig;
 	readonly rates?: CompoundRateConfig;

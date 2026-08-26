@@ -211,6 +211,9 @@ export function compileValueRecipes(
 			...(recipe.outputBuilderId === undefined
 				? {}
 				: { outputBuilderId: recipe.outputBuilderId }),
+			...(recipe.capability === undefined
+				? {}
+				: { capability: recipe.capability }),
 		});
 	}
 	return {

@@ -1,6 +1,9 @@
 import type { FundamentalGroup, FundamentalPattern } from "../fundamentals";
 import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
-import type { DateTimeFormatRegistry } from "./format-config";
+import {
+	type DateTimeFormatRegistry,
+	normalizeDateTimeFormatDefinition,
+} from "./format-config";
 
 /**
  * Explicit, opt-in definitions supplied by the date-time built-in recipe
@@ -24,19 +27,38 @@ export function createDateTimeRecipeSet(
 	const groups: FundamentalGroup[] = [];
 	const recipes: ValueRecipe[] = [];
 	const builders: Record<string, RecipeOutputBuilder> = {};
-	for (const [formatId, format] of Object.entries(registry.formats)) {
+	for (const [formatId, rawFormat] of Object.entries(registry.formats)) {
+		const format = normalizeDateTimeFormatDefinition(rawFormat);
 		const patterns: FundamentalPattern[] = [];
-		for (const token of format.tokens) {
+		for (const token of format.tokens ?? []) {
 			if (token === "YYYY" || token === "YY") {
 				patterns.push({
 					id: `${formatId}-${token}`,
 					text: `[\\p{N}]{${token === "YYYY" ? "4" : "2"}}`,
 					boundary: "none" as const,
 				});
-			} else if (token === "MM" || token === "DD") {
+			} else if (token === "MM" || token === "DD" || token === "DDD") {
+				patterns.push({
+					id: `${formatId}-${token}`,
+					text: `[\\p{N}]{1,${token === "DDD" ? "3" : "2"}}`,
+					boundary: "none" as const,
+				});
+			} else if (token === "HH" || token === "min" || token === "SS") {
 				patterns.push({
 					id: `${formatId}-${token}`,
 					text: `[\\p{N}]{1,2}`,
+					boundary: "none" as const,
+				});
+			} else if (token === "MM_name" || token === "ampm") {
+				patterns.push({
+					id: `${formatId}-${token}`,
+					text: `[\\p{L}]+`,
+					boundary: "none" as const,
+				});
+			} else if (token === "tz") {
+				patterns.push({
+					id: `${formatId}-${token}`,
+					text: `[\\p{L}\\p{N}+-]+`,
 					boundary: "none" as const,
 				});
 			}
@@ -63,25 +85,62 @@ export function createDateTimeRecipeSet(
 			root: {
 				kind: "fundamental",
 				groupId: group.id,
-				children: format.tokens.map((token) => ({
+				children: (format.tokens ?? []).map((token) => ({
 					kind: "terminal" as const,
 					consumerId:
 						token === "YYYY" || token === "YY"
 							? "date-year"
-							: token === "MM"
+							: token === "MM" || token === "MM_name"
 								? "date-month"
-								: token === "DD"
+								: token === "DD" || token === "DDD"
 									? "date-day"
-									: "text",
+									: token === "HH"
+										? "date-hour"
+										: token === "min"
+											? "date-minute"
+											: token === "SS"
+												? "date-second"
+												: "text",
 				})),
+			},
+			...(format.parserPriority !== undefined
+				? { priority: format.parserPriority }
+				: {}),
+			capability: {
+				valueKind: "date-time",
+				providedFields: format.fields,
 			},
 			outputBuilderId: `date.${formatId}`,
 		});
 		builders[`date.${formatId}`] = ({ evaluation, input }) => {
 			if (evaluation.kind !== "fundamental") return { valid: false };
+			const structuredFields: Record<string, unknown> = {
+				rawText: input.trim(),
+			};
+			for (const [slotKey, slotEval] of Object.entries(evaluation.slots)) {
+				if (slotEval.kind === "terminal" && slotEval.value !== undefined) {
+					if (slotKey.endsWith("-YYYY") || slotKey.endsWith("-YY")) {
+						structuredFields.year = slotEval.value;
+					} else if (slotKey.endsWith("-MM") || slotKey.endsWith("-MM_name")) {
+						structuredFields.month = slotEval.value;
+					} else if (slotKey.endsWith("-DD") || slotKey.endsWith("-DDD")) {
+						structuredFields.day = slotEval.value;
+					} else if (slotKey.endsWith("-HH")) {
+						structuredFields.hour = slotEval.value;
+					} else if (slotKey.endsWith("-min")) {
+						structuredFields.minute = slotEval.value;
+					} else if (slotKey.endsWith("-SS")) {
+						structuredFields.second = slotEval.value;
+					} else if (slotKey.endsWith("-ampm")) {
+						structuredFields.dayPeriod = slotEval.value;
+					} else if (slotKey.endsWith("-tz")) {
+						structuredFields.timeZone = slotEval.value;
+					}
+				}
+			}
 			return {
 				valid: true,
-				value: { rawText: input.trim() },
+				value: structuredFields,
 				displayValue: input.trim(),
 			};
 		};

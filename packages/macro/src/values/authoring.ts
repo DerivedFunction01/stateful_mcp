@@ -84,26 +84,82 @@ export type AuthoredValueGraph = Pick<
 	| "unitAliases"
 	| "localization"
 	| "numberWords"
+	| "removedIds"
 >;
 
 export interface AuthoredValueGraphCompilation {
 	readonly grammar: CompiledDomainGrammar;
 	readonly valid: boolean;
 	readonly diagnostics: CompiledDomainGrammar["diagnostics"];
+	readonly fingerprint: string;
+}
+
+const COMPILED_GRAPH_CACHE = new Map<string, AuthoredValueGraphCompilation>();
+const MAX_COMPILED_GRAPH_CACHE_SIZE = 100;
+
+export function clearCompiledGraphCache(): void {
+	COMPILED_GRAPH_CACHE.clear();
+}
+
+/** Stable identity for authored data; object key order does not affect it. */
+export function authoredValueGraphFingerprint(graph: UserMacroProfile): string {
+	return `authored-values-v1-${fnv1a(stableSerialize(stripRuntimeResolvers(graph)))}`;
 }
 
 /**
- * Compiles only user-authored graph data. Empty graph data remains empty at
- * the recognition layer because recipes must be explicitly enabled by the
- * consuming argument.
+ * Compiles only user-authored graph data with LRU caching by fingerprint.
  */
 export function compileAuthoredValueGraph(
-	graph: AuthoredValueGraph,
+	graph: UserMacroProfile,
 ): AuthoredValueGraphCompilation {
+	const fingerprint = authoredValueGraphFingerprint(graph);
+	const cached = COMPILED_GRAPH_CACHE.get(fingerprint);
+	if (cached) return cached;
+
 	const grammar = compileDomainConfig(graph);
-	return {
+	const result: AuthoredValueGraphCompilation = {
 		grammar,
 		valid: grammar.valid && (grammar.recipes?.recipes.length ?? 0) > 0,
 		diagnostics: grammar.diagnostics,
+		fingerprint,
 	};
+	if (COMPILED_GRAPH_CACHE.size >= MAX_COMPILED_GRAPH_CACHE_SIZE) {
+		const firstKey = COMPILED_GRAPH_CACHE.keys().next().value;
+		if (firstKey !== undefined) COMPILED_GRAPH_CACHE.delete(firstKey);
+	}
+	COMPILED_GRAPH_CACHE.set(fingerprint, result);
+	return result;
+}
+
+function stripRuntimeResolvers<T>(value: T): T {
+	if (Array.isArray(value)) return value.map(stripRuntimeResolvers) as T;
+	if (!value || typeof value !== "object") return value;
+	const record = value as Record<string, unknown>;
+	const result: Record<string, unknown> = {};
+	for (const [key, child] of Object.entries(record)) {
+		if (key === "aliasResolvers") continue;
+		if (typeof child === "function") continue;
+		result[key] = stripRuntimeResolvers(child);
+	}
+	return result as T;
+}
+
+function stableSerialize(value: unknown): string {
+	if (value === undefined) return "undefined";
+	if (value === null || typeof value !== "object") return JSON.stringify(value);
+	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
+	const record = value as Record<string, unknown>;
+	return `{${Object.keys(record)
+		.sort()
+		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
+		.join(",")}}`;
+}
+
+function fnv1a(value: string): string {
+	let hash = 2166136261;
+	for (let index = 0; index < value.length; index += 1) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 16777619);
+	}
+	return (hash >>> 0).toString(16).padStart(8, "0");
 }

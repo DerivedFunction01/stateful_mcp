@@ -10,12 +10,20 @@ import type {
 	TerminalParser,
 } from "../recipes";
 
+export interface ValueRequest {
+	readonly valueKind: string;
+	readonly requiredFields?: readonly string[];
+	readonly allowAdditionalFields?: boolean;
+	readonly argumentId?: string;
+}
+
 export interface ValueEngineOptions {
 	readonly terminals: Readonly<Record<string, TerminalParser>>;
 	readonly outputBuilders?: Readonly<Record<string, RecipeOutputBuilder>>;
 	readonly context?: Readonly<Record<string, unknown>>;
 	readonly terminalPolicy?: Partial<CompiledArgumentPolicy>;
 	readonly allowedConsumerId?: string;
+	readonly valueRequest?: ValueRequest;
 }
 
 export interface AsyncValueEngineOptions

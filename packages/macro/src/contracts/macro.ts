@@ -1,4 +1,7 @@
-import type { ConfiguredValueRuntime } from "../values/engine";
+import type {
+	ConfiguredValueRuntime,
+	ValueRequest,
+} from "../values/engine/types";
 import type { MacroRuntimeContext } from "./context";
 import type { MacroArgumentForm, MacroAuthoringTemplate } from "./matching";
 import type { NumericBounds, ScalarType, ValueKind } from "./values";
@@ -23,7 +26,8 @@ export interface MacroArgumentSpec {
 	path: string;
 	/** Typed values are parsed only through the explicitly supplied recipes. */
 	configuredValue?: {
-		consumerId: string;
+		consumerId?: string;
+		valueRequest?: ValueRequest;
 	};
 	forms?: readonly MacroArgumentForm[];
 	valueKind?: ValueKind;

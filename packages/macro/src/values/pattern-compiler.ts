@@ -165,8 +165,8 @@ export class ValuePatternCompiler {
 			.map(
 				(definition) =>
 					buildDatePatternString(
-						definition.tokens,
-						definition.separators,
+						definition.tokens ?? [],
+						definition.separators ?? [],
 						definition.options,
 					).pattern,
 			)

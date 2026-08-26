@@ -21,12 +21,19 @@ export interface RecipeReferenceNode {
 
 export type RecipeNodeWithReferences = RecipeNode | RecipeReferenceNode;
 
+export interface RecipeCapability {
+	readonly valueKind: string;
+	readonly providedFields?: readonly string[];
+	readonly requiredContext?: readonly string[];
+}
+
 export interface ValueRecipe {
 	readonly id: string;
 	readonly root: RecipeNodeWithReferences;
 	readonly priority?: number;
 	/** Registered executable builder for the value produced by a structured root. */
 	readonly outputBuilderId?: string;
+	readonly capability?: RecipeCapability;
 }
 
 export interface ConsumerRecipePolicy {
@@ -46,6 +53,7 @@ export interface CompiledRecipe {
 	readonly priority?: number;
 	readonly outputBuilderId?: string;
 	readonly root: CompiledRecipeNode;
+	readonly capability?: RecipeCapability;
 }
 
 export type CompiledRecipeNode =

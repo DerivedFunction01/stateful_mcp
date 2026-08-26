@@ -7,6 +7,7 @@ export function findConfiguredValueMatches(
 	argumentId: string,
 	regions: readonly { start: number; end: number }[],
 	consumerId?: string,
+	valueRequest?: import("./types").ValueRequest,
 ): readonly ConfiguredValueMatch[] {
 	return regions.flatMap((region) => {
 		if (
@@ -20,6 +21,7 @@ export function findConfiguredValueMatches(
 			runtime,
 			argumentId,
 			consumerId,
+			valueRequest,
 		);
 		return result.candidates.map((candidate) => ({
 			candidate,

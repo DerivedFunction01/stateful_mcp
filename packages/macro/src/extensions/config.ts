@@ -401,6 +401,13 @@ export function compileDomainConfig(
 		bounds,
 		excludePrefixes,
 		excludePrefixRegexPattern,
+		syntax:
+			config?.overrides?.syntax || profile?.syntax
+				? {
+						...profile?.syntax,
+						...config?.overrides?.syntax,
+					}
+				: undefined,
 		fundamentals: fundamentalCompilation,
 		aliases: aliasCompilation,
 		recipes: recipeCompilation,
