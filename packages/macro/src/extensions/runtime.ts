@@ -7,7 +7,6 @@ import type {
 	ListenerRegistryWriter,
 	MacroRegistryWriter,
 } from "../context/extension-context";
-import type { ExpressionBackend } from "../contracts/backends";
 import type {
 	MacroAdapterDraft,
 	MacroDefinitionAdapter,
@@ -35,6 +34,7 @@ import {
 	parseMacroWithAdapter,
 } from "../runtime/macro-runtime";
 import type { AliasResolver } from "../values/aliases";
+import { createAuthoredValueRecipeSet } from "../values/authoring";
 import type { ConfiguredValueRuntime } from "../values/engine";
 import type { RecipeOutputBuilder, TerminalParser } from "../values/recipes";
 import {
@@ -180,11 +180,9 @@ export class ExtensionRuntime {
 		const manifest = extension.manifest;
 		const scope = new ResourceScope(manifest.id);
 		const localListeners: ParseListener[] = [];
-		const backendRecord = (): Readonly<Record<string, ExpressionBackend>> =>
-			scope.listBackends();
 		const macroWriter: MacroRegistryWriter = {
 			register: (spec: MacroSpec) => {
-				this.macros.register(spec, manifest.id, backendRecord());
+				this.macros.register(spec, manifest.id);
 			},
 			define: (spec: MacroSpec) => macroWriter.register(spec),
 		};
@@ -215,7 +213,7 @@ export class ExtensionRuntime {
 			const compiled = compileDomainConfig(
 				this.options.profile,
 				manifest.domainConfig,
-				this.domainCompileOptions(scope),
+				this.domainCompileOptions(scope, manifest.domainConfig),
 			);
 			if (!compiled.valid) {
 				throw new ExtensionError({
@@ -227,17 +225,8 @@ export class ExtensionRuntime {
 			(
 				context as { compiledDomainGrammar: CompiledDomainGrammar }
 			).compiledDomainGrammar = compiled;
-			for (const [id, backend] of Object.entries(backendRecord())) {
-				this.macros.registerBackend(id, backend, manifest.id);
-			}
 			for (const adapter of activation?.adapters ?? []) {
-				registerAdapter(
-					this.macros,
-					this.adapters,
-					adapter,
-					manifest.id,
-					backendRecord(),
-				);
+				registerAdapter(this.macros, this.adapters, adapter, manifest.id);
 			}
 			for (const loc of activation?.localizations ?? []) {
 				this.i18n?.registerTranslations(
@@ -269,6 +258,9 @@ export class ExtensionRuntime {
 			this.listeners.set(manifest.id, localListeners);
 			this.contexts.set(manifest.id, context);
 			this.extensions.set(active);
+			// A replacement of an extension also replaces its configured value
+			// runtime, so previews created before activation/reload are stale.
+			this.valueRuntimeRevision += 1;
 			return active;
 		} catch (error) {
 			this.adapters.unregisterOwner(manifest.id);
@@ -325,7 +317,7 @@ export class ExtensionRuntime {
 				const compiled = compileDomainConfig(
 					profile,
 					active.manifest.domainConfig,
-					this.domainCompileOptions(ctx.values),
+					this.domainCompileOptions(ctx.values, active.manifest.domainConfig),
 				);
 				if (!compiled.valid) {
 					throw new ExtensionError({
@@ -353,14 +345,6 @@ export class ExtensionRuntime {
 		return [...this.listeners.values()].flat();
 	}
 
-	getScopedBackends(
-		extensionId: string,
-	): Readonly<Record<string, ExpressionBackend>> {
-		const active = this.extensions.get(extensionId);
-		const dependencies = active?.manifest.requires ?? [];
-		return this.macros.getBackendsForOwner(extensionId, dependencies);
-	}
-
 	async parseAdapter(
 		adapterId: string,
 		text: string,
@@ -371,7 +355,6 @@ export class ExtensionRuntime {
 		return parseMacroWithAdapter(registered.adapter, text, {
 			...options,
 			context: this.context,
-			backends: this.getScopedBackends(registered.ownerExtensionId),
 			configuredValues:
 				options.configuredValues ??
 				this.getConfiguredValues(
@@ -391,7 +374,6 @@ export class ExtensionRuntime {
 		return executeMacroWithAdapter(registered.adapter, draft, {
 			...options,
 			context: this.context,
-			backends: this.getScopedBackends(registered.ownerExtensionId),
 			configuredValues:
 				options.configuredValues ??
 				this.getConfiguredValues(
@@ -404,7 +386,7 @@ export class ExtensionRuntime {
 	parse(
 		raw: string,
 		macroName?: string,
-		options: Omit<MacroParseOptions, "context" | "backends"> = {},
+		options: Omit<MacroParseOptions, "context"> = {},
 	): ParseMacroLineResult | null {
 		const spec = macroName
 			? this.macros.get(macroName)
@@ -414,7 +396,6 @@ export class ExtensionRuntime {
 		return parseMacroLine(raw, spec, {
 			...options,
 			context: this.context,
-			backends: this.macros.backendsRecord(),
 			configuredValues: registered
 				? this.getConfiguredValues(registered.ownerExtensionId, registered)
 				: options.configuredValues,
@@ -448,6 +429,13 @@ export class ExtensionRuntime {
 				macroPolicies?.[argument.argumentId],
 			);
 		}
+		const authored = createAuthoredValueRecipeSet({
+			quantity: grammar.quantity,
+			frequency: grammar.frequency,
+			rates: grammar.rates,
+			currency: grammar.currency,
+			dateTime: grammar.dateTime,
+		});
 		return {
 			grammar,
 			policies: configuredPolicies,
@@ -464,6 +452,7 @@ export class ExtensionRuntime {
 				...this.options.valueTerminals,
 			},
 			outputBuilders: {
+				...authored.outputBuilders,
 				...(extensionContext?.values.listOutputBuilders() ?? {}),
 				...this.options.valueOutputBuilders,
 			},
@@ -477,10 +466,18 @@ export class ExtensionRuntime {
 		};
 	}
 
-	private domainCompileOptions(values?: {
-		listTerminals(): Readonly<Record<string, TerminalParser>>;
-		listOutputBuilders(): Readonly<Record<string, RecipeOutputBuilder>>;
-	}) {
+	private domainCompileOptions(
+		values?: {
+			listTerminals(): Readonly<Record<string, TerminalParser>>;
+			listOutputBuilders(): Readonly<Record<string, RecipeOutputBuilder>>;
+		},
+		config?: ActiveExtension["manifest"]["domainConfig"],
+	) {
+		const authored = createAuthoredValueRecipeSet({
+			...this.options.profile?.values,
+			...config?.overrides?.values,
+			...(config?.currency ? { currency: config.currency } : {}),
+		});
 		return {
 			terminalIds: new Set([
 				...BUILTIN_VALUE_TERMINAL_IDS,
@@ -488,6 +485,7 @@ export class ExtensionRuntime {
 				...Object.keys(values?.listTerminals() ?? {}),
 			]),
 			outputBuilderIds: new Set([
+				...Object.keys(authored.outputBuilders),
 				...Object.keys(this.options.valueOutputBuilders),
 				...Object.keys(values?.listOutputBuilders() ?? {}),
 			]),
@@ -594,7 +592,6 @@ function registerAdapter(
 	adapters: AdapterRegistry,
 	adapter: MacroDefinitionAdapter,
 	ownerExtensionId: string,
-	backends: Readonly<Record<string, ExpressionBackend>>,
 ): void {
 	for (const argument of adapter.definition.arguments) {
 		if (!adapter.children[argument.argumentId]) {
@@ -615,7 +612,7 @@ function registerAdapter(
 			);
 		}
 	} else {
-		macros.register(adapter.definition, ownerExtensionId, backends);
+		macros.register(adapter.definition, ownerExtensionId);
 	}
 	adapters.register(adapter, ownerExtensionId);
 }

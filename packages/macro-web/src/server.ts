@@ -13,6 +13,7 @@ import {
 	type SettingsBundleOperation,
 	type SettingsOperation,
 	type SettingsUiOperation,
+	type ValueAuthoringOperation,
 } from "@stateful-mcp/macro-protocol";
 import {
 	HostSessionManager,
@@ -513,6 +514,13 @@ const server = Bun.serve<SocketData>({
 					sessions.settingsBundle(
 						sessionId,
 						envelope.payload as SettingsBundleOperation,
+					),
+				);
+			if (operation === "settings.valueAuthoring" && request.method === "POST")
+				return handleJson(request, sessionId, async (envelope) =>
+					sessions.valueAuthoring(
+						sessionId,
+						envelope.payload as ValueAuthoringOperation,
 					),
 				);
 			if (operation === "editor" && request.method === "POST")

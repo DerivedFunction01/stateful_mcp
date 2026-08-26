@@ -4,6 +4,10 @@ import type {
 	SettingsSchemaEntry,
 	WorkspaceSettingsService,
 } from "./settings-service";
+import type {
+	ValueAuthoringDraft,
+	ValueAuthoringProfile,
+} from "./value-authoring";
 
 export type SettingsScope = "user" | "workspace" | "folder";
 
@@ -108,6 +112,7 @@ export class SettingsUiModel {
 	private refreshProfiles(): void {
 		void this.service.listProfiles().then((profiles) => {
 			this.cachedProfiles = profiles;
+			this.notify();
 		});
 	}
 
@@ -161,6 +166,16 @@ export class SettingsUiModel {
 
 	getDiagnostics(): readonly SettingsDiagnostic[] {
 		return this.service.getDiagnostics();
+	}
+
+	/** Renderer-neutral typed wizard state; compilation remains service-owned. */
+	getValueAuthoringDraft(
+		profile: ValueAuthoringProfile,
+		options?: Parameters<
+			WorkspaceSettingsService["createValueAuthoringDraft"]
+		>[1],
+	): ValueAuthoringDraft {
+		return this.service.createValueAuthoringDraft(profile, options);
 	}
 
 	getFilterModifiedOnly(): boolean {
@@ -297,7 +312,10 @@ export class SettingsUiModel {
 			const sortedItems = [...items].sort((a, b) => {
 				const orderA = a.schema.order ?? 100;
 				const orderB = b.schema.order ?? 100;
-				return orderA - orderB;
+				return (
+					orderA - orderB ||
+					a.schema.path.join(".").localeCompare(b.schema.path.join("."))
+				);
 			});
 
 			// Group items within section by group
@@ -318,6 +336,10 @@ export class SettingsUiModel {
 					items: Object.freeze(grpItems),
 				});
 			}
+			groups.sort(
+				(a, b) =>
+					(a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id),
+			);
 
 			const sectionOrder = CORE_CATEGORY_ORDER[cat] ?? 100;
 			sections.push({
@@ -331,7 +353,9 @@ export class SettingsUiModel {
 		}
 
 		// Sort sections by order
-		sections.sort((a, b) => (a.order ?? 100) - (b.order ?? 100));
+		sections.sort(
+			(a, b) => (a.order ?? 100) - (b.order ?? 100) || a.id.localeCompare(b.id),
+		);
 
 		return {
 			activeProfileId: this.activeProfileId,

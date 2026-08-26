@@ -1,11 +1,6 @@
 import type { MacroArgumentSource, MacroCaptureSpan, MacroSpan } from "./input";
 
-export const MACRO_MATCH_KINDS = [
-	"exact",
-	"prefix",
-	"pattern",
-	"literal",
-] as const;
+export const MACRO_MATCH_KINDS = ["exact", "prefix"] as const;
 export type MacroMatchKind = (typeof MACRO_MATCH_KINDS)[number];
 
 export const MACRO_MATCH_STABILITIES = [
@@ -41,17 +36,11 @@ export interface MacroArgumentMatch {
 	captures?: Record<string, string | undefined>;
 	captureSpans?: MacroCaptureSpan[];
 	canonicalValue?: unknown;
-	backendId?: string;
-	resolverId?: string;
 	recipeId?: string;
 	variantPath?: readonly string[];
 	recipeDiagnostics?: readonly import("@stateful-mcp/macro-protocol").ErrorDescriptor[];
 	recipeEvaluation?: import("../values/recipes").RecipeEvaluation;
 	displayValue?: string;
-	resolverVersion?: string | number;
-	snapshotVersion?: string | number;
-	ownerExtensionId?: string;
-	resourceId?: string;
 	sourceId?: string;
 	conceptId?: string;
 	priority?: number;

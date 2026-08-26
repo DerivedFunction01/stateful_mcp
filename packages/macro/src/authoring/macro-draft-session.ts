@@ -1,5 +1,3 @@
-import type { ExpressionBackend } from "../contracts/backends";
-import type { MacroCandidateSnapshot } from "../contracts/composition";
 import type { MacroRuntimeContext } from "../contracts/context";
 import type {
 	CreateMacroDraftSessionOptions,
@@ -29,12 +27,12 @@ import {
 	shiftMacroLocksForDeletion,
 	shiftMacroLocksForInsertion,
 } from "../slots/macro-slots";
+import type { ConfiguredValueRuntime } from "../values/engine";
 
 export class MacroDraftSession implements MacroDraftSessionContract {
 	private spec: MacroSpec;
 	private context: MacroRuntimeContext;
-	private backends: Readonly<Record<string, ExpressionBackend>>;
-	private candidateSnapshots: readonly MacroCandidateSnapshot[];
+	private configuredValues?: ConfiguredValueRuntime;
 	private text: string;
 	private cursorOffset: number;
 	private revision = 0;
@@ -44,8 +42,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 	constructor(options: CreateMacroDraftSessionOptions) {
 		this.spec = options.spec;
 		this.context = options.context;
-		this.backends = options.backends ?? {};
-		this.candidateSnapshots = options.candidateSnapshots ?? [];
+		this.configuredValues = options.configuredValues;
 		this.text = options.initialText ?? "";
 		this.cursorOffset = clamp(
 			options.initialCursor ?? this.text.length,
@@ -59,8 +56,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 	replaceInputs(inputs: MacroDraftInputs): MacroDraftSnapshot {
 		this.spec = inputs.spec;
 		this.context = inputs.context;
-		this.backends = inputs.backends ?? {};
-		this.candidateSnapshots = inputs.candidateSnapshots ?? [];
+		this.configuredValues = inputs.configuredValues;
 		const diagnostics: MacroDraftDiagnostic[] = [];
 		this.locks = this.locks.filter((lock) => {
 			if (
@@ -69,13 +65,6 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 			) {
 				diagnostics.push(staleLockDiagnostic(lock));
 				return false;
-			}
-			if (lock.backendVersion && lock.candidateId) {
-				const version = this.versionForLock(lock);
-				if (version && version !== lock.backendVersion) {
-					diagnostics.push(staleLockDiagnostic(lock));
-					return false;
-				}
 			}
 			return true;
 		});
@@ -164,16 +153,14 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 	commit(): MacroParseResult {
 		const result = compileMacroPayload(this.spec, this.text, {
 			context: this.context,
-			backends: this.backends,
-			candidateSnapshots: this.candidateSnapshots,
+			configuredValues: this.configuredValues,
 			mode: "execute",
 			acceptedLocks: this.locks,
 		});
 		if (result.status !== "invalid") {
 			const parsed = parseMacroLine(this.text, this.spec, {
 				context: this.context,
-				backends: this.backends,
-				candidateSnapshots: this.candidateSnapshots,
+				configuredValues: this.configuredValues,
 				mode: "execute",
 			});
 			for (const match of parsed?.matches ?? []) {
@@ -191,8 +178,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 			this.current = this.recompute([]);
 			return compileMacroPayload(this.spec, this.text, {
 				context: this.context,
-				backends: this.backends,
-				candidateSnapshots: this.candidateSnapshots,
+				configuredValues: this.configuredValues,
 				mode: "execute",
 				acceptedLocks: this.locks,
 			});
@@ -212,18 +198,12 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 				extraDiagnostics.push(staleLockDiagnostic(lock));
 				return false;
 			}
-			const version = this.versionForLock(lock);
-			if (lock.backendVersion && version && lock.backendVersion !== version) {
-				extraDiagnostics.push(staleLockDiagnostic(lock));
-				return false;
-			}
 			return true;
 		});
 
 		const parsed = parseMacroLine(this.text, this.spec, {
 			context: this.context,
-			backends: this.backends,
-			candidateSnapshots: this.candidateSnapshots,
+			configuredValues: this.configuredValues,
 			mode: "live",
 		});
 
@@ -257,8 +237,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 		const rawProjections = projectMacroSlots(this.text, this.spec, {
 			context: this.context,
-			backends: this.backends,
-			candidateSnapshots: this.candidateSnapshots,
+			configuredValues: this.configuredValues,
 			mode: "live",
 		});
 
@@ -284,8 +263,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 
 		const payloadPreview = compileMacroPayload(this.spec, this.text, {
 			context: this.context,
-			backends: this.backends,
-			candidateSnapshots: this.candidateSnapshots,
+			configuredValues: this.configuredValues,
 			mode: "live",
 			acceptedLocks: this.locks,
 		});
@@ -332,9 +310,6 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 		const argument = this.spec.arguments.find(
 			(item) => item.argumentId === match.argumentId,
 		);
-		const backend = match.backendId
-			? this.backends[match.backendId]
-			: undefined;
 		const occurrence = match.occurrence ?? 0;
 		const identity =
 			match.sourceId ?? match.formId ?? `${match.source}:${match.rawValue}`;
@@ -349,7 +324,6 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 			rawText: this.text.slice(match.extraction.start, match.extraction.end),
 			candidateId: match.sourceId,
 			binding: {
-				backendId: match.backendId,
 				candidateId: match.sourceId,
 				displayValue: match.rawValue,
 				canonicalValue: match.canonicalValue,
@@ -363,38 +337,7 @@ export class MacroDraftSession implements MacroDraftSessionContract {
 			},
 			source,
 			acceptedAtRevision: this.revision,
-			backendVersion:
-				match.resolverVersion ?? backend?.backendVersion ?? backend?.version,
 		};
-	}
-
-	private versionForLock(lock: AcceptedMacroLock): string | number | undefined {
-		if (lock.binding?.backendId) {
-			const backend = this.backends[lock.binding.backendId];
-			if (backend) return backend.backendVersion ?? backend.version;
-			const snapshot = this.candidateSnapshots.find(
-				(item) =>
-					item.resolverId === lock.binding?.backendId &&
-					item.argumentId === lock.argumentId,
-			);
-			if (snapshot) return snapshot.version;
-		}
-		const match = this.current?.parse?.matches.find(
-			(item) =>
-				item.argumentId === lock.argumentId &&
-				item.sourceId === lock.candidateId,
-		);
-		if (match?.backendId) {
-			const backend = this.backends[match.backendId];
-			if (backend) return backend.backendVersion ?? backend.version;
-		}
-		const snapshot = this.candidateSnapshots.find(
-			(item) => item.argumentId === lock.argumentId,
-		);
-		if (snapshot) return snapshot.version;
-		return Object.values(this.backends)
-			.map((backend) => backend.backendVersion ?? backend.version)
-			.find((v) => v === lock.backendVersion);
 	}
 }
 

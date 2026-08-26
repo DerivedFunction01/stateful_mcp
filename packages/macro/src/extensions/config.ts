@@ -9,6 +9,7 @@ import type {
 import type { NumericBounds } from "../contracts/values";
 import type { AliasResolver } from "../values/aliases";
 import { compileAliasRegistry } from "../values/aliases";
+import { createAuthoredValueRecipeSet } from "../values/authoring";
 import type {
 	CurrencyDefinition,
 	CurrencyFormatConfig,
@@ -217,6 +218,10 @@ export function compileDomainConfig(
 		);
 
 		currency = {
+			templates:
+				overrideCurrency?.templates ??
+				domainCurrency?.templates ??
+				profileCurrency?.templates,
 			defaultCurrency:
 				overrideCurrency?.defaultCurrency ??
 				domainCurrency?.defaultCurrency ??
@@ -318,10 +323,23 @@ export function compileDomainConfig(
 		...(config?.bounds ?? {}),
 	};
 
-	const fundamentals = [
+	const authoredValues = createAuthoredValueRecipeSet({
+		quantity,
+		frequency,
+		rates,
+		currency,
+		dateTime,
+	});
+	const explicitFundamentals = [
 		...(profile?.fundamentals ?? []),
 		...(config?.fundamentals ?? []),
 		...(config?.overrides?.fundamentals ?? []),
+	];
+	const fundamentals = [
+		...explicitFundamentals,
+		...authoredValues.fundamentals.filter(
+			(group) => !explicitFundamentals.some((item) => item.id === group.id),
+		),
 	];
 	const aliases = [
 		...(profile?.aliases ?? []),
@@ -341,6 +359,12 @@ export function compileDomainConfig(
 			...(profile?.recipes ?? []),
 			...(config?.recipes ?? []),
 			...(config?.overrides?.recipes ?? []),
+			...authoredValues.recipes.filter(
+				(recipe) =>
+					!(profile?.recipes ?? [])
+						.concat(config?.recipes ?? [], config?.overrides?.recipes ?? [])
+						.some((item) => item.id === recipe.id),
+			),
 		],
 		{
 			terminalIds: options.terminalIds,

@@ -46,6 +46,7 @@ export * from "./config/settings-semantic";
 export * from "./config/settings-service";
 export * from "./config/settings-ui-model";
 export * from "./config/storage-driver";
+export * from "./config/value-authoring";
 export * from "./config/value-semantic-providers";
 export * from "./contributions/command-registry";
 export * from "./contributions/extension-contribution-manager";

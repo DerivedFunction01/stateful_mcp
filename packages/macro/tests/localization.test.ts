@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import type { NumberWordConfig } from "../src/contracts/extension-config";
 import { traverseLexicalTokens } from "../src/parser/macro-scanner";
-import { ExpressionIndex } from "../src/resources/expression-index";
 import {
 	normalizeUnicodeDigits,
 	UniversalNumberParser,
@@ -31,90 +30,7 @@ describe("Declarative Universal Localization & Future-Proof Unicode Engine", () 
 		});
 	});
 
-	describe("2. Unspaced Script Word Boundaries & Expression Indexing", () => {
-		test("accurately matches Chinese and Japanese terms in continuous unspaced text", () => {
-			const index = new ExpressionIndex({
-				locale: "zh-CN",
-				boundaryPolicy: "standard",
-			});
-
-			index.rebuild([
-				{
-					id: "expr_htn",
-					term: "高血压",
-					lookupTerm: "高血压",
-					regexPattern: "高血压",
-					isCaseInsensitive: false,
-					canonicalValue: "hypertension",
-					priorityWeight: 1,
-					active: true,
-				},
-				{
-					id: "expr_dm",
-					term: "糖尿病",
-					lookupTerm: "糖尿病",
-					regexPattern: "糖尿病",
-					isCaseInsensitive: false,
-					canonicalValue: "diabetes",
-					priorityWeight: 1,
-					active: true,
-				},
-			]);
-
-			// Chinese continuous sentence (no spaces)
-			const resZh = index.search({
-				backendId: "test_zh",
-				argumentId: "condition",
-				offset: 0,
-				text: "患者有高血压病史",
-			});
-			expect(resZh).toHaveLength(1);
-			expect(resZh[0]?.term).toBe("高血压");
-			expect(resZh[0]?.start).toBe(3);
-			expect(resZh[0]?.end).toBe(6);
-
-			// Japanese continuous sentence (no spaces)
-			const resJa = index.search({
-				backendId: "test_ja",
-				argumentId: "condition",
-				offset: 0,
-				text: "患者は糖尿病の既往歴がある",
-			});
-			expect(resJa).toHaveLength(1);
-			expect(resJa[0]?.term).toBe("糖尿病");
-		});
-
-		test("matches Cyrillic case-insensitively with Unicode 'u' flag", () => {
-			const index = new ExpressionIndex({
-				locale: "ru-RU",
-				boundaryPolicy: "standard",
-			});
-
-			index.rebuild([
-				{
-					id: "expr_study",
-					term: "исследование",
-					lookupTerm: "исследование",
-					regexPattern: "исследование",
-					isCaseInsensitive: true,
-					canonicalValue: "study",
-					priorityWeight: 1,
-					active: true,
-				},
-			]);
-
-			const resRu = index.search({
-				backendId: "test_ru",
-				argumentId: "procedure",
-				offset: 0,
-				text: "ПАЦИЕНТ ПРОШЕЛ ИССЛЕДОВАНИЕ",
-			});
-			expect(resRu).toHaveLength(1);
-			expect(resRu[0]?.id).toBe("expr_study");
-			expect(resRu[0]?.canonicalValue).toBe("study");
-			expect(resRu[0]?.term).toBe("ИССЛЕДОВАНИЕ");
-		});
-
+	describe("2. Unicode Word Boundaries", () => {
 		test("matches Turkish, Spanish, and German with Unicode boundaries and case folding", () => {
 			const segmenter = new UniversalWordSegmenter("es", "standard");
 			// Spanish accented letters boundary check

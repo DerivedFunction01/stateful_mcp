@@ -18,9 +18,8 @@ import type {
 	Namespace,
 } from "@stateful-mcp/core/middleware/dictionary/types";
 import type {
-	ExpressionBackend,
-	ExpressionCandidate,
-	ExpressionSearchRequest,
+	ConfiguredConceptResolver,
+	ResolverProvenance,
 } from "../contracts/backends";
 import type {
 	ConceptSearchOptions,
@@ -43,7 +42,6 @@ import {
 	sameRecord,
 	seedRecords,
 } from "./dictionary-seed";
-import { ExpressionIndex, type IndexedExpression } from "./expression-index";
 
 interface LoadableConceptStore extends ConceptStore {
 	load?(): Promise<void>;
@@ -74,7 +72,6 @@ export class CoreDictionaryResource implements DictionaryResource {
 	private readonly scope: OwnerScope;
 	private readonly allowUnresolvedExpressions: boolean;
 	private readonly strict: boolean;
-	private readonly index = new ExpressionIndex();
 	private readonly conceptExtras = new Map<
 		string,
 		Pick<ConceptSeed, "value" | "metadata">
@@ -97,10 +94,6 @@ export class CoreDictionaryResource implements DictionaryResource {
 		const owner = options.ownerExtensionId ?? "anonymous";
 		this.ownerExtensionId = owner;
 		this.id = namespaceId(owner, options.id ?? "dictionary");
-		this.index.ownerExtensionId = this.ownerExtensionId;
-		this.index.resourceId = this.id;
-		this.index.resolverId = this.id;
-		this.index.version = this.version;
 		this.conceptStore = stores.concepts;
 		this.expressionStore = stores.expressions;
 		this.scope =
@@ -324,18 +317,34 @@ export class CoreDictionaryResource implements DictionaryResource {
 		},
 	};
 
-	expressions = {
-		search: (
-			request: ExpressionSearchRequest,
-		): readonly ExpressionCandidate[] => {
+	conceptResolver(): ConfiguredConceptResolver {
+		const resolver = async (term: string) => {
 			this.assertOpen();
-			return this.index.search(request);
-		},
-	};
-
-	expressionBackend(): ExpressionBackend {
-		this.assertOpen();
-		return this.index;
+			const input = term.trim();
+			if (!input) return undefined;
+			const byId = await this.conceptStore.getById(input);
+			const concept =
+				byId ?? (await this.conceptStore.search(input, undefined, 1))[0];
+			if (!concept) return undefined;
+			return {
+				conceptId: concept.id,
+				canonicalTerm: concept.display,
+				...(concept.standardCode ? { standardCode: concept.standardCode } : {}),
+				...(this.conceptExtras.get(concept.id)?.metadata
+					? { metadata: this.conceptExtras.get(concept.id)?.metadata }
+					: {}),
+			};
+		};
+		Object.defineProperty(resolver, "provenance", {
+			enumerable: true,
+			get: (): ResolverProvenance => ({
+				ownerExtensionId: this.ownerExtensionId,
+				resourceId: this.id,
+				resolverId: this.id,
+				version: this.version,
+			}),
+		});
+		return resolver as ConfiguredConceptResolver;
 	}
 
 	async close(): Promise<void> {
@@ -345,7 +354,6 @@ export class CoreDictionaryResource implements DictionaryResource {
 		await this.expressionStore.flush?.();
 		await closeStore(this.conceptStore);
 		await closeStore(this.expressionStore);
-		this.index.rebuild([]);
 	}
 
 	private async seedExpression(
@@ -430,11 +438,30 @@ export class CoreDictionaryResource implements DictionaryResource {
 		diagnostics: ResourceDiagnostic[] = [],
 	): Promise<void> {
 		const expressions = await this.expressionStore.list(this.scope, true);
-		const records = expressions.map(toIndexedExpression);
-		const indexDiagnostics = this.index.rebuild(records, this.version);
-		diagnostics.push(...indexDiagnostics);
-		if (this.strict && indexDiagnostics.length)
-			throw new Error(indexDiagnostics[0]!.message);
+		for (const expression of expressions) {
+			const record = expression as CustomExpression & Record<string, unknown>;
+			if (record.active === false) continue;
+			const pattern =
+				typeof record.regexPattern === "string"
+					? record.regexPattern
+					: escapeSeedRegex(record.term);
+			try {
+				new RegExp(pattern, record.isCaseInsensitive === true ? "iu" : "u");
+			} catch (error) {
+				const detail = error instanceof Error ? error.message : String(error);
+				const diagnostic: ResourceDiagnostic = {
+					code: "INVALID_EXPRESSION_REGEX",
+					message: `Expression '${record.id}' has an invalid regex: ${detail}`,
+					recordType: "expression",
+					recordId: record.id,
+					severity: "error",
+					messageKey: "errors.resourceExpressionRegexInvalid",
+					messageParams: { expressionId: record.id, detail },
+				};
+				diagnostics.push(diagnostic);
+				if (this.strict) throw new Error(diagnostic.message);
+			}
+		}
 	}
 
 	private rememberConcept(seed: ConceptSeed): void {
@@ -493,10 +520,8 @@ export async function createJsonlDictionaryResource(
 export async function createConfiguredDictionaryResource(
 	options: CoreDictionaryResourceOptions = {},
 ): Promise<DictionaryResource> {
-	const conceptSpec =
-		options.concept ?? options.conceptBackend ?? options.backend;
-	const expressionSpec =
-		options.expression ?? options.expressionBackend ?? options.backend;
+	const conceptSpec = options.concept ?? options.backend;
+	const expressionSpec = options.expression ?? options.backend;
 	if (!conceptSpec || !expressionSpec) {
 		throw new Error(
 			"A dictionary backend must be explicitly configured for both concepts and expressions",
@@ -784,25 +809,6 @@ function sameExpression(
 		{ ...left, context: normalizeContext(left.context) },
 		{ ...expected, context: normalizeContext(expected.context) },
 	);
-}
-
-function toIndexedExpression(expression: CustomExpression): IndexedExpression {
-	const record = expression as CustomExpression & Record<string, unknown>;
-	return {
-		id: record.id,
-		term: record.term,
-		lookupTerm: record.lookupTerm ?? record.term,
-		regexPattern:
-			typeof record.regexPattern === "string"
-				? record.regexPattern
-				: escapeSeedRegex(record.term),
-		isCaseInsensitive: record.isCaseInsensitive === true,
-		conceptId: record.conceptId,
-		canonicalValue: record.canonicalValue ?? record.conceptId,
-		priorityWeight: record.priorityWeight ?? 0,
-		active: record.active !== false,
-		metadata: record.context,
-	};
 }
 
 async function findRelation(

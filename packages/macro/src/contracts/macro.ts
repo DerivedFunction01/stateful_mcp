@@ -1,5 +1,4 @@
 import type { ConfiguredValueRuntime } from "../values/engine";
-import type { ExpressionBackend } from "./backends";
 import type { MacroRuntimeContext } from "./context";
 import type { MacroArgumentForm, MacroAuthoringTemplate } from "./matching";
 import type { NumericBounds, ScalarType, ValueKind } from "./values";
@@ -62,7 +61,6 @@ export interface MacroSpec {
 	authoringTemplates?: readonly MacroAuthoringTemplate[];
 	matching?: MacroMatchingOptions;
 	metadata?: Record<string, unknown>;
-	backendRequirements?: readonly string[];
 }
 
 export interface MacroRegistry {
@@ -74,8 +72,6 @@ export interface MacroParseOptions {
 	context: MacroRuntimeContext;
 	lineNumber?: number;
 	mode?: MacroRunMode;
-	backends?: Readonly<Record<string, ExpressionBackend>>;
-	candidateSnapshots?: readonly import("./composition").MacroCandidateSnapshot[];
 	subOrder?: readonly string[];
 	subOrderGroups?: Readonly<Record<string, readonly string[]>>;
 	configuredValues?: ConfiguredValueRuntime;

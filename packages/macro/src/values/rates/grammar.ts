@@ -86,8 +86,11 @@ export function evaluateRateGrammar(
 				{ code: "invalid_numerator", messageKey: "errors.rateNumeratorEmpty" },
 			],
 		};
-	let numerator: CompoundRateNumerator | undefined;
-	numerator = parseRateNumerator(numSegment, config, policy);
+	const numerator: CompoundRateNumerator | undefined = parseRateNumerator(
+		numSegment,
+		config,
+		policy,
+	);
 	if (!numerator)
 		return {
 			diagnostics: [

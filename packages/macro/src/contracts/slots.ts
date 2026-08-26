@@ -4,7 +4,6 @@ import type { MacroDiagnosticCode } from "./input";
 import type { MacroArgumentMatch, MacroPendingReason } from "./matching";
 
 export interface SlotBinding {
-	backendId?: string;
 	candidateId?: string;
 	displayValue?: string;
 	canonicalValue?: unknown;
@@ -99,7 +98,6 @@ export interface AcceptedMacroLock {
 	binding?: SlotBinding;
 	source: MacroLockSource;
 	acceptedAtRevision: number;
-	backendVersion?: string | number;
 }
 
 export interface MacroTextEdit {

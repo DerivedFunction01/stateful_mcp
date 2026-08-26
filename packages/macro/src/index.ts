@@ -47,7 +47,6 @@ export * from "./resources/contracts";
 export * from "./resources/core-dictionary-adapter";
 export * from "./resources/dictionary-resource";
 export * from "./resources/dictionary-seed";
-export * from "./resources/expression-index";
 export * from "./resources/resource-scope";
 export * from "./runtime/macro-runtime";
 export * from "./scratchpad/contracts";

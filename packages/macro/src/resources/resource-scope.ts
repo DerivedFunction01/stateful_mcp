@@ -1,10 +1,10 @@
-import type { ExpressionBackend } from "../contracts/backends";
+import type { ConfiguredConceptResolver } from "../contracts/backends";
 import type { RecipeOutputBuilder, TerminalParser } from "../values/recipes";
 import type { DictionaryResource } from "./contracts";
 
 export class ResourceScope {
 	private readonly resources = new Set<DictionaryResource>();
-	private readonly backends = new Map<string, ExpressionBackend>();
+	private readonly resolvers = new Map<string, ConfiguredConceptResolver>();
 	private readonly terminals = new Map<string, TerminalParser>();
 	private readonly outputBuilders = new Map<string, RecipeOutputBuilder>();
 	private closed = false;
@@ -17,26 +17,20 @@ export class ResourceScope {
 		return resource;
 	}
 
-	registerBackend(id: string, backend: ExpressionBackend): void {
+	registerResolver(id: string, resolver: ConfiguredConceptResolver): void {
 		this.assertOpen();
-		if (this.backends.has(id) && this.backends.get(id) !== backend) {
-			throw new Error(`Expression backend '${id}' is already registered`);
+		if (this.resolvers.has(id) && this.resolvers.get(id) !== resolver) {
+			throw new Error(`Concept resolver '${id}' is already registered`);
 		}
-		if (!backend.ownerExtensionId) {
-			backend.ownerExtensionId = this.ownerExtensionId;
-		}
-		if (!backend.resourceId) {
-			backend.resourceId = id;
-		}
-		this.backends.set(id, backend);
+		this.resolvers.set(id, resolver);
 	}
 
-	getBackend(id: string): ExpressionBackend | undefined {
-		return this.backends.get(id);
+	getResolver(id: string): ConfiguredConceptResolver | undefined {
+		return this.resolvers.get(id);
 	}
 
-	listBackends(): Readonly<Record<string, ExpressionBackend>> {
-		return Object.fromEntries(this.backends);
+	listResolvers(): Readonly<Record<string, ConfiguredConceptResolver>> {
+		return Object.fromEntries(this.resolvers);
 	}
 
 	registerTerminal(id: string, parser: TerminalParser): void {
@@ -67,7 +61,7 @@ export class ResourceScope {
 		for (const resource of [...this.resources].reverse())
 			await resource.close();
 		this.resources.clear();
-		this.backends.clear();
+		this.resolvers.clear();
 		this.terminals.clear();
 		this.outputBuilders.clear();
 	}

@@ -12,7 +12,6 @@ import type {
 import type { MacroArgumentMatch } from "../contracts/matching";
 import { spansOverlap } from "../contracts/matching";
 import type { MacroSyntax } from "../contracts/syntax";
-import { resolveMacroArgumentMatches } from "../matcher/friendly";
 import { findConfiguredValueMatches } from "../values/engine";
 import {
 	scanNamedAssignments,
@@ -113,23 +112,14 @@ export function parseMacroLine(
 			continue;
 		}
 
-		const sourceValue = raw.slice(
-			segment.sourceSpan.start,
-			segment.sourceSpan.end,
-		);
-		const sourceMatches: MacroArgumentMatch[] = [];
 		const semanticMatches = matchArgument(
 			argument,
 			segment.value,
 			segment.valueSpan.start,
-			true,
 			options,
 			diagnostics,
 		);
-		const candidateMatches = uniqueMatches([
-			...sourceMatches,
-			...semanticMatches,
-		]);
+		const candidateMatches = uniqueMatches(semanticMatches);
 		allCandidates.push(...candidateMatches);
 		const rankedMatches = candidateMatches.sort(compareMatches);
 		const matched =
@@ -205,24 +195,8 @@ export function parseMacroLine(
 		}
 	}
 
-	const friendly: MacroArgumentMatch[] = [];
-	allCandidates.push(...friendly);
-	for (const match of friendly) {
-		if (used.has(match.argumentId)) continue;
-		used.add(match.argumentId);
-		selectedMatches.push(match);
-		const argument = spec.arguments.find(
-			(item) => item.argumentId === match.argumentId,
-		);
-		if (argument) arguments_.push(matchInput(argument, match, syntax));
-	}
-
 	const blocked = [
 		...named.map((segment) => ({ start: segment.start, end: segment.end })),
-		...friendly.map((match) => ({
-			start: match.anchor?.start ?? match.extraction.start,
-			end: match.anchor?.end ?? match.extraction.end,
-		})),
 	];
 	const regions = findUnmatchedRegions(
 		raw,
@@ -287,7 +261,6 @@ export function parseMacroLine(
 		arguments_.push(matchInput(argument, defaultMatch, syntax));
 	}
 
-	const matches = resolveMacroArgumentMatches(selectedMatches, spec);
 	return {
 		macroName: spec.name,
 		sourceLines: [{ line: options.lineNumber ?? 0, raw, macroName: spec.name }],
@@ -297,7 +270,9 @@ export function parseMacroLine(
 				(right.start ?? Number.MAX_SAFE_INTEGER),
 		),
 		body: { ...envelope.body, raw: raw.slice(envelope.body.start) },
-		matches,
+		matches: selectedMatches.sort(
+			(left, right) => left.extraction.start - right.extraction.start,
+		),
 		candidates: allCandidates,
 		candidateMatches: allCandidates,
 		diagnostics,
@@ -334,15 +309,12 @@ function inferPositionalMatches(
 				const endToken = startToken + relativeEndToken;
 				const sourceStart = token.start;
 				const sourceEnd = tokens[endToken]!.end;
-				const tokenPrefix = undefined;
-				const conceptParts = undefined;
 				const lookupStart = sourceStart;
 				const lookupEnd = sourceEnd;
 				const matches = matchArgument(
 					argument,
 					raw.slice(lookupStart, lookupEnd),
 					lookupStart,
-					false,
 					options,
 					diagnostics,
 				).filter(
@@ -354,33 +326,12 @@ function inferPositionalMatches(
 					(match) =>
 						({
 							...match,
-							extraction: {
-								start: tokenPrefix ? sourceStart : match.extraction.start,
-								end: tokenPrefix ? sourceEnd : match.extraction.end,
-							},
-							rawValue: tokenPrefix
-								? raw.slice(sourceStart, sourceEnd)
-								: match.rawValue,
-							conceptId: match.conceptId,
-							lookupToken: tokenPrefix,
-						}) as MacroArgumentMatch & { lookupToken?: string },
+						}) as MacroArgumentMatch,
 				);
 			});
 		}),
 	);
-	const selectionCandidates =
-		options.mode === "execute"
-			? candidates.filter(
-					(candidate) =>
-						candidate.matchKind !== "prefix" ||
-						!candidates.some(
-							(other) =>
-								other.argumentId === candidate.argumentId &&
-								other.matchKind === "exact" &&
-								other.extraction.start === candidate.extraction.start,
-						),
-				)
-			: candidates;
+	const selectionCandidates = candidates;
 
 	let best: MacroArgumentMatch[] = [];
 	const visit = (index: number, selected: MacroArgumentMatch[]) => {
@@ -498,40 +449,22 @@ function matchArgument(
 	argument: MacroArgumentSpec,
 	text: string,
 	offset: number,
-	isNamed: boolean,
 	options: MacroParseOptions,
 	diagnostics: MacroDiagnostic[],
 ): MacroArgumentMatch[] {
 	const region = { start: 0, end: text.length };
-	const matches = findArgumentMatches(
-		argument,
-		text,
-		region,
-		options,
-		diagnostics,
-	).map((match) => ({
-		...match,
-		extraction: {
-			start: match.extraction.start + offset,
-			end: match.extraction.end + offset,
-		},
-		anchor: match.anchor
-			? { start: match.anchor.start + offset, end: match.anchor.end + offset }
-			: undefined,
-	}));
-	if (matches.length || !isNamed || argument.configuredValue) return matches;
-	const trimmed = text.trim();
-	if (!trimmed) return [];
-	const start = offset + text.indexOf(trimmed);
-	return [
-		{
-			argumentId: argument.argumentId,
-			source: "named",
-			extraction: { start, end: start + trimmed.length },
-			rawValue: trimmed,
-			matchKind: "literal",
-		},
-	];
+	return findArgumentMatches(argument, text, region, options, diagnostics).map(
+		(match) => ({
+			...match,
+			extraction: {
+				start: match.extraction.start + offset,
+				end: match.extraction.end + offset,
+			},
+			anchor: match.anchor
+				? { start: match.anchor.start + offset, end: match.anchor.end + offset }
+				: undefined,
+		}),
+	);
 }
 
 function findArgumentMatches(
@@ -560,7 +493,7 @@ function matchDefault(
 	options: MacroParseOptions,
 	diagnostics: MacroDiagnostic[],
 ): MacroArgumentMatch | undefined {
-	const matches = matchArgument(argument, value, 0, true, options, diagnostics);
+	const matches = matchArgument(argument, value, 0, options, diagnostics);
 	return {
 		...(matches[0] ?? {
 			argumentId: argument.argumentId,
@@ -620,6 +553,13 @@ function findConfiguredArgumentMatches(
 			}),
 		),
 		canonicalValue: candidate.canonicalValue,
+		conceptId:
+			candidate.canonicalValue &&
+			typeof candidate.canonicalValue === "object" &&
+			"conceptId" in candidate.canonicalValue &&
+			typeof candidate.canonicalValue.conceptId === "string"
+				? candidate.canonicalValue.conceptId
+				: undefined,
 		displayValue: candidate.displayValue,
 		priority: candidate.priority,
 		recipeId: candidate.recipeId,
@@ -722,10 +662,7 @@ function compareMatches(
 	left: MacroArgumentMatch,
 	right: MacroArgumentMatch,
 ): number {
-	const kindScore = (m: MacroArgumentMatch) =>
-		m.matchKind === "prefix" ? 0 : 1;
 	return (
-		kindScore(right) - kindScore(left) ||
 		(right.priority ?? 0) - (left.priority ?? 0) ||
 		right.extraction.end -
 			right.extraction.start -

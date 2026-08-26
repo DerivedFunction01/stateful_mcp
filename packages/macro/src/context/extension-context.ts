@@ -1,4 +1,3 @@
-import type { ExpressionBackend } from "../contracts/backends";
 import type { ParseListener } from "../contracts/listeners";
 import type { MacroSpec } from "../contracts/macro";
 import type { ExtensionConfig } from "../extensions/config";
@@ -79,6 +78,5 @@ export interface ExtensionContext {
 
 export interface ContextInternals {
 	readonly scope: ResourceScope;
-	readonly backends: Readonly<Record<string, ExpressionBackend>>;
 	readonly listeners: readonly ParseListener[];
 }

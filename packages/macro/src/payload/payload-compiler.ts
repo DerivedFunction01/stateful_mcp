@@ -115,7 +115,6 @@ function materializeAcceptedLocks(
 			rawValue: lock.rawText,
 			canonicalValue: lock.binding?.canonicalValue,
 			sourceId: lock.candidateId,
-			backendId: lock.binding?.backendId,
 			recipeId: lock.binding?.recipeId,
 			variantPath: lock.binding?.variantPath,
 			recipeDiagnostics: lock.binding?.recipeDiagnostics,

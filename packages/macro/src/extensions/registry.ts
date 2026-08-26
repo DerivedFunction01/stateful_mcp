@@ -1,4 +1,3 @@
-import type { ExpressionBackend } from "../contracts/backends";
 import type { MacroDefinitionAdapter } from "../contracts/composition";
 import type { MacroRegistry, MacroSpec } from "../contracts/macro";
 import type { ActiveExtension, MacroExtensionManifest } from "./contracts";
@@ -30,16 +29,10 @@ export class MacroRegistryStore implements MacroRegistry {
 	private readonly macrosById = new Map<string, RegisteredMacro>();
 	private readonly macrosByName = new Map<string, RegisteredMacro[]>();
 	private readonly aliases = new Map<string, string>();
-	private readonly backends = new Map<string, ExpressionBackend>();
-	private readonly ownerBackends = new Map<
-		string,
-		Map<string, ExpressionBackend>
-	>();
 
 	register(
 		spec: MacroSpec,
 		ownerExtensionId: string,
-		backends: Readonly<Record<string, ExpressionBackend>> = {},
 		aliases: readonly string[] = [],
 	): void {
 		const canonicalId = spec.id || `@${ownerExtensionId}:${spec.name}`;
@@ -53,28 +46,6 @@ export class MacroRegistryStore implements MacroRegistry {
 				...aliases,
 			],
 		};
-
-		for (const backendId of referencedBackends(spec)) {
-			if (!backends[backendId] && !this.backends.has(backendId)) {
-				throw new Error(`Expression backend '${backendId}' is not available`);
-			}
-		}
-
-		let ownerMap = this.ownerBackends.get(ownerExtensionId);
-		if (!ownerMap) {
-			ownerMap = new Map();
-			this.ownerBackends.set(ownerExtensionId, ownerMap);
-		}
-		for (const [id, backend] of Object.entries(backends)) {
-			if (!backend.ownerExtensionId) {
-				backend.ownerExtensionId = ownerExtensionId;
-			}
-			if (!backend.resourceId) {
-				backend.resourceId = id;
-			}
-			this.backends.set(id, backend);
-			ownerMap.set(id, backend);
-		}
 
 		this.macrosById.set(registered.id, registered);
 		if (canonicalId !== registered.id) {
@@ -175,26 +146,6 @@ export class MacroRegistryStore implements MacroRegistry {
 		return undefined;
 	}
 
-	registerBackend(
-		id: string,
-		backend: ExpressionBackend,
-		ownerExtensionId: string,
-	): void {
-		let ownerMap = this.ownerBackends.get(ownerExtensionId);
-		if (!ownerMap) {
-			ownerMap = new Map();
-			this.ownerBackends.set(ownerExtensionId, ownerMap);
-		}
-		if (!backend.ownerExtensionId) {
-			backend.ownerExtensionId = ownerExtensionId;
-		}
-		if (!backend.resourceId) {
-			backend.resourceId = id;
-		}
-		this.backends.set(id, backend);
-		ownerMap.set(id, backend);
-	}
-
 	unregisterOwner(ownerExtensionId: string): void {
 		for (const [name, macro] of this.macros) {
 			if (macro.ownerExtensionId === ownerExtensionId) this.macros.delete(name);
@@ -213,12 +164,10 @@ export class MacroRegistryStore implements MacroRegistry {
 				this.macrosByName.set(name, filtered);
 			}
 		}
-		this.ownerBackends.delete(ownerExtensionId);
-		this.backends.clear();
-		for (const ownerMap of this.ownerBackends.values()) {
-			for (const [id, backend] of ownerMap) {
-				this.backends.set(id, backend);
-			}
+		for (const [alias, id] of this.aliases) {
+			const target = this.macrosById.get(id);
+			if (!target || target.ownerExtensionId === ownerExtensionId)
+				this.aliases.delete(alias);
 		}
 	}
 
@@ -241,31 +190,6 @@ export class MacroRegistryStore implements MacroRegistry {
 			}
 		}
 		return result.sort((left, right) => left.name.localeCompare(right.name));
-	}
-
-	getBackend(id: string): ExpressionBackend | undefined {
-		return this.backends.get(id);
-	}
-
-	backendsRecord(): Readonly<Record<string, ExpressionBackend>> {
-		return Object.fromEntries(this.backends);
-	}
-
-	getBackendsForOwner(
-		ownerExtensionId: string,
-		dependencyIds: readonly string[] = [],
-	): Readonly<Record<string, ExpressionBackend>> {
-		const result: Record<string, ExpressionBackend> = {};
-		const allowed = new Set([ownerExtensionId, ...dependencyIds]);
-		for (const id of allowed) {
-			const ownerMap = this.ownerBackends.get(id);
-			if (ownerMap) {
-				for (const [backendId, backend] of ownerMap) {
-					result[backendId] = backend;
-				}
-			}
-		}
-		return result;
 	}
 }
 
@@ -327,10 +251,6 @@ export class ExtensionRegistry {
 	clear(): void {
 		this.active.clear();
 	}
-}
-
-function referencedBackends(spec: MacroSpec): string[] {
-	return [];
 }
 
 export type { MacroExtensionManifest };

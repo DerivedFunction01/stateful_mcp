@@ -6,5 +6,6 @@ export * from "./events";
 export * from "./keymap";
 export * from "./settings";
 export * from "./theme";
+export * from "./value-authoring";
 export * from "./version";
 export * from "./workspace";

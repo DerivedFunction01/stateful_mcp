@@ -14,6 +14,10 @@ import type {
 	SettingsUiItem,
 	SettingsUiSnapshot,
 } from "./settings-ui-model";
+import {
+	serializeValueAuthoringProfile,
+	type ValueAuthoringDraft,
+} from "./value-authoring";
 
 export const SUPPORTED_SETTINGS_SCOPES: readonly SettingsScope[] = [
 	"workspace",
@@ -75,6 +79,35 @@ export interface SerializedSettingsUiSection {
 	}[];
 }
 
+export interface SerializedValueAuthoringDraft {
+	readonly profile: ReturnType<typeof serializeValueAuthoringProfile>;
+	readonly activeDomain?: string;
+	readonly selectedGroupId?: string;
+	readonly selectedRecipeId?: string;
+	readonly revision: string;
+	readonly dirty: boolean;
+	readonly diagnostics: ValueAuthoringDraft["diagnostics"];
+	readonly compileStatus: ValueAuthoringDraft["compileStatus"];
+	readonly graphFingerprint: string;
+}
+
+/** Projects typed wizard state without exposing runtime resolver functions. */
+export function serializeValueAuthoringDraft(
+	draft: ValueAuthoringDraft,
+): SerializedValueAuthoringDraft {
+	return {
+		profile: serializeValueAuthoringProfile(draft.profile),
+		activeDomain: draft.activeDomain,
+		selectedGroupId: draft.selectedGroupId,
+		selectedRecipeId: draft.selectedRecipeId,
+		revision: draft.revision,
+		dirty: draft.dirty,
+		diagnostics: draft.diagnostics,
+		compileStatus: draft.compileStatus,
+		graphFingerprint: draft.graphFingerprint,
+	};
+}
+
 /**
  * Renderer-neutral serialization of `SettingsUiModel.getSnapshot()` for the
  * protocol. This helper is the single boundary between the canonical Macro
@@ -91,9 +124,9 @@ export function serializeSettingsUiSnapshot(
 	options: SettingsUiProjectionOptions = {},
 ): SettingsUiSnapshotDto {
 	const activeScope = options.activeScope ?? snapshot.activeScope;
-	const supportedScopes = (
-		options.supportedScopes ?? SUPPORTED_SETTINGS_SCOPES
-	).slice();
+	const supportedScopes = Array.from(
+		new Set(options.supportedScopes ?? SUPPORTED_SETTINGS_SCOPES),
+	).sort();
 	const unsupportedScopeReason =
 		supportedScopes.includes(activeScope) || activeScope === "workspace"
 			? undefined

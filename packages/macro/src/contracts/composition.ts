@@ -1,5 +1,4 @@
 import type { MacroAuthoringRender } from "../authoring/authoring-renderer";
-import type { ExpressionCandidate } from "./backends";
 import type {
 	MacroArgumentInput,
 	MacroDiagnostic,
@@ -10,22 +9,10 @@ import type { MacroSpec } from "./macro";
 import type { MacroAuthoringTemplate } from "./matching";
 import type { MacroLockLike, MacroSlotProjection, SlotBinding } from "./slots";
 
-export interface MacroCandidateSnapshot {
-	resolverId: string;
-	argumentId: string;
-	version: string | number;
-	ownerExtensionId?: string;
-	resourceId?: string;
-	resolverVersion?: string | number;
-	snapshotVersion?: string | number;
-	candidates: readonly ExpressionCandidate[];
-}
-
 export interface MacroChildValidationContext {
 	text: string;
 	input: MacroArgumentInput;
 	definition: MacroSpec;
-	candidates: readonly MacroCandidateSnapshot[];
 }
 
 export const MACRO_CHILD_BINDING_STATUSES = [
@@ -74,7 +61,6 @@ export interface MacroExecutionPreview {
 	contextFingerprint: string;
 	bindings: readonly MacroExecutionBinding[];
 	spans: readonly MacroSpan[];
-	candidateSnapshots: readonly MacroCandidateSnapshot[];
 	configuredValueFingerprint?: string;
 	fingerprint: string;
 	diagnostics: readonly MacroDiagnostic[];

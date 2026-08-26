@@ -1,10 +1,4 @@
-import type {
-	ExpressionBackend,
-	ExpressionCandidate,
-	ExpressionSearchRequest as MacroExpressionSearchRequest,
-} from "../contracts/backends";
-
-export type DictionaryExpressionSearchRequest = MacroExpressionSearchRequest;
+import type { ConfiguredConceptResolver } from "../contracts/backends";
 
 export const DICTIONARY_RECORD_TYPES = [
 	"namespace",
@@ -126,14 +120,8 @@ export interface DictionaryResource {
 			options?: ConceptSearchOptions,
 		): Promise<NeutralConcept[]>;
 	};
-
-	expressions: {
-		search(
-			request: DictionaryExpressionSearchRequest,
-		): readonly ExpressionCandidate[];
-	};
-
-	expressionBackend(): ExpressionBackend;
+	/** Resolver with stable provenance for configured value recipes. */
+	conceptResolver(): ConfiguredConceptResolver;
 	close(): Promise<void>;
 }
 
@@ -148,8 +136,6 @@ export interface DictionaryResourceOptions {
 	/** Configure concept and expression stores independently when required. */
 	concept?: DictionaryBackendSpec;
 	expression?: DictionaryBackendSpec;
-	conceptBackend?: DictionaryBackendSpec;
-	expressionBackend?: DictionaryBackendSpec;
 }
 
 export type DictionaryBackendType =

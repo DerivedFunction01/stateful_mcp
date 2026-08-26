@@ -1,8 +1,6 @@
 import { renderMacroAuthoringTemplate } from "../authoring/authoring-renderer";
-import type { ExpressionBackend } from "../contracts/backends";
 import type {
 	MacroAdapterDraft,
-	MacroCandidateSnapshot,
 	MacroChildBinding,
 	MacroChildValidationContext,
 	MacroDefinitionAdapter,
@@ -17,7 +15,6 @@ import { parseMacroLine } from "../parser/macro-parser";
 import { applyMacroLocks, projectMacroSlots } from "../slots/macro-slots";
 
 export interface MacroRuntimeOptions extends MacroParseOptions {
-	candidates?: readonly MacroCandidateSnapshot[];
 	locks?: readonly MacroLockLike[];
 	revision?: number;
 }
@@ -25,8 +22,6 @@ export interface MacroRuntimeOptions extends MacroParseOptions {
 export interface MacroAdapterExecutionOptions {
 	text?: string;
 	context?: MacroRuntimeContext;
-	candidates?: readonly MacroCandidateSnapshot[];
-	backends?: Readonly<Record<string, ExpressionBackend>>;
 	configuredValues?: import("../values/engine").ConfiguredValueRuntime;
 }
 
@@ -35,11 +30,7 @@ export async function parseMacroWithAdapter(
 	text: string,
 	options: MacroRuntimeOptions,
 ): Promise<MacroAdapterDraft> {
-	const candidates = options.candidates ?? options.candidateSnapshots ?? [];
-	const input = parseMacroLine(text, adapter.definition, {
-		...options,
-		candidateSnapshots: candidates,
-	});
+	const input = parseMacroLine(text, adapter.definition, options);
 	if (!input) {
 		return {
 			input: null,
@@ -61,10 +52,7 @@ export async function parseMacroWithAdapter(
 			text.slice(lock.start, lock.end) === lock.rawText,
 	);
 	const projections = applyMacroLocks(
-		projectMacroSlots(text, adapter.definition, {
-			...options,
-			candidateSnapshots: candidates,
-		}),
+		projectMacroSlots(text, adapter.definition, options),
 		locks,
 		undefined,
 		text,
@@ -83,9 +71,6 @@ export async function parseMacroWithAdapter(
 			text,
 			input: argument,
 			definition: adapter.definition,
-			candidates: candidates.filter(
-				(candidate) => candidate.argumentId === argumentId,
-			),
 		};
 		const binding = await child.validate(context);
 		bindings[argumentId] = binding;
@@ -144,57 +129,11 @@ export async function executeMacroWithAdapter(
 	)
 		throw new Error("Macro execution preview context is stale");
 	if (
-		options.candidates &&
-		stableFingerprint(options.candidates) !==
-			stableFingerprint(executionPreview.candidateSnapshots)
-	)
-		throw new Error("Macro execution preview candidates are stale");
-	if (
 		executionPreview.configuredValueFingerprint !== undefined &&
 		executionPreview.configuredValueFingerprint !==
 			options.configuredValues?.fingerprint
 	)
 		throw new Error("Macro execution preview configured values are stale");
-	if (options.backends) {
-		for (const snapshot of executionPreview.candidateSnapshots) {
-			const backend = options.backends[snapshot.resolverId];
-			if (!backend) {
-				throw new Error(
-					`Macro execution preview resolver '${snapshot.resolverId}' is unavailable`,
-				);
-			}
-			const backendVersion = backend.backendVersion ?? backend.version;
-			if (
-				backendVersion !== undefined &&
-				String(backendVersion) !== String(snapshot.version)
-			) {
-				throw new Error(
-					`Macro execution preview resolver '${snapshot.resolverId}' is stale (snapshot: '${snapshot.version}', current: '${backendVersion}')`,
-				);
-			}
-		}
-		for (const item of executionPreview.bindings) {
-			const match = item.input.match;
-			if (match?.resolverId) {
-				const backend = options.backends[match.resolverId];
-				if (!backend) {
-					throw new Error(
-						`Macro execution preview resolver '${match.resolverId}' is unavailable`,
-					);
-				}
-				const backendVersion = backend.backendVersion ?? backend.version;
-				if (
-					match.resolverVersion !== undefined &&
-					backendVersion !== undefined &&
-					String(backendVersion) !== String(match.resolverVersion)
-				) {
-					throw new Error(
-						`Macro execution preview resolver '${match.resolverId}' is stale`,
-					);
-				}
-			}
-		}
-	}
 	const childResults: unknown[] = [];
 	for (const { argumentId, input, binding } of executionPreview.bindings) {
 		const child = adapter.children[argumentId];
@@ -204,9 +143,6 @@ export async function executeMacroWithAdapter(
 				text: executionPreview.rawText,
 				input,
 				definition: adapter.definition,
-				candidates: executionPreview.candidateSnapshots.filter(
-					(candidate) => candidate.argumentId === argumentId,
-				),
 			}),
 		);
 	}
@@ -249,7 +185,6 @@ function createExecutionPreview(
 		contextFingerprint,
 		bindings,
 		spans,
-		candidateSnapshots: options.candidates ?? options.candidateSnapshots ?? [],
 		...(options.configuredValues?.fingerprint === undefined
 			? {}
 			: { configuredValueFingerprint: options.configuredValues.fingerprint }),

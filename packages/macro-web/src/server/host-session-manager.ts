@@ -111,6 +111,10 @@ import {
 	SettingsServiceError,
 } from "./settings/settings-operations";
 import { emptySettingsSnapshot as extractedEmptySettingsSnapshot } from "./settings/settings-projections";
+import {
+	applyValueAuthoringOperation,
+	type ValueAuthoringOperationHost,
+} from "./settings/value-authoring-operations";
 
 export {
 	prepareImportedBundle,
@@ -967,6 +971,32 @@ export class HostSessionManager {
 				session,
 				operation,
 			);
+		} catch (error) {
+			if (error instanceof SettingsServiceError) {
+				const mapped = error.toHostError();
+				throw new SessionError(
+					error.code,
+					mapped.messageKey,
+					mapped.retryable,
+					mapped.messageParams,
+				);
+			}
+			throw error;
+		}
+	}
+
+	async valueAuthoring(
+		sessionId: string,
+		operation: import("@stateful-mcp/macro-protocol").ValueAuthoringOperation,
+	): Promise<import("@stateful-mcp/macro-protocol").ValueAuthoringResult> {
+		const session = this.getOrError(sessionId);
+		const host: ValueAuthoringOperationHost = {
+			supportedScopes: (_workspace) => this.supportedScopes(session),
+			emitSettingsChanged: (_workspace) =>
+				this.emit(session, "settings.changed"),
+		};
+		try {
+			return await applyValueAuthoringOperation(host, session, operation);
 		} catch (error) {
 			if (error instanceof SettingsServiceError) {
 				const mapped = error.toHostError();

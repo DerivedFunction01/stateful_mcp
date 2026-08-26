@@ -1,10 +1,8 @@
 import type { MessageParam } from "@stateful-mcp/macro-protocol";
 import type { MacroSpec } from "../contracts/macro";
-import {
-	type MacroArgumentForm,
-	type MacroArgumentMatch,
-	type MacroAuthoringTemplatePart,
-	spansOverlap,
+import type {
+	MacroArgumentForm,
+	MacroAuthoringTemplatePart,
 } from "../contracts/matching";
 
 export interface TemplateValidationIssue {
@@ -60,39 +58,6 @@ export function validateMacroTemplates(
 	return issues;
 }
 
-export function resolveMacroArgumentMatches(
-	matches: readonly MacroArgumentMatch[],
-	spec: MacroSpec,
-): MacroArgumentMatch[] {
-	const forms = new Map(
-		definitionForms(spec).map((form) => [form.formId, form]),
-	);
-	return [...matches]
-		.sort((left, right) => {
-			const leftForm = left.formId ? forms.get(left.formId) : undefined;
-			const rightForm = right.formId ? forms.get(right.formId) : undefined;
-			return (
-				(right.priority ?? rightForm?.precedence ?? 0) -
-					(left.priority ?? leftForm?.precedence ?? 0) ||
-				right.extraction.end -
-					right.extraction.start -
-					(left.extraction.end - left.extraction.start) ||
-				(left.formId ?? "").localeCompare(right.formId ?? "")
-			);
-		})
-		.filter(
-			(candidate, index, all) =>
-				!all
-					.slice(0, index)
-					.some(
-						(winner) =>
-							spansOverlap(candidate.extraction, winner.extraction) &&
-							!isCompatible(candidate, winner, forms),
-					),
-		)
-		.sort((left, right) => left.extraction.start - right.extraction.start);
-}
-
 function definitionForms(spec: MacroSpec): MacroArgumentForm[] {
 	const forms = spec.arguments.flatMap((argument) => argument.forms ?? []);
 	for (const [index, template] of (spec.authoringTemplates ?? []).entries()) {
@@ -116,17 +81,4 @@ function isSlot(
 	part: MacroAuthoringTemplatePart,
 ): part is Extract<MacroAuthoringTemplatePart, { kind: "slot" }> {
 	return part.kind === "slot";
-}
-
-function isCompatible(
-	left: MacroArgumentMatch,
-	right: MacroArgumentMatch,
-	forms: Map<string, MacroArgumentForm>,
-): boolean {
-	const leftForm = left.formId ? forms.get(left.formId) : undefined;
-	const rightForm = right.formId ? forms.get(right.formId) : undefined;
-	return Boolean(
-		leftForm?.compatibility?.includes(right.formId ?? "") ||
-			rightForm?.compatibility?.includes(left.formId ?? ""),
-	);
 }

@@ -15,6 +15,18 @@ import type {
 	SettingsStorageDriver,
 	WorkspaceSettings,
 } from "./storage-driver";
+import {
+	authoredValueGraphFingerprint,
+	compileValueAuthoringProfile,
+	createValueAuthoringDraft,
+	deserializeValueAuthoringProfile,
+	roundTripValueAuthoringProfile,
+	serializeValueAuthoringProfile,
+	toAuthoredValueGraph,
+	type ValueAuthoringDraft,
+	type ValueAuthoringProfile,
+	type ValueAuthoringValidation,
+} from "./value-authoring";
 
 export type SettingsFormWidget =
 	| "toggle"
@@ -186,6 +198,41 @@ export class WorkspaceSettingsService {
 
 	getSemanticProviders(): readonly SettingsSemanticProvider[] {
 		return this.semanticRegistry.getAll();
+	}
+
+	getAuthoredValueGraph(profile: ValueAuthoringProfile) {
+		return toAuthoredValueGraph(profile);
+	}
+
+	createValueAuthoringDraft(
+		profile: ValueAuthoringProfile,
+		options?: Parameters<typeof createValueAuthoringDraft>[1],
+	): ValueAuthoringDraft {
+		return createValueAuthoringDraft(profile, options);
+	}
+
+	serializeValueAuthoringProfile(profile: ValueAuthoringProfile) {
+		return serializeValueAuthoringProfile(profile);
+	}
+
+	deserializeValueAuthoringProfile(value: unknown): ValueAuthoringProfile {
+		return deserializeValueAuthoringProfile(value);
+	}
+
+	roundTripValueAuthoringProfile(
+		profile: ValueAuthoringProfile,
+	): ValueAuthoringProfile {
+		return roundTripValueAuthoringProfile(profile);
+	}
+
+	validateAuthoredValues(
+		profile: ValueAuthoringProfile,
+	): ValueAuthoringValidation {
+		return compileValueAuthoringProfile(profile);
+	}
+
+	getAuthoredValueGraphFingerprint(profile: ValueAuthoringProfile): string {
+		return authoredValueGraphFingerprint(toAuthoredValueGraph(profile));
 	}
 
 	async preview(
