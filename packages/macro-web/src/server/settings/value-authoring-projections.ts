@@ -14,7 +14,9 @@ import { toSettingsDiagnosticDto } from "./settings-projections";
 export function toValueAuthoringProfileDto(
 	profile: ValueAuthoringProfile,
 ): ValueAuthoringProfileDto {
-	return serializeValueAuthoringProfile(profile) as ValueAuthoringProfileDto;
+	return serializeValueAuthoringProfile(
+		profile,
+	) as unknown as ValueAuthoringProfileDto;
 }
 
 export function toValueAuthoringDraftDto(

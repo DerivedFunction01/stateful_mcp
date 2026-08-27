@@ -48,6 +48,7 @@ export * from "./config/settings-ui-model";
 export * from "./config/storage-driver";
 export * from "./config/value-authoring";
 export * from "./config/value-semantic-providers";
+export * from "./config/wizard";
 export * from "./contributions/command-registry";
 export * from "./contributions/extension-contribution-manager";
 export * from "./contributions/resource-registry";

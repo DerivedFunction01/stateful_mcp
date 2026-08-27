@@ -5,6 +5,7 @@ import type {
 	KeymapBindingResolutionDto,
 	SettingsApplyResult,
 	SettingsBundleResult,
+	ValueAuthoringResult,
 } from "@stateful-mcp/macro-protocol";
 import { LAYOUT_RATIO_DEFAULTS } from "@stateful-mcp/macro-protocol";
 import type { HostClient, HostWorkspaceSnapshot } from "../lib/host-client";
@@ -134,6 +135,26 @@ export function createDiagnosticHostClient(): HostClient {
 		applySettingsBundle: async (): Promise<SettingsBundleResult> => ({
 			status: "unsupported",
 			code: "FIXTURE_ONLY",
+			messageKey: "common.error",
+		}),
+		valueAuthoringLoad: async (): Promise<ValueAuthoringResult> => ({
+			status: "conflict",
+			code: "REQUEST_PAYLOAD_MALFORMED",
+			messageKey: "common.error",
+		}),
+		valueAuthoringValidate: async (): Promise<ValueAuthoringResult> => ({
+			status: "conflict",
+			code: "REQUEST_PAYLOAD_MALFORMED",
+			messageKey: "common.error",
+		}),
+		valueAuthoringPreview: async (): Promise<ValueAuthoringResult> => ({
+			status: "conflict",
+			code: "REQUEST_PAYLOAD_MALFORMED",
+			messageKey: "common.error",
+		}),
+		valueAuthoringSave: async (): Promise<ValueAuthoringResult> => ({
+			status: "conflict",
+			code: "REQUEST_PAYLOAD_MALFORMED",
 			messageKey: "common.error",
 		}),
 		applyEditorOperation: async (

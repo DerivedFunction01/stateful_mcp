@@ -51,6 +51,7 @@ export * from "./resources/resource-scope";
 export * from "./runtime/macro-runtime";
 export * from "./scratchpad/contracts";
 export * from "./scratchpad/resource-store";
+export * from "./shared/deterministic-json";
 export * from "./slots/macro-slots";
 export * from "./values/aliases";
 export * from "./values/authoring";

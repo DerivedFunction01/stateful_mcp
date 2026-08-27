@@ -22,7 +22,6 @@ import {
 	deserializeValueAuthoringProfile,
 	roundTripValueAuthoringProfile,
 	serializeValueAuthoringProfile,
-	toAuthoredValueGraph,
 	type ValueAuthoringDraft,
 	type ValueAuthoringProfile,
 	type ValueAuthoringValidation,
@@ -201,7 +200,7 @@ export class WorkspaceSettingsService {
 	}
 
 	getAuthoredValueGraph(profile: ValueAuthoringProfile) {
-		return toAuthoredValueGraph(profile);
+		return profile;
 	}
 
 	createValueAuthoringDraft(
@@ -232,7 +231,7 @@ export class WorkspaceSettingsService {
 	}
 
 	getAuthoredValueGraphFingerprint(profile: ValueAuthoringProfile): string {
-		return authoredValueGraphFingerprint(toAuthoredValueGraph(profile));
+		return authoredValueGraphFingerprint(profile);
 	}
 
 	async preview(

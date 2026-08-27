@@ -1,4 +1,5 @@
 export const EN_ERRORS: Record<string, string> = {
+	"errors.transportFailed": "The request could not reach the host.",
 	"errors.commandOperationRequired": "A command operation is required",
 	"errors.keymapProfileRequired": "A keymap profile ID is required",
 	"errors.bindingContextRequired": "A chord and binding context are required",

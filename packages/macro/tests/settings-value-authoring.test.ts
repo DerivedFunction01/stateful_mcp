@@ -10,7 +10,6 @@ import {
 	deserializeValueAuthoringProfile,
 	roundTripValueAuthoringProfile,
 	serializeValueAuthoringProfile,
-	toAuthoredValueGraph,
 	type ValueAuthoringProfile,
 } from "../src/workspace/config/value-authoring";
 
@@ -96,9 +95,7 @@ describe("value authoring settings foundation", () => {
 		expect(projected.profile).toEqual(serializeValueAuthoringProfile(profile));
 		expect(projected.selectedRecipeId).toBe("text");
 		expect(projected.graphFingerprint).toBe(draft.graphFingerprint);
-		expect(service.getAuthoredValueGraph(profile)).toEqual(
-			toAuthoredValueGraph(profile),
-		);
+		expect(service.getAuthoredValueGraph(profile)).toEqual(profile);
 	});
 
 	test("compiles argument policies against authored recipe IDs", () => {

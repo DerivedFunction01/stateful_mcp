@@ -12,6 +12,7 @@ import type { MacroDiagnostic, MacroInput } from "../contracts/input";
 import type { MacroParseOptions } from "../contracts/macro";
 import type { MacroLockLike } from "../contracts/slots";
 import { parseMacroLine } from "../parser/macro-parser";
+import { stableSerialize } from "../shared/deterministic-json";
 import { applyMacroLocks, projectMacroSlots } from "../slots/macro-slots";
 
 export interface MacroRuntimeOptions extends MacroParseOptions {
@@ -205,17 +206,6 @@ function stableFingerprint(value: unknown): string {
 		hash = Math.imul(hash, 16777619);
 	}
 	return `macro-preview-v1-${(hash >>> 0).toString(16).padStart(8, "0")}`;
-}
-
-function stableSerialize(value: unknown): string {
-	if (value === undefined) return "undefined";
-	if (value === null || typeof value !== "object") return JSON.stringify(value);
-	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
-	const record = value as Record<string, unknown>;
-	return `{${Object.keys(record)
-		.sort()
-		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
-		.join(",")}}`;
 }
 
 function deepFreeze<T>(value: T): T {

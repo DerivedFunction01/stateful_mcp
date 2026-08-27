@@ -20,10 +20,15 @@ import {
 	type SettingsBundleOperation,
 	type SettingsBundleResult,
 	type SettingsOperation,
+	type SettingsScope,
 	type SettingsUiOperation,
 	safeHostError,
 	type UserPreferencesDto,
 	type UserPreferencesExportBundleDto,
+	type ValueAuthoringProfileDto,
+	type ValueAuthoringResult,
+	type ValueRequestDto,
+	type ValueSampleDto,
 	type HostEvent as WireHostEvent,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
@@ -77,6 +82,28 @@ export interface HostClient {
 	applySettingsBundle(
 		operation: SettingsBundleOperation,
 	): Promise<SettingsBundleResult>;
+	valueAuthoringLoad(
+		profileId: string,
+		scope?: SettingsScope,
+	): Promise<ValueAuthoringResult>;
+	valueAuthoringValidate(
+		profile: ValueAuthoringProfileDto,
+	): Promise<ValueAuthoringResult>;
+	valueAuthoringPreview(
+		profile: ValueAuthoringProfileDto,
+		options?: {
+			readonly samples?: readonly ValueSampleDto[];
+			readonly request?: ValueRequestDto;
+			readonly expectedRevision?: string;
+			readonly activeDomain?: string;
+			readonly selectedGroupId?: string;
+			readonly selectedRecipeId?: string;
+		},
+	): Promise<ValueAuthoringResult>;
+	valueAuthoringSave(
+		profile: ValueAuthoringProfileDto,
+		expectedRevision: string,
+	): Promise<ValueAuthoringResult>;
 	applyEditorOperation(
 		operation: EditorOperation,
 	): Promise<EditorOperationResult>;
@@ -319,6 +346,85 @@ export class BrowserHostClient implements HostClient {
 		return this.request<SettingsBundleResult>(
 			`/api/sessions/${encodeURIComponent(sessionId)}/settings.bundle`,
 			{ type: "settings.bundle", sessionId, payload: operation },
+		);
+	}
+
+	async valueAuthoringLoad(
+		profileId: string,
+		scope?: SettingsScope,
+	): Promise<ValueAuthoringResult> {
+		const sessionId = this.requireSession();
+		return this.request<ValueAuthoringResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.valueAuthoring`,
+			{
+				type: "settings.valueAuthoring",
+				sessionId,
+				payload: { operation: "valueAuthoring.load", profileId, scope },
+			},
+		);
+	}
+
+	async valueAuthoringValidate(
+		profile: ValueAuthoringProfileDto,
+	): Promise<ValueAuthoringResult> {
+		const sessionId = this.requireSession();
+		return this.request<ValueAuthoringResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.valueAuthoring`,
+			{
+				type: "settings.valueAuthoring",
+				sessionId,
+				payload: { operation: "valueAuthoring.validate", profile },
+			},
+		);
+	}
+
+	async valueAuthoringPreview(
+		profile: ValueAuthoringProfileDto,
+		options?: {
+			readonly samples?: readonly ValueSampleDto[];
+			readonly request?: ValueRequestDto;
+			readonly expectedRevision?: string;
+			readonly activeDomain?: string;
+			readonly selectedGroupId?: string;
+			readonly selectedRecipeId?: string;
+		},
+	): Promise<ValueAuthoringResult> {
+		const sessionId = this.requireSession();
+		return this.request<ValueAuthoringResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.valueAuthoring`,
+			{
+				type: "settings.valueAuthoring",
+				sessionId,
+				payload: {
+					operation: "valueAuthoring.preview",
+					profile,
+					samples: options?.samples,
+					request: options?.request,
+					expectedRevision: options?.expectedRevision,
+					activeDomain: options?.activeDomain,
+					selectedGroupId: options?.selectedGroupId,
+					selectedRecipeId: options?.selectedRecipeId,
+				},
+			},
+		);
+	}
+
+	async valueAuthoringSave(
+		profile: ValueAuthoringProfileDto,
+		expectedRevision: string,
+	): Promise<ValueAuthoringResult> {
+		const sessionId = this.requireSession();
+		return this.request<ValueAuthoringResult>(
+			`/api/sessions/${encodeURIComponent(sessionId)}/settings.valueAuthoring`,
+			{
+				type: "settings.valueAuthoring",
+				sessionId,
+				payload: {
+					operation: "valueAuthoring.save",
+					profile,
+					expectedRevision,
+				},
+			},
 		);
 	}
 

@@ -33,6 +33,8 @@ export const ES_SETTINGS: Record<string, string> = {
 		"La versión del paquete de configuración no es compatible.",
 	"settings.bundle.stale":
 		"La revisión del paquete de configuración está desactualizada.",
+	"settings.valueAuthoring.parentMissing":
+		"No se encontró el perfil padre extendido; solo se aplican las definiciones locales.",
 	"settings.bundle.stageUnavailable":
 		"La importación de configuración preparada no está disponible.",
 	"settings.bundle.stageUnknown":

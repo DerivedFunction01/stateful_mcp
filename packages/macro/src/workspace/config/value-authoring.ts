@@ -20,8 +20,9 @@ import type { ValueRecipe } from "../../values/recipes";
 import type { SettingsDiagnostic } from "./settings-service";
 
 /**
- * The persisted settings/wizard model. The value definitions deliberately use
- * the runtime contracts directly; this is not a second grammar model.
+ * Wizard-only draft metadata over the canonical persisted UserMacroProfile.
+ * Value definitions use the runtime contracts directly; this is not a second
+ * persisted grammar model. Runtime resolver functions are stripped before I/O.
  */
 export interface ValueAuthoringProfile extends UserMacroProfile {
 	readonly id: string;
@@ -206,13 +207,6 @@ export function resolveEffectiveProfile(
 	};
 }
 
-/** Convert the settings model into the profile shape consumed by the compiler. */
-export function toAuthoredValueGraph(
-	profile: UserMacroProfile,
-): UserMacroProfile {
-	return profile;
-}
-
 export { authoredValueGraphFingerprint };
 
 /** Serialize only JSON-safe authored data; resolver functions are not persisted. */
@@ -340,7 +334,7 @@ export function compileValueAuthoringProfile(
 /** Resolve consumer policies against the same compiled graph used by the wizard. */
 export function compileValueAuthoringPolicies(
 	profile: ValueAuthoringProfile,
-	grammar = compileAuthoredValueGraph(toAuthoredValueGraph(profile)).grammar,
+	grammar = compileAuthoredValueGraph(profile).grammar,
 ): CompiledValueAuthoringPolicies {
 	const diagnostics: SettingsDiagnostic[] = [];
 	const recipeIds = new Set(
@@ -603,17 +597,6 @@ function stripRuntimeResolvers<T>(value: T): T {
 		result[key] = stripRuntimeResolvers(child);
 	}
 	return result as T;
-}
-
-function stableSerialize(value: unknown): string {
-	if (value === undefined) return "undefined";
-	if (value === null || typeof value !== "object") return JSON.stringify(value);
-	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
-	const record = value as Record<string, unknown>;
-	return `{${Object.keys(record)
-		.sort()
-		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
-		.join(",")}}`;
 }
 
 function fnv1a(value: string): string {

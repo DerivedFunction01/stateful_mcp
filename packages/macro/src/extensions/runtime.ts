@@ -89,10 +89,14 @@ export class ExtensionRuntime {
 	readonly extensions = new ExtensionRegistry();
 	readonly macros = new MacroRegistryStore();
 	readonly adapters = new AdapterRegistry();
-	readonly context: MacroRuntimeContext;
+	context: MacroRuntimeContext;
 	readonly i18n?: I18nKernel;
 	private readonly contexts = new Map<string, ExtensionContext>();
 	private readonly listeners = new Map<string, ParseListener[]>();
+	private readonly configuredValueCache = new Map<
+		string,
+		ConfiguredValueRuntime
+	>();
 	private valueRuntimeRevision = 0;
 	readonly options: Required<Pick<ExtensionRuntimeOptions, "rootDirectory">> & {
 		logger: ExtensionLogger;
@@ -118,7 +122,10 @@ export class ExtensionRuntime {
 			valueAliasResolvers: options.valueAliasResolvers ?? {},
 			valueContext: options.valueContext ?? {},
 		};
-		this.context = options.context ?? createMacroRuntimeContext();
+		this.context = createMacroRuntimeContext({
+			...options.context?.syntax,
+			...this.options.profile?.syntax,
+		});
 		this.i18n = options.i18n;
 	}
 
@@ -298,6 +305,10 @@ export class ExtensionRuntime {
 	}
 
 	applyProfile(profile?: UserMacroProfile): void {
+		this.context = createMacroRuntimeContext({
+			...this.context.syntax,
+			...profile?.syntax,
+		});
 		const profileCompilation = compileDomainConfig(
 			profile,
 			undefined,
@@ -406,6 +417,9 @@ export class ExtensionRuntime {
 		extensionId: string,
 		spec: MacroSpec,
 	): ConfiguredValueRuntime {
+		const cacheKey = `${this.valueRuntimeRevision}:${extensionId}:${spec.name}`;
+		const cached = this.configuredValueCache.get(cacheKey);
+		if (cached) return cached;
 		const extensionContext = this.contexts.get(extensionId);
 		const grammar =
 			extensionContext?.compiledDomainGrammar ??
@@ -436,7 +450,7 @@ export class ExtensionRuntime {
 			currency: grammar.currency,
 			dateTime: grammar.dateTime,
 		});
-		return {
+		const runtime: ConfiguredValueRuntime = {
 			grammar,
 			policies: configuredPolicies,
 			terminals: {
@@ -464,6 +478,8 @@ export class ExtensionRuntime {
 					: {}),
 			},
 		};
+		this.configuredValueCache.set(cacheKey, runtime);
+		return runtime;
 	}
 
 	private domainCompileOptions(

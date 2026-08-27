@@ -1,6 +1,15 @@
 import type {
 	MacroWorkspace,
+	UserMacroProfile,
 	ValueAuthoringProfile,
+} from "@stateful-mcp/macro";
+import {
+	BUILTIN_VALUE_TERMINAL_IDS,
+	compileAuthoredValueGraph,
+	createAuthoredValueRecipeSet,
+	createBuiltinTerminals,
+	isRecord,
+	resolveEffectiveProfile,
 } from "@stateful-mcp/macro";
 import type { LoadedMacroWorkspace } from "@stateful-mcp/macro-host";
 import type {
@@ -10,6 +19,7 @@ import type {
 	ValueAuthoringResult,
 } from "@stateful-mcp/macro-protocol";
 import { SettingsServiceError } from "./settings-operations";
+import { projectCatalog, runValueSamples } from "./value-authoring-preview";
 import {
 	toValueAuthoringDraftDto,
 	toValueAuthoringValidationDto,
@@ -53,14 +63,35 @@ export async function applyValueAuthoringOperation(
 			exported.bundle.profiles?.[operation.profileId],
 			operation.profileId,
 		);
+		const effective = await resolveEffective(
+			settings,
+			profile,
+			operation.profileId,
+		);
+		const compilation = compileAuthoredValueGraph(effective.profile);
 		return {
 			status: "loaded",
 			settingsRevision: exported.revision,
 			draft: toValueAuthoringDraftDto(
 				settings.createValueAuthoringDraft(profile, {
 					revision: exported.revision,
+					...(effective.parentMissing
+						? {
+								diagnostics: [
+									{
+										severity: "warning" as const,
+										code: "PROFILE_PARENT_MISSING",
+										messageKey: "settings.valueAuthoring.parentMissing",
+										path: ["extends"],
+									},
+								],
+							}
+						: {}),
 				}),
 			),
+			catalog: projectCatalog(compilation.grammar, [
+				...BUILTIN_VALUE_TERMINAL_IDS,
+			]),
 		};
 	}
 
@@ -68,16 +99,26 @@ export async function applyValueAuthoringOperation(
 		typeof operation.profile.id === "string" ? operation.profile.id : undefined;
 	if (!profileId)
 		throw new SettingsServiceError({
-			code: "INVALID_REQUEST",
+			code: "REQUEST_PAYLOAD_MALFORMED",
 			messageKey: "request.payload.malformed",
 		});
 	const profile = restoreProfile(settings, operation.profile, profileId);
-	const validation = settings.validateAuthoredValues(profile);
-	if (operation.operation === "valueAuthoring.validate")
+	if (operation.operation === "valueAuthoring.validate") {
+		const effective = await resolveEffective(settings, profile, profileId);
 		return {
 			status: "validated",
-			validation: toValueAuthoringValidationDto(validation),
+			validation: toValueAuthoringValidationDto(
+				settings.validateAuthoredValues(
+					effective.profile as ValueAuthoringProfile,
+				),
+			),
+			catalog: projectCatalog(
+				compileAuthoredValueGraph(effective.profile).grammar,
+				[...BUILTIN_VALUE_TERMINAL_IDS],
+			),
 		};
+	}
+	const validation = settings.validateAuthoredValues(profile);
 
 	if (operation.operation === "valueAuthoring.preview") {
 		const revision = settings.getSettingsRevision();
@@ -89,6 +130,27 @@ export async function applyValueAuthoringOperation(
 				expectedRevision: operation.expectedRevision,
 				actualRevision: revision,
 			};
+		const effective = await resolveEffective(settings, profile, profileId);
+		const compilation = compileAuthoredValueGraph(effective.profile);
+		const terminals = createBuiltinTerminals({
+			grammar: compilation.grammar,
+		});
+		let preview;
+		if (operation.samples?.length) {
+			try {
+				preview = runValueSamples({
+					grammar: compilation.grammar,
+					profileFingerprint: compilation.fingerprint,
+					samples: operation.samples,
+					request: operation.request,
+					terminals,
+					outputBuilders: createAuthoredValueRecipeSet(effective.profile.values)
+						.outputBuilders,
+				});
+			} catch {
+				preview = undefined;
+			}
+		}
 		return {
 			status: "previewed",
 			settingsRevision: revision,
@@ -101,6 +163,7 @@ export async function applyValueAuthoringOperation(
 					selectedRecipeId: operation.selectedRecipeId,
 				}),
 			),
+			preview,
 		};
 	}
 
@@ -156,6 +219,37 @@ export async function applyValueAuthoringOperation(
 	};
 }
 
+async function resolveEffective(
+	settings: {
+		deserializeValueAuthoringProfile(value: unknown): ValueAuthoringProfile;
+		exportBundle(profileId: string): Promise<{
+			revision: string;
+			bundle: { profiles?: Record<string, unknown> };
+		}>;
+	},
+	profile: ValueAuthoringProfile,
+	profileId: string,
+): Promise<{ profile: UserMacroProfile; parentMissing: boolean }> {
+	const parentId = profile.extends;
+	if (!parentId || parentId === profileId) {
+		return { profile, parentMissing: false };
+	}
+	try {
+		const parentBundle = await settings.exportBundle(parentId);
+		const parentRecord = parentBundle.bundle.profiles?.[parentId];
+		if (!parentRecord || !isRecord(parentRecord)) {
+			return { profile, parentMissing: true };
+		}
+		const parent = settings.deserializeValueAuthoringProfile(parentRecord);
+		return {
+			profile: resolveEffectiveProfile(profile, parent),
+			parentMissing: false,
+		};
+	} catch {
+		return { profile, parentMissing: true };
+	}
+}
+
 function restoreProfile(
 	settings: {
 		deserializeValueAuthoringProfile(value: unknown): ValueAuthoringProfile;
@@ -172,8 +266,4 @@ function restoreProfile(
 		recipes: source.recipes ?? [],
 		argumentPolicies: source.argumentPolicies ?? {},
 	} as ValueAuthoringProfileDto);
-}
-
-function isRecord(value: unknown): value is Record<string, any> {
-	return !!value && typeof value === "object" && !Array.isArray(value);
 }

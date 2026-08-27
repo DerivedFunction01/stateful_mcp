@@ -36,6 +36,7 @@ import {
 	type ProjectMigrationJournalStatusDto,
 	type ProjectMigrationRecoveryResultDto,
 	type ProjectOperationResult,
+	parseValueAuthoringProfileDto,
 	type SettingsApplyResult,
 	type SettingsBundleOperation,
 	type SettingsBundleResult,
@@ -45,6 +46,8 @@ import {
 	type SettingsUiSnapshotDto,
 	type UserPreferencesDto,
 	type UserPreferencesExportBundleDto,
+	type ValueAuthoringOperation,
+	type ValueAuthoringProfileDto,
 	type WorkspaceSnapshot,
 } from "@stateful-mcp/macro-protocol";
 import { ArtifactService } from "./artifacts/artifact-service";
@@ -987,9 +990,25 @@ export class HostSessionManager {
 
 	async valueAuthoring(
 		sessionId: string,
-		operation: import("@stateful-mcp/macro-protocol").ValueAuthoringOperation,
+		operation: ValueAuthoringOperation,
 	): Promise<import("@stateful-mcp/macro-protocol").ValueAuthoringResult> {
 		const session = this.getOrError(sessionId);
+		const carriesProfile =
+			operation.operation === "valueAuthoring.validate" ||
+			operation.operation === "valueAuthoring.preview" ||
+			operation.operation === "valueAuthoring.save";
+		if (carriesProfile) {
+			const guarded = parseValueAuthoringProfileDto(operation.profile);
+			if (!guarded.ok) {
+				return {
+					status: "conflict",
+					code: "REQUEST_PAYLOAD_MALFORMED",
+					messageKey: "request.payload.malformed",
+					errors: [...guarded.errors],
+				};
+			}
+			void (guarded.profile as ValueAuthoringProfileDto);
+		}
 		const host: ValueAuthoringOperationHost = {
 			supportedScopes: (_workspace) => this.supportedScopes(session),
 			emitSettingsChanged: (_workspace) =>

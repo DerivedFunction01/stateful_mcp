@@ -1,4 +1,5 @@
 export const ES_ERRORS: Record<string, string> = {
+	"errors.transportFailed": "No se pudo contactar con el host.",
 	"errors.commandOperationRequired": "Se requiere una operación de comando",
 	"errors.keymapProfileRequired":
 		"Se requiere un identificador de perfil de combinaciones",

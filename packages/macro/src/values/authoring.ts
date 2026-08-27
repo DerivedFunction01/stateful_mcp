@@ -3,6 +3,7 @@ import type {
 	UserMacroProfile,
 } from "../contracts/extension-config";
 import { compileDomainConfig } from "../extensions/config";
+import { stableSerialize } from "../shared/deterministic-json";
 import {
 	compileAuthoredCurrencyTemplates,
 	createCurrencyOutputBuilders,
@@ -142,17 +143,6 @@ function stripRuntimeResolvers<T>(value: T): T {
 		result[key] = stripRuntimeResolvers(child);
 	}
 	return result as T;
-}
-
-function stableSerialize(value: unknown): string {
-	if (value === undefined) return "undefined";
-	if (value === null || typeof value !== "object") return JSON.stringify(value);
-	if (Array.isArray(value)) return `[${value.map(stableSerialize).join(",")}]`;
-	const record = value as Record<string, unknown>;
-	return `{${Object.keys(record)
-		.sort()
-		.map((key) => `${JSON.stringify(key)}:${stableSerialize(record[key])}`)
-		.join(",")}}`;
 }
 
 function fnv1a(value: string): string {

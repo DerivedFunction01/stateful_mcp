@@ -75,6 +75,10 @@ describe("Chunk 5 User Preferences and Durable Storage", () => {
 			applySettings: async () => ({}) as any,
 			applySettingsUi: async () => ({}) as any,
 			applySettingsBundle: async () => ({}) as any,
+			valueAuthoringLoad: async () => ({}) as any,
+			valueAuthoringValidate: async () => ({}) as any,
+			valueAuthoringPreview: async () => ({}) as any,
+			valueAuthoringSave: async () => ({}) as any,
 			applyEditorOperation: async () => ({}) as any,
 			browseFs: async () => ({
 				currentPath: "/",
@@ -132,6 +136,10 @@ describe("Chunk 5 User Preferences and Durable Storage", () => {
 			applySettings: async () => ({}) as any,
 			applySettingsUi: async () => ({}) as any,
 			applySettingsBundle: async () => ({}) as any,
+			valueAuthoringLoad: async () => ({}) as any,
+			valueAuthoringValidate: async () => ({}) as any,
+			valueAuthoringPreview: async () => ({}) as any,
+			valueAuthoringSave: async () => ({}) as any,
 			applyEditorOperation: async () => ({}) as any,
 			browseFs: async () => ({
 				currentPath: "/",

@@ -29,6 +29,8 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.bundle.versionInvalid":
 		"The settings bundle version is unsupported.",
 	"settings.bundle.stale": "The settings bundle revision is stale.",
+	"settings.valueAuthoring.parentMissing":
+		"The extended parent profile could not be found; only local definitions apply.",
 	"settings.bundle.stageUnavailable":
 		"The staged settings import is unavailable.",
 	"settings.bundle.stageUnknown": "The settings import stage is unknown.",

@@ -3,6 +3,22 @@ import { createMacroRuntimeContext } from "../../src/contracts/context";
 import { ExtensionRuntime } from "../../src/extensions/runtime";
 
 describe("configured value runtime", () => {
+	test("applies profile syntax to the production parser context", () => {
+		const runtime = new ExtensionRuntime({
+			profile: { syntax: { macroStartToken: "#", argumentDelimiter: ";" } },
+			context: createMacroRuntimeContext({ macroStartToken: "^" }),
+		});
+
+		expect(runtime.context.syntax.macroStartToken).toBe("#");
+		expect(runtime.context.syntax.argumentDelimiter).toBe(";");
+
+		runtime.applyProfile({
+			syntax: { macroStartToken: "@", argumentDelimiter: "," },
+		});
+		expect(runtime.context.syntax.macroStartToken).toBe("@");
+		expect(runtime.context.syntax.argumentDelimiter).toBe(",");
+	});
+
 	test("scopes extension terminals and rejects unavailable recipe terminals", async () => {
 		const runtime = new ExtensionRuntime({
 			context: createMacroRuntimeContext({ macroStartToken: "^" }),
@@ -103,6 +119,17 @@ describe("configured value runtime", () => {
 			canonicalValue: 42,
 			recipeId: "custom-number-recipe",
 		});
+		const configuredValueCache = (
+			runtime as unknown as {
+				configuredValueCache: Map<string, unknown>;
+			}
+		).configuredValueCache;
+		expect(configuredValueCache.size).toBe(1);
+		await runtime.parseAdapter(
+			"custom-value-macro",
+			"^custom-value value=value 42",
+		);
+		expect(configuredValueCache.size).toBe(1);
 
 		runtime.applyProfile({ locale: "fr-FR" });
 		await expect(
