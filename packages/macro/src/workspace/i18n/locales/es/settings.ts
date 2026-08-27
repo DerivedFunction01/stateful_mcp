@@ -2,6 +2,7 @@ import { ES_SETTINGS_APPEARANCE } from "./settings/appearance";
 import { ES_SETTINGS_APPLICATION } from "./settings/application";
 import { ES_SETTINGS_EDITOR } from "./settings/editor";
 import { ES_SETTINGS_FUNDAMENTALS } from "./settings/fundamentals/index";
+import { ES_SETTINGS_VALUE_AUTHORING } from "./settings/value-authoring";
 
 export const ES_SETTINGS: Record<string, string> = {
 	"settings.title": "Configuración",
@@ -142,6 +143,7 @@ export const ES_SETTINGS: Record<string, string> = {
 	"settings.macroTokenHint": "Se usa al escribir llamadas de macro.",
 	"settings.unsaved": "Tienes cambios de configuración sin guardar.",
 	...ES_SETTINGS_FUNDAMENTALS,
+	...ES_SETTINGS_VALUE_AUTHORING,
 	...ES_SETTINGS_EDITOR,
 	...ES_SETTINGS_APPEARANCE,
 	...ES_SETTINGS_APPLICATION,

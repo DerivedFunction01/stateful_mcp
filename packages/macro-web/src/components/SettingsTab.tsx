@@ -14,11 +14,20 @@ import {
 	SETTINGS_SCOPES,
 } from "@stateful-mcp/macro-protocol";
 import { Search, Settings2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import { trapFocus } from "../lib/focus-trap";
 import type { HostClient } from "../lib/host-client";
 import { useI18n, type WebI18nKey } from "../lib/macro-i18n-provider";
 import { resolveMessage } from "../lib/message-resolver";
+import { valueStudioDirtyRegistry } from "../state/value-authoring/dirty-registry";
+import { isValueAuthoredSection } from "../state/value-authoring/section-filter";
+import { useValueAuthoringWizard } from "../state/value-authoring/use-value-authoring-wizard";
 import {
 	Badge,
 	Button,
@@ -28,6 +37,7 @@ import {
 	TextInput,
 	Toggle,
 } from "./ui/primitives";
+import { ValueStudio } from "./value-authoring/ValueStudio";
 
 const SCOPE_OPTIONS = SETTINGS_SCOPES;
 
@@ -91,11 +101,34 @@ export function SettingsTab({
 	}, [pendingImport]);
 
 	const current = ui ?? hostSettings;
+
+	// All hooks run unconditionally before any conditional return (Rules of
+	// Hooks): switching between Value Studio and the application surface must
+	// never change the hook order or count.
+
+	// Value Studio vs legacy application surface; value authoring owns the
+	// authored-profile workflow and never falls back to schema rendering.
+	const [surface, setSurface] = useState<"valueStudio" | "application">(
+		"valueStudio",
+	);
+	const { store: wizardStore } = useValueAuthoringWizard(client);
+	const wizardDirty = useSyncExternalStore(
+		valueStudioDirtyRegistry.subscribe,
+		valueStudioDirtyRegistry.get,
+		valueStudioDirtyRegistry.get,
+	);
+
 	const filteredSections = useMemo(() => {
 		if (!current) return [];
+		// Authored value configuration is owned by Value Studio; the schema
+		// renderer never presents value-grammar sections as a fallback.
+		const visible = current.sections.filter(
+			(section) => !isValueAuthoredSection(section.category),
+		);
 		const normalized = query.trim().toLowerCase();
-		if (!normalized) return current.sections;
-		return current.sections.filter(
+
+		if (!normalized) return visible;
+		return visible.filter(
 			(section) =>
 				[section.title, section.category, section.description]
 					.filter(Boolean)
@@ -104,10 +137,46 @@ export function SettingsTab({
 		);
 	}, [current, query]);
 
+	const surfaceTabs = (
+		<div className="vs-surface-tabs" role="tablist">
+			<button
+				type="button"
+				role="tab"
+				aria-selected={surface === "valueStudio"}
+				className={surface === "valueStudio" ? "active" : undefined}
+				onClick={() => setSurface("valueStudio")}
+			>
+				{t("valueStudio.surfaceTab")}
+			</button>
+			<button
+				type="button"
+				role="tab"
+				aria-selected={surface === "application"}
+				className={surface === "application" ? "active" : undefined}
+				onClick={() => setSurface("application")}
+			>
+				{t("settings.title")}
+			</button>
+		</div>
+	);
+
 	if (!current) {
 		return (
 			<div className="settings-page">
+				{surfaceTabs}
 				<Diagnostic severity="warning">{t("settings.unavailable")}</Diagnostic>
+			</div>
+		);
+	}
+
+	if (surface === "valueStudio") {
+		return (
+			<div className="settings-page">
+				{surfaceTabs}
+				<ValueStudio
+					store={wizardStore}
+					initialProfileId={hostSettings?.activeProfileId}
+				/>
 			</div>
 		);
 	}
@@ -321,6 +390,7 @@ export function SettingsTab({
 
 	return (
 		<div className="settings-page">
+			{surfaceTabs}
 			{pendingImport && (
 				<div className="modal-overlay" role="presentation">
 					<div

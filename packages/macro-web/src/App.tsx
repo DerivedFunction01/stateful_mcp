@@ -2,7 +2,13 @@ import type {
 	EditorOperation,
 	SearchDirection,
 } from "@stateful-mcp/macro-protocol";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+	useSyncExternalStore,
+} from "react";
 import {
 	ActivityRail,
 	type AppRoute,
@@ -49,6 +55,7 @@ import {
 	BrowserWorkspaceStore,
 	useBrowserWorkspaceStore,
 } from "./lib/workspace-store";
+import { valueStudioDirtyRegistry } from "./state/value-authoring/dirty-registry";
 
 function routeFromPath(pathname: string): AppRoute {
 	if (pathname === "/__dev/gallery") return "gallery";
@@ -124,11 +131,18 @@ export function App() {
 		readonly restore: HTMLElement | null;
 	}>();
 
-	const settingsDirty = Boolean(
-		snapshot?.settings &&
-			(snapshot.settings.modifiedCount > 0 ||
-				snapshot.settings.totalModifiedCount > 0),
+	const valueStudioDirty = useSyncExternalStore(
+		valueStudioDirtyRegistry.subscribe,
+		valueStudioDirtyRegistry.get,
+		valueStudioDirtyRegistry.get,
 	);
+	const settingsDirty =
+		valueStudioDirty ||
+		Boolean(
+			snapshot?.settings &&
+				(snapshot.settings.modifiedCount > 0 ||
+					snapshot.settings.totalModifiedCount > 0),
+		);
 
 	const [folderModalMode, setFolderModalMode] = useState<
 		"open" | "init" | "saveAs" | undefined

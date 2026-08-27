@@ -1,0 +1,478 @@
+/* ==========================================================================
+   Value Studio — value-authoring wizard surface
+   Uses existing theme tokens and primitives; no separate design system.
+   ========================================================================== */
+
+.vs-surface-tabs {
+	display: flex;
+	gap: 4px;
+	margin-bottom: 16px;
+	border-bottom: 1px solid var(--theme-border-subtle);
+}
+
+.vs-surface-tabs button {
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 8px 14px;
+	color: var(--theme-content-tertiary);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.vs-surface-tabs button.active {
+	color: var(--theme-content-primary);
+	border-bottom-color: var(--theme-accent, var(--theme-border-strong));
+}
+
+.value-studio {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.vs-error-state {
+	display: grid;
+	place-items: center;
+	gap: 10px;
+	padding: 48px 16px;
+}
+
+/* Header ------------------------------------------------------------------ */
+
+.vs-header {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	flex-wrap: wrap;
+	padding: 10px 14px;
+	background: var(--theme-surface-secondary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm, 6px);
+}
+
+.vs-header-identity {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 180px;
+}
+
+.vs-header-identity h2 {
+	margin: 0;
+	font-size: 15px;
+}
+
+.vs-profile-line {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 12px;
+	color: var(--theme-content-secondary);
+}
+
+.vs-header-status {
+	display: flex;
+	align-items: end;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-left: auto;
+}
+
+.vs-header-status .field {
+	width: auto;
+	min-width: 150px;
+}
+
+.vs-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+/* Body layout -------------------------------------------------------------- */
+
+.vs-body {
+	display: grid;
+	grid-template-columns: 230px minmax(0, 1fr) 300px;
+	gap: 14px;
+	align-items: start;
+}
+
+/* Step rail ---------------------------------------------------------------- */
+
+.vs-rail ol {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.vs-rail-item button {
+	width: 100%;
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	text-align: left;
+	background: transparent;
+	border: 1px solid transparent;
+	border-left: 3px solid transparent;
+	border-radius: 4px;
+	padding: 7px 9px;
+	cursor: pointer;
+	color: inherit;
+}
+
+.vs-rail-item.current button {
+	background: var(--theme-surface-elevated);
+	border-color: var(--theme-border-subtle);
+	border-left-color: var(--theme-accent, var(--theme-border-strong));
+}
+
+.vs-rail-item:not(.current) button:hover {
+	background: var(--theme-action-ghost-surface-hover);
+}
+
+.vs-rail-copy strong {
+	font-size: 12.5px;
+	font-weight: 600;
+}
+
+.vs-rail-denial {
+	font-size: 11px;
+	color: var(--theme-content-danger);
+	overflow-wrap: anywhere;
+}
+
+.vs-rail-marker {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+}
+
+.vs-rail-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+	min-width: 0;
+}
+
+.vs-rail-copy strong {
+	font-size: 12.5px;
+	font-weight: 600;
+}
+
+/* Canvas + steps ------------------------------------------------------------ */
+
+.vs-canvas {
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.vs-step {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	background: var(--theme-surface-secondary);
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm, 6px);
+	padding: 14px;
+}
+
+.vs-step h3 {
+	margin: 0;
+	font-size: 13.5px;
+}
+
+.vs-step h4 {
+	margin: 0;
+	font-size: 12.5px;
+	color: var(--theme-content-secondary);
+}
+
+.vs-step-note,
+.vs-empty-note {
+	margin: 0;
+	font-size: 12px;
+	color: var(--theme-content-tertiary);
+}
+
+.vs-lineage-chain {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin: 0;
+	font-size: 12px;
+}
+
+.vs-collection-counts ul,
+.vs-word-rows,
+.vs-profile-options,
+.vs-entry-rows,
+.vs-recipe-list,
+.vs-diagnostic-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.vs-form-toggles {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 18px;
+}
+
+.vs-entry-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	padding: 5px 8px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: 4px;
+	background: var(--theme-surface-primary);
+}
+
+.vs-entry-id {
+	font-family: "DM Mono", monospace;
+	font-size: 11px;
+	overflow-wrap: anywhere;
+}
+
+.vs-entry-actions {
+	display: flex;
+	gap: 4px;
+	margin-left: auto;
+	flex-wrap: wrap;
+}
+
+.vs-inherited-count {
+	color: var(--theme-content-tertiary);
+	font-size: 11px;
+}
+
+.vs-separators {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+}
+
+.vs-word-add {
+	display: flex;
+	align-items: end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.vs-coverage {
+	margin: 0;
+	font-family: "DM Mono", monospace;
+	font-size: 11.5px;
+	color: var(--theme-content-secondary);
+}
+
+/* Sandbox / preview --------------------------------------------------------- */
+
+.vs-sandbox-controls {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+	align-items: end;
+}
+
+.vs-preview-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.vs-preview-header h3 {
+	margin: 0;
+	font-size: 13px;
+}
+
+.vs-canonical-json {
+	margin: 4px 0;
+	padding: 8px 10px;
+	max-height: 220px;
+	overflow: auto;
+	background: var(--theme-surface-sunken);
+	border-radius: 4px;
+	font-family: "DM Mono", monospace;
+	font-size: 11.5px;
+	line-height: 1.5;
+}
+
+.vs-rejections li {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	font-size: 12px;
+}
+
+.vs-stale-note {
+	margin: 0;
+	font-size: 11.5px;
+	color: var(--theme-content-tertiary);
+}
+
+.vs-preview-meta {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	margin: 0;
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+}
+
+.vs-preview-meta code,
+.vs-display-value code,
+.vs-captures code {
+	font-family: "DM Mono", monospace;
+	overflow-wrap: anywhere;
+}
+
+/* Diagnostics --------------------------------------------------------------- */
+
+.vs-diagnostic-list li > .vs-diagnostic {
+	min-width: 0;
+}
+
+.vs-diagnostic-toggle {
+	background: transparent;
+	border: none;
+	padding: 0;
+	margin-left: 6px;
+	color: var(--theme-content-accent);
+	font-size: 11px;
+	cursor: pointer;
+	text-decoration: underline;
+}
+
+.vs-diagnostic-details {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 2px 10px;
+	margin: 4px 0 0;
+	font-size: 11px;
+	color: var(--theme-content-tertiary);
+}
+
+.vs-diagnostic-details dt {
+	font-weight: 600;
+}
+
+.vs-diagnostic-details dd {
+	margin: 0;
+}
+
+/* Conflict + transport error ------------------------------------------------ */
+
+.vs-conflict,
+.vs-transport-error {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid var(--theme-border-strong);
+	border-left-width: 3px;
+	border-radius: var(--theme-radius-sm, 6px);
+	background: var(--theme-surface-elevated);
+}
+
+.vs-conflict h3,
+.vs-transport-error h3 {
+	margin: 0;
+	font-size: 13px;
+}
+
+.vs-conflict-meta {
+	display: flex;
+	gap: 24px;
+	margin: 0;
+}
+
+.vs-conflict-meta div {
+	display: flex;
+	gap: 6px;
+	align-items: baseline;
+}
+
+.vs-conflict-meta dt {
+	color: var(--theme-content-tertiary);
+	font-size: 11.5px;
+}
+
+.vs-conflict-meta dd {
+	margin: 0;
+}
+
+.vs-inspector {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	position: sticky;
+	top: 12px;
+}
+
+.vs-inspector section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	padding: 12px;
+	border: 1px solid var(--theme-border-subtle);
+	border-radius: var(--theme-radius-sm, 6px);
+	background: var(--theme-surface-secondary);
+}
+
+.vs-inspector h3 {
+	margin: 0;
+	font-size: 12.5px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--theme-content-tertiary);
+}
+
+/* Responsive behavior -------------------------------------------------------- */
+
+@media (max-width: 1080px) {
+	.vs-body {
+		grid-template-columns: 200px minmax(0, 1fr);
+	}
+
+	.vs-inspector {
+		grid-column: 1 / -1;
+		position: static;
+	}
+}
+
+@media (max-width: 720px) {
+	.vs-body {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.vs-rail ol {
+		flex-direction: row;
+		overflow-x: auto;
+		padding-bottom: 4px;
+	}
+
+	.vs-rail-item button {
+		white-space: nowrap;
+	}
+
+	.vs-header-actions {
+		width: 100%;
+		justify-content: flex-end;
+	}
+}

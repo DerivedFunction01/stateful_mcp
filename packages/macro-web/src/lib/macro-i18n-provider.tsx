@@ -53,6 +53,7 @@ export function I18nProvider({ children }: { readonly children: ReactNode }) {
 	const locale = useSyncExternalStore(
 		(listener) => kernel.subscribe(listener),
 		() => kernel.getActiveLocale(),
+		() => kernel.getActiveLocale(),
 	);
 	const value = useMemo(() => valueForKernel(kernel), [kernel, locale]);
 	return (

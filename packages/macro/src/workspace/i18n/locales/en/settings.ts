@@ -2,6 +2,7 @@ import { EN_SETTINGS_APPEARANCE } from "./settings/appearance";
 import { EN_SETTINGS_APPLICATION } from "./settings/application";
 import { EN_SETTINGS_EDITOR } from "./settings/editor";
 import { EN_SETTINGS_FUNDAMENTALS } from "./settings/fundamentals/index";
+import { EN_SETTINGS_VALUE_AUTHORING } from "./settings/value-authoring";
 
 export const EN_SETTINGS: Record<string, string> = {
 	"settings.title": "Settings",
@@ -131,6 +132,7 @@ export const EN_SETTINGS: Record<string, string> = {
 	"settings.macroTokenHint": "Used when authoring macro calls.",
 	"settings.unsaved": "You have unsaved settings changes.",
 	...EN_SETTINGS_FUNDAMENTALS,
+	...EN_SETTINGS_VALUE_AUTHORING,
 	...EN_SETTINGS_EDITOR,
 	...EN_SETTINGS_APPEARANCE,
 	...EN_SETTINGS_APPLICATION,

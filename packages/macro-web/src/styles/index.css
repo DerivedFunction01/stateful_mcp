@@ -49,6 +49,7 @@
 @import "./dialogs/pinned-bar.css";
 @import "./dialogs/project-init.css";
 @import "./dialogs/settings.css";
+@import "./settings/value-studio.css";
 @import "./dialogs/project-settings.css";
 @import "./dialogs/activation-groups.css";
 

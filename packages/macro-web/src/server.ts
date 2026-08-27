@@ -379,7 +379,7 @@ const server = Bun.serve<SocketData>({
 			});
 		}
 		const sessionMatch = url.pathname.match(
-			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|editor|project))?$/,
+			/^\/api\/sessions\/([^/]+)(?:\/(events|snapshot|commands|settings|settings\.ui|settings\.bundle|settings\.valueAuthoring|editor|project))?$/,
 		);
 		if (url.pathname === "/api/sessions" && request.method === "POST") {
 			return handleJson(request, undefined, async (envelope) => {
@@ -516,13 +516,17 @@ const server = Bun.serve<SocketData>({
 						envelope.payload as SettingsBundleOperation,
 					),
 				);
-			if (operation === "settings.valueAuthoring" && request.method === "POST")
+			if (
+				operation === "settings.valueAuthoring" &&
+				request.method === "POST"
+			) {
 				return handleJson(request, sessionId, async (envelope) =>
 					sessions.valueAuthoring(
 						sessionId,
 						envelope.payload as ValueAuthoringOperation,
 					),
 				);
+			}
 			if (operation === "editor" && request.method === "POST")
 				return handleJson(request, sessionId, async (envelope) => {
 					const payload = envelope.payload as EditorOperation;

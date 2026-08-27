@@ -874,7 +874,8 @@ export class BrowserHostClient implements HostClient {
 			sessionId: body?.sessionId ?? this.requireSession(),
 			payload: body?.payload ?? {},
 		};
-		const response = await fetch(`${this.baseUrl}${path}`, {
+		const url = `${this.baseUrl}${path}`;
+		const response = await fetch(url, {
 			method,
 			headers: {
 				"content-type": "application/json",
