@@ -1,7 +1,10 @@
-import type { CurrencyFormatConfig } from "../currency";
-import { evaluateCurrencyGrammar } from "../currency";
+import {
+	type CurrencyFormatConfig,
+	createCurrencyOutputBuilders,
+	STANDARD_CURRENCY_CATALOG,
+} from "../currency";
 import { parseNumericValue } from "../numeric";
-import type { TerminalParser } from "../recipes";
+import { parseValueRecipes, type TerminalParser } from "../recipes";
 import { result } from "./shared";
 import type { BuiltinTerminalOptions } from "./types";
 
@@ -9,13 +12,41 @@ export function createCurrencyTerminals(
 	options: BuiltinTerminalOptions,
 ): Record<string, TerminalParser> {
 	const { grammar } = options;
-	return {
+	const terminals: Record<string, TerminalParser> = {
 		currency: (_id, input, request) => {
-			const parsed = evaluateCurrencyGrammar(
-				input,
-				(request?.grammar ?? grammar).currency ?? {},
+			const activeGrammar = request?.grammar ?? grammar;
+			const currencyRecipes = (activeGrammar.recipes?.recipes ?? []).filter(
+				(recipe) => recipe.id.startsWith("currency.template."),
 			);
-			return result(parsed.value, parsed.diagnostics);
+			const config = activeGrammar.currency ?? {};
+			const parsed = parseValueRecipes(
+				input,
+				currencyRecipes,
+				{ enabledRecipes: currencyRecipes.map((recipe) => recipe.id) },
+				(consumerId, value, nestedRequest) => {
+					const parser = terminals[consumerId];
+					return parser
+						? parser(consumerId, value, {
+								...nestedRequest,
+								consumerId,
+								input: value,
+								grammar: activeGrammar,
+								policy: request?.policy,
+							})
+						: { valid: false };
+				},
+				createCurrencyOutputBuilders(config),
+				{ grammar: activeGrammar, policy: request?.policy },
+			);
+			const selected = parsed.selected;
+			return selected
+				? {
+						valid: true,
+						value: selected.canonicalValue,
+						canonicalValue: selected.canonicalValue,
+						displayValue: selected.displayValue,
+					}
+				: { valid: false, stable: true };
 		},
 		"currency-marker": (_id, input, request) => {
 			const config: CurrencyFormatConfig =
@@ -23,7 +54,8 @@ export function createCurrencyTerminals(
 			const normalized = input
 				.trim()
 				.toLocaleLowerCase(config.locales as string);
-			for (const definition of config.definitions ?? []) {
+			for (const definition of config.definitions ??
+				STANDARD_CURRENCY_CATALOG) {
 				if (
 					definition.code.toLocaleLowerCase(config.locales as string) ===
 					normalized
@@ -80,10 +112,24 @@ export function createCurrencyTerminals(
 		},
 		"currency-amount": (_id, input, request) => {
 			const config = (request?.grammar ?? grammar).currency;
-			const parsed = parseNumericValue(input, config ?? {});
+			const parsed = parseNumericValue(input, {
+				...(config?.numericConfig ?? {}),
+				...(config ?? {}),
+			});
 			return parsed.parsed
 				? result(parsed.parsed.value, parsed.diagnostics)
 				: result(undefined, parsed.diagnostics);
 		},
+		"rate-delimiter": (_id, input, request) => {
+			const delimiters =
+				(request?.grammar ?? grammar).rates?.rateDelimiters ?? [];
+			return delimiters.some(
+				(delimiter) =>
+					delimiter.toLocaleLowerCase() === input.trim().toLocaleLowerCase(),
+			)
+				? result(input.trim(), [])
+				: { valid: false, stable: true };
+		},
 	};
+	return terminals;
 }

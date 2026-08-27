@@ -1,8 +1,18 @@
+import { createCompoundQuantityOutputBuilder } from "../compound";
 import { checkNumericBounds, parseNumericValue } from "../numeric";
 import { resolveOperator } from "../operators";
 import type { QuantityGrammarResult } from "../quantity";
-import { evaluateQuantityGrammar, resolveUnitAlias } from "../quantity";
-import type { TerminalParser } from "../recipes";
+import {
+	compileAuthoredQuantityTemplates,
+	createQuantityOutputBuilders,
+	resolveUnitAlias,
+} from "../quantity";
+import {
+	type CompiledRecipe,
+	compileValueRecipes,
+	parseValueRecipes,
+	type TerminalParser,
+} from "../recipes";
 import { resolveStatisticalQualifier } from "../statistics";
 import { diagnostics, result } from "./shared";
 import type { BuiltinTerminalOptions } from "./types";
@@ -11,7 +21,7 @@ export function createQuantityTerminals(
 	options: BuiltinTerminalOptions,
 ): Record<string, TerminalParser> {
 	const { grammar } = options;
-	return {
+	const terminals: Record<string, TerminalParser> = {
 		number: (_id, input, request) => {
 			const parsed = parseNumericValue(
 				input,
@@ -21,16 +31,66 @@ export function createQuantityTerminals(
 		},
 		quantity: (_id, input, request) => {
 			const activeGrammar = request?.grammar ?? grammar;
-			const parsed = evaluateQuantityGrammar(
-				input,
-				activeGrammar.quantity,
-				request?.policy?.quantityConsumerPolicy ?? {},
+			let quantityRecipes: readonly CompiledRecipe[] = (
+				activeGrammar.recipes?.recipes ?? []
+			).filter(
+				(recipe) =>
+					recipe.outputBuilderId?.startsWith("quantity.") &&
+					recipe.outputBuilderId !== "quantity.range",
 			);
+			if (quantityRecipes.length === 0) {
+				const authored = compileAuthoredQuantityTemplates({
+					...activeGrammar.quantity,
+					templates: activeGrammar.quantity.templates?.length
+						? activeGrammar.quantity.templates
+						: ["NUM UNIT"],
+				});
+				quantityRecipes = compileValueRecipes(
+					authored.fundamentals,
+					authored.recipes,
+					{
+						outputBuilderIds: new Set([
+							"quantity.template",
+							"quantity.compound",
+						]),
+					},
+				).recipes;
+			}
+			const policy = request?.policy ?? {};
+			const parsed = parseValueRecipes(
+				input,
+				quantityRecipes,
+				{
+					// A quantity terminal is used as a child of compound/range recipes;
+					// the parent recipe policy must not disable its constituent recipes.
+					enabledRecipes: quantityRecipes.map((recipe) => recipe.id),
+					priorityOverrides: policy.priorityOverrides,
+				},
+				(consumerId, value, nestedRequest) => {
+					const parser = terminals[consumerId];
+					if (!parser) return { valid: false };
+					return parser(consumerId, value, {
+						...nestedRequest,
+						consumerId,
+						input: value,
+						grammar: activeGrammar,
+						policy,
+					});
+				},
+				{
+					...createQuantityOutputBuilders(),
+					"quantity.compound": createCompoundQuantityOutputBuilder(),
+				},
+				{ grammar: activeGrammar, policy },
+			);
+			const parsedValue = parsed.selected?.canonicalValue as
+				| QuantityGrammarResult
+				| undefined;
 			if (
-				parsed.value &&
+				parsedValue &&
 				request?.policy?.bounds &&
 				!checkNumericBounds(
-					parsed.value.primaryQuantity.magnitude,
+					parsedValue.primaryQuantity.magnitude,
 					request.policy.bounds,
 				)
 			) {
@@ -47,7 +107,7 @@ export function createQuantityTerminals(
 					],
 				};
 			}
-			return result(parsed.value, parsed.diagnostics);
+			return result(parsedValue, parsed.diagnostics);
 		},
 		"quantity-amount": (_id, input, request) => {
 			const config = (request?.grammar ?? grammar).quantity;
@@ -71,7 +131,9 @@ export function createQuantityTerminals(
 						displayValue: resolved.matchedAlias,
 						metadata: { matchedAlias: resolved.matchedAlias },
 					}
-				: { valid: false, stable: true };
+				: Object.keys(config.unitAliases ?? {}).length === 0 && input.trim()
+					? result(input.trim(), [])
+					: { valid: false, stable: true };
 		},
 		"quantity-packaging": (_id, input, request) => {
 			const config = (request?.grammar ?? grammar).quantity;
@@ -169,16 +231,12 @@ export function createQuantityTerminals(
 		},
 		"rate-denominator": (_id, input, request) => {
 			const activeGrammar = request?.grammar ?? grammar;
-			const parsed = evaluateQuantityGrammar(
-				input,
-				activeGrammar.quantity,
-				request?.policy?.quantityConsumerPolicy ?? {},
-			);
-			if (parsed.value) {
+			const parsed = terminals.quantity!("quantity", input, request);
+			if (parsed.valid && parsed.value) {
 				return {
 					valid: true,
 					value: parsed.value,
-					canonicalValue: parsed.value,
+					canonicalValue: parsed.canonicalValue ?? parsed.value,
 					stable: true,
 				};
 			}
@@ -201,13 +259,10 @@ export function createQuantityTerminals(
 			}
 			return {
 				valid: false,
-				diagnostics: parsed.diagnostics.map((d) => ({
-					errorCode: d.code,
-					messageKey: d.messageKey ?? "values.terminal.invalid",
-					messageParams: d.messageParams,
-				})),
+				diagnostics: parsed.diagnostics,
 				stable: true,
 			};
 		},
 	};
+	return terminals;
 }

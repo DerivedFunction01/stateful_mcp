@@ -45,8 +45,18 @@ export function compileAuthoredCurrencyTemplates(
 		const tokenSpecs: Record<CurrencyToken, { pattern: string }> = {
 			SYM: { pattern: buildMarkerPattern(currencyMarkerValues(config)) },
 			CODE: { pattern: buildMarkerPattern(currencyMarkerValues(config)) },
-			AMOUNT: { pattern: buildNumericPatternString(config) },
-			SUBUNITS: { pattern: buildNumericPatternString(config) },
+			AMOUNT: {
+				pattern: buildNumericPatternString({
+					...(config.numericConfig ?? {}),
+					...config,
+				}),
+			},
+			SUBUNITS: {
+				pattern: buildNumericPatternString({
+					...(config.numericConfig ?? {}),
+					...config,
+				}),
+			},
 			OP: { pattern: ".+?" },
 		};
 		fundamentals.push(

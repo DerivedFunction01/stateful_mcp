@@ -43,7 +43,11 @@ export function compileAuthoredQuantityTemplates(
 		NUM: { pattern: buildNumericPatternString({ ...config }) },
 		NUM_LOW: { pattern: buildNumericPatternString({ ...config }) },
 		NUM_HIGH: { pattern: buildNumericPatternString({ ...config }) },
-		UNIT: { pattern: `(?:${aliases.map(escapeRegex).join("|")})` },
+		UNIT: {
+			pattern: aliases.length
+				? `(?:${aliases.map(escapeRegex).join("|")})`
+				: "[^\\s]+",
+		},
 		PKG_CLASSIFIER: { pattern: `(?:${packaging.map(escapeRegex).join("|")})` },
 		FILLER: {
 			pattern: `(?:${(config.fillerConnectors ?? []).map(escapeRegex).join("|")})`,

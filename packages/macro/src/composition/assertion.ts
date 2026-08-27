@@ -4,21 +4,16 @@ import type {
 	MacroChildValidationContext,
 	MacroDefinitionAdapter,
 } from "../contracts/composition";
-import type {
-	CompiledDomainGrammar,
-	UserMacroProfile,
-} from "../contracts/extension-config";
 import type { MacroInput } from "../contracts/input";
 import type { MacroArgumentSpec, MacroSpec } from "../contracts/macro";
 import type {
 	MacroArgumentForm,
 	MacroAuthoringTemplate,
 } from "../contracts/matching";
-import type { ScannerSyntax } from "../parser/macro-scanner";
-import {
-	type PatternCompilerValueKind,
-	ValuePatternCompiler,
-} from "../values/pattern-compiler";
+import type { SlotBinding } from "../contracts/slots";
+import type { ValueKind } from "../contracts/values";
+import type { ConfiguredValueRuntime } from "../values/engine";
+import { parseConfiguredArgument } from "../values/engine";
 
 export type AssertionClauseRole =
 	| "subject"
@@ -27,7 +22,11 @@ export type AssertionClauseRole =
 	| "qualifier"
 	| "transition";
 
-export type AssertionClauseValueKind = PatternCompilerValueKind;
+export type AssertionClauseValueKind =
+	| ValueKind
+	| "concept"
+	| "string"
+	| "number";
 
 export interface AssertionClauseSpec {
 	readonly role: AssertionClauseRole;
@@ -67,8 +66,7 @@ export interface CompositeAssertionGraph {
 }
 
 export interface CreateAssertionMacroOptions {
-	readonly grammar?: CompiledDomainGrammar | Partial<UserMacroProfile>;
-	readonly syntax?: ScannerSyntax;
+	readonly configuredRuntime: ConfiguredValueRuntime;
 }
 
 /**
@@ -81,13 +79,8 @@ export function createAssertionMacro(
 		graph: CompositeAssertionGraph,
 		input: MacroInput,
 	) => unknown | Promise<unknown>,
-	options: CreateAssertionMacroOptions = {},
+	options: CreateAssertionMacroOptions,
 ): MacroDefinitionAdapter {
-	const compiler = new ValuePatternCompiler({
-		grammar: options.grammar,
-		syntax: options.syntax,
-	});
-
 	const subjectArg: MacroArgumentSpec = {
 		argumentId: spec.subjectSlotId,
 		name: spec.subjectSlotId,
@@ -194,12 +187,7 @@ export function createAssertionMacro(
 		type: "assertion-subject",
 		validate: (context: MacroChildValidationContext) => {
 			const raw = context.input.rawValue;
-			const value = canonicalInputValue(
-				context.input,
-				spec.subjectValueKind ?? "concept",
-				raw,
-				compiler,
-			);
+			const value = context.input.match?.canonicalValue;
 			return {
 				status: "accepted",
 				binding: { canonicalValue: value },
@@ -219,12 +207,7 @@ export function createAssertionMacro(
 			type: `assertion-clause-${clause.role}`,
 			validate: (context: MacroChildValidationContext) => {
 				const raw = context.input.rawValue;
-				const value = canonicalInputValue(
-					context.input,
-					clause.valueKind,
-					raw,
-					compiler,
-				);
+				const value = context.input.match?.canonicalValue;
 				return {
 					status: "accepted",
 					binding: { canonicalValue: value },
@@ -254,6 +237,18 @@ export function createAssertionMacro(
 			const evidence: AssertionClauseBinding[] = [];
 			const transitions: AssertionClauseBinding[] = [];
 
+			const bindingByInput = new Map<
+				MacroInput["arguments"][number],
+				SlotBinding | undefined
+			>();
+			let bindingIndex = 0;
+			for (const argument of input.arguments) {
+				if (argument.match) {
+					bindingByInput.set(argument, _bindings[bindingIndex]?.binding);
+					bindingIndex += 1;
+				}
+			}
+
 			// Read subject and clause inputs from input arguments
 			const subjectInput = input.arguments.find(
 				(a) =>
@@ -263,9 +258,7 @@ export function createAssertionMacro(
 			if (subjectInput) {
 				subjectValue = canonicalInputValue(
 					subjectInput,
-					spec.subjectValueKind ?? "concept",
-					subjectInput.rawValue,
-					compiler,
+					bindingByInput.get(subjectInput),
 				);
 			}
 
@@ -283,16 +276,13 @@ export function createAssertionMacro(
 					for (const rawItem of rawItems) {
 						const parsed =
 							matchingInputs.length === 1 && !match.items?.length
-								? canonicalInputValue(
-										match,
-										clause.valueKind,
+								? canonicalInputValue(match, bindingByInput.get(match))
+								: parseConfiguredArgument(
 										rawItem,
-										compiler,
-									)
-								: compiler.parseConfiguredClauseValue(
-										clause.valueKind,
-										rawItem,
-									);
+										options.configuredRuntime,
+										clause.slotId,
+										configuredConsumerId(clause.valueKind),
+									).candidates[0]?.canonicalValue;
 						const clauseBinding: AssertionClauseBinding = {
 							role: clause.role,
 							slotId: clause.slotId,
@@ -335,11 +325,19 @@ export function createAssertionMacro(
 
 function canonicalInputValue(
 	input: MacroInput["arguments"][number],
-	kind: PatternCompilerValueKind,
-	raw: string,
-	compiler: ValuePatternCompiler,
+	binding?: SlotBinding,
 ): unknown {
 	return input.match?.canonicalValue !== undefined
 		? input.match.canonicalValue
-		: compiler.parseConfiguredClauseValue(kind, raw);
+		: binding?.canonicalValue;
+}
+
+function configuredConsumerId(kind: AssertionClauseValueKind): string {
+	return kind === "quantity"
+		? "quantity"
+		: kind === "currency"
+			? "currency"
+			: kind === "string"
+				? "text"
+				: "concept";
 }

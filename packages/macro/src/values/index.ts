@@ -10,7 +10,6 @@ export * from "./localization";
 export * from "./measurement";
 export * from "./numeric";
 export * from "./operators";
-export * from "./pattern-compiler";
 export * from "./quantity";
 export * from "./rates";
 export * from "./recipes/compile";

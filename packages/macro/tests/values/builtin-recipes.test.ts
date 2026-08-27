@@ -246,10 +246,8 @@ describe("opt-in built-in recipe factories", () => {
 		const builtins = createRateRecipeSet(rates);
 		const grammar = compileDomainConfig(
 			{
-				values: {
-					quantity: { unitAliases: { mg: ["mg"], hour: ["hour"] } },
-					rates,
-				},
+				unitAliases: { mg: ["mg"], hour: ["hour"] },
+				values: { rates },
 				fundamentals: builtins.fundamentals,
 				recipes: builtins.recipes,
 			},
@@ -281,10 +279,8 @@ describe("opt-in built-in recipe factories", () => {
 		const builtins = createRateRecipeSet(rates);
 		const grammar = compileDomainConfig(
 			{
-				values: {
-					quantity: { unitAliases: { mg: ["mg"], kg: ["kg"], day: ["day"] } },
-					rates,
-				},
+				unitAliases: { mg: ["mg"], kg: ["kg"], day: ["day"] },
+				values: { rates },
 				fundamentals: builtins.fundamentals,
 				recipes: builtins.recipes,
 			},

@@ -168,6 +168,42 @@ describe("temporal authored recipe factories", () => {
 		});
 	});
 
+	test("authored frequency templates produce bounded schedules", () => {
+		const frequency: FrequencyGrammarConfig = {
+			templates: ["INTERVAL_PREFIX INTERVAL_MAG INTERVAL_UNIT"],
+			intervalPrefixes: ["every"],
+			timeUnitAliases: { day: ["day", "days"] },
+		};
+		const builtins = createFrequencyRecipeSet(frequency);
+		const grammar = compileDomainConfig(
+			{
+				values: { frequency },
+				fundamentals: builtins.fundamentals,
+				recipes: builtins.recipes,
+			},
+			undefined,
+			{
+				terminalIds: new Set(BUILTIN_VALUE_TERMINAL_IDS),
+				outputBuilderIds: new Set(Object.keys(builtins.outputBuilders)),
+			},
+		);
+		const parsed = parseConfiguredValue(
+			"every 2 days",
+			grammar,
+			{ enabledRecipes: ["frequency.template.0"] },
+			{
+				terminals: createBuiltinTerminals({ grammar }),
+				outputBuilders: builtins.outputBuilders,
+			},
+		);
+
+		expect(parsed.selected?.canonicalValue).toEqual({
+			cadenceType: "interval",
+			interval: { multiplier: 2, unit: "day" },
+			rawText: "every 2 days",
+		});
+	});
+
 	test("authored date output preserves canonical rawText behavior", () => {
 		const registry: DateTimeFormatRegistry = {
 			formats: {

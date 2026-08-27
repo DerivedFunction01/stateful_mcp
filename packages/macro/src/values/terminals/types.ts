@@ -28,6 +28,7 @@ export const BUILTIN_VALUE_TERMINAL_IDS = Object.freeze([
 	"rate-denominator",
 	"currency-marker",
 	"currency-amount",
+	"rate-delimiter",
 	"date-year",
 	"date-month",
 	"date-day",

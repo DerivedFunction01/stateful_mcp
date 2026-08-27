@@ -80,7 +80,11 @@ export function createQuantityOutputBuilders(): Readonly<
 			if (!quantity) return { valid: false };
 			const filler = firstEvaluationSlot(evaluation, "FILLER");
 			const concept = firstEvaluationSlot(evaluation, "CONCEPT");
+			const operator = firstEvaluationSlot(evaluation, "OP");
+			const statisticalQualifier = firstEvaluationSlot(evaluation, "STAT");
 			const quantityPolicy = policy?.quantityConsumerPolicy;
+			if (quantityPolicy?.allowOperator === false && operator !== undefined)
+				return { valid: false };
 			if (
 				quantityPolicy?.allowedUnits &&
 				!quantityPolicy.allowedUnits.includes(quantity.unit)
@@ -114,6 +118,15 @@ export function createQuantityOutputBuilders(): Readonly<
 							}
 						: undefined,
 				},
+				...(operator && typeof operator === "object"
+					? { operator: operator as QuantityGrammarResult["operator"] }
+					: {}),
+				...(statisticalQualifier && typeof statisticalQualifier === "object"
+					? {
+							statisticalQualifier:
+								statisticalQualifier as QuantityGrammarResult["statisticalQualifier"],
+						}
+					: {}),
 				rawText: input.trim(),
 			};
 			return { valid: true, value, displayValue: input.trim() };

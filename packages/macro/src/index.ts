@@ -66,7 +66,6 @@ export * from "./values/localization";
 export * from "./values/measurement";
 export * from "./values/numeric";
 export * from "./values/operators";
-export * from "./values/pattern-compiler";
 export * from "./values/quantity";
 export * from "./values/rates";
 export * from "./values/recipes/compile";

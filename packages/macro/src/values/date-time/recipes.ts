@@ -1,5 +1,12 @@
 import type { FundamentalGroup, FundamentalPattern } from "../fundamentals";
-import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
+import { parseNumericValue } from "../numeric";
+import type {
+	RecipeOutputBuilder,
+	TerminalParser,
+	ValueRecipe,
+} from "../recipes";
+import { result } from "../terminals/shared";
+import type { BuiltinTerminalOptions } from "../terminals/types";
 import {
 	type DateTimeFormatRegistry,
 	normalizeDateTimeFormatDefinition,
@@ -14,6 +21,53 @@ export interface DateTimeRecipeSet {
 	readonly fundamentals: readonly FundamentalGroup[];
 	readonly recipes: readonly ValueRecipe[];
 	readonly outputBuilders: Readonly<Record<string, RecipeOutputBuilder>>;
+}
+
+/** Terminal consumers used by the authored date-time recipe graph. */
+export function createDateTimeTerminals(
+	options: BuiltinTerminalOptions,
+): Record<string, TerminalParser> {
+	const { grammar } = options;
+	return {
+		"date-year": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-month": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-day": (_id, input) => {
+			const parsed = parseNumericValue(input, {});
+			return parsed.parsed
+				? result(parsed.parsed.value, parsed.diagnostics)
+				: result(undefined, parsed.diagnostics);
+		},
+		"date-month-name": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).date;
+			const monthNames = config?.options?.monthNames ?? [];
+			const monthAliases = config?.options?.monthAliases ?? [];
+			const locales = (request?.grammar ?? grammar).localization?.locale;
+			const normalized = input.trim().toLocaleLowerCase(locales as string);
+			for (let index = 0; index < monthNames.length; index += 1) {
+				const names = [
+					monthNames[index],
+					...(monthAliases[index] ?? []),
+				].filter((name): name is string => Boolean(name));
+				if (
+					names.some(
+						(name) => name.toLocaleLowerCase(locales as string) === normalized,
+					)
+				)
+					return result(index + 1, []);
+			}
+			return { valid: false, stable: true };
+		},
+	};
 }
 
 /**
@@ -90,17 +144,19 @@ export function createDateTimeRecipeSet(
 					consumerId:
 						token === "YYYY" || token === "YY"
 							? "date-year"
-							: token === "MM" || token === "MM_name"
+							: token === "MM"
 								? "date-month"
-								: token === "DD" || token === "DDD"
-									? "date-day"
-									: token === "HH"
-										? "date-hour"
-										: token === "min"
-											? "date-minute"
-											: token === "SS"
-												? "date-second"
-												: "text",
+								: token === "MM_name"
+									? "date-month-name"
+									: token === "DD" || token === "DDD"
+										? "date-day"
+										: token === "HH"
+											? "number"
+											: token === "min"
+												? "number"
+												: token === "SS"
+													? "number"
+													: "text",
 				})),
 			},
 			...(format.parserPriority !== undefined

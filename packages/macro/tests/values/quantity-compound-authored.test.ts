@@ -104,6 +104,38 @@ describe("authored quantity and compound values", () => {
 		});
 	});
 
+	test("evaluates authored quantity recipes inside an authored range", () => {
+		const graph = compileAuthoredValueGraph({
+			unitAliases: { kg: ["kg"] },
+			values: {
+				quantity: {
+					templates: ["NUM UNIT"],
+					rangeComponents: [
+						{ id: "to", connector: [{ id: "to", text: "to" }] },
+					],
+				},
+			},
+		});
+		const parsed = parseConfiguredValue(
+			"5 kg to 10 kg",
+			graph.grammar,
+			{ enabledRecipes: ["quantity.range"] },
+			{
+				terminals: createBuiltinTerminals({ grammar: graph.grammar }),
+				outputBuilders: createQuantityOutputBuilders(),
+			},
+		);
+
+		expect(parsed.selected?.canonicalValue).toMatchObject({
+			primaryQuantity: { magnitude: 5, unit: "kg" },
+			range: {
+				start: { magnitude: 5, unit: "kg" },
+				end: { magnitude: 10, unit: "kg" },
+				direction: "ascending",
+			},
+		});
+	});
+
 	test("preserves explicit packaging and concept semantics", async () => {
 		const authored = compileAuthoredQuantityTemplates({
 			templates: ["NUM PKG_CLASSIFIER FILLER CONCEPT"],

@@ -47,6 +47,7 @@ export function createSingleQuantity(
 		unitToken,
 		config.unitAliases,
 		config.locales,
+		Object.keys(config.unitAliases ?? {}).length === 0,
 	);
 	if (!resolved) return undefined;
 	const quantity: SingleQuantity = {

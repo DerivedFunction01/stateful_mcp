@@ -1,8 +1,8 @@
+import { createDateTimeTerminals } from "../date-time";
+import { createFrequencyTerminals } from "../frequency";
 import type { TerminalParser } from "../recipes";
 import { createAliasTerminals } from "./alias";
 import { createCurrencyTerminals } from "./currency";
-import { createDateTerminals } from "./date";
-import { createFrequencyTerminals } from "./frequency";
 import { createQuantityTerminals } from "./quantity";
 import type { BuiltinTerminalOptions } from "./types";
 
@@ -12,7 +12,7 @@ export function createBuiltinTerminals(
 	const terminals: Record<string, TerminalParser> = {
 		...createQuantityTerminals(options),
 		...createCurrencyTerminals(options),
-		...createDateTerminals(options),
+		...createDateTimeTerminals(options),
 		...createFrequencyTerminals(options),
 		...createAliasTerminals(options),
 	};

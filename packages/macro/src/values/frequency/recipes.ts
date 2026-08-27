@@ -1,7 +1,21 @@
 import type { FundamentalGroup, FundamentalPattern } from "../fundamentals";
-import type { RecipeOutputBuilder, ValueRecipe } from "../recipes";
+import { createFundamentalFromAuthoredFormat } from "../fundamentals";
+import { buildNumericPatternString, parseNumericValue } from "../numeric";
+import type {
+	RecipeOutputBuilder,
+	TerminalParser,
+	ValueRecipe,
+} from "../recipes";
 import { buildAliasAlternation, slotValue } from "../recipes/shared";
 import { escapeRegex } from "../regex";
+import type { TemplateTokenSpec } from "../template-compiler";
+import { result } from "../terminals/shared";
+import type { BuiltinTerminalOptions } from "../terminals/types";
+import {
+	FREQUENCY_TOKENS,
+	type FrequencyToken,
+	parseFormatTemplate,
+} from "../token-spec";
 import type { CadenceSchedule, FrequencyGrammarConfig } from "./types";
 
 /**
@@ -13,6 +27,106 @@ export interface FrequencyRecipeSet {
 	readonly fundamentals: readonly FundamentalGroup[];
 	readonly recipes: readonly ValueRecipe[];
 	readonly outputBuilders: Readonly<Record<string, RecipeOutputBuilder>>;
+}
+
+/** Terminal consumers used by the authored frequency recipe graph. */
+export function createFrequencyTerminals(
+	options: BuiltinTerminalOptions,
+): Record<string, TerminalParser> {
+	const { grammar } = options;
+	return {
+		"frequency-count": (_id, input, request) => {
+			const activeGrammar = request?.grammar ?? grammar;
+			const config = activeGrammar.frequency;
+			const numeric = parseNumericValue(input, config?.numericConfig);
+			if (numeric.parsed)
+				return result(numeric.parsed.value, numeric.diagnostics);
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [count, aliases] of Object.entries(
+				config?.multiplierAliases ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(Number(count), []);
+			}
+			return result(undefined, numeric.diagnostics);
+		},
+		"frequency-unit": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [unit, aliases] of Object.entries(
+				config?.timeUnitAliases ?? {},
+			)) {
+				if (
+					unit.toLocaleLowerCase(config?.locales as string) === normalized ||
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(unit, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-alias": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [alias, schedule] of Object.entries(
+				config?.frequencyAliases ?? {},
+			)) {
+				if (alias.toLocaleLowerCase(config?.locales as string) === normalized)
+					return result({ ...schedule, rawText: input.trim() }, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-anchor": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [anchor, aliases] of Object.entries(
+				config?.eventAnchorAliases ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					) ||
+					anchor.toLocaleLowerCase(config?.locales as string) === normalized
+				)
+					return result(anchor, []);
+			}
+			return { valid: false, stable: true };
+		},
+		"frequency-direction": (_id, input, request) => {
+			const config = (request?.grammar ?? grammar).frequency;
+			const normalized = input
+				.trim()
+				.toLocaleLowerCase(config?.locales as string);
+			for (const [direction, aliases] of Object.entries(
+				config?.relativeOffsetConnectors ?? {},
+			)) {
+				if (
+					aliases.some(
+						(alias) =>
+							alias.toLocaleLowerCase(config?.locales as string) === normalized,
+					)
+				)
+					return result(direction, []);
+			}
+			return { valid: false, stable: true };
+		},
+	};
 }
 
 function literal(id: string, text: string): FundamentalPattern {
@@ -50,6 +164,79 @@ export function createFrequencyRecipeSet(
 ): FrequencyRecipeSet {
 	const groups: FundamentalGroup[] = [];
 	const recipes: ValueRecipe[] = [];
+	const templateTokenConsumers: Readonly<Record<FrequencyToken, string>> = {
+		INTERVAL_PREFIX: "text",
+		INTERVAL_MAG: "frequency-count",
+		INTERVAL_HIGH: "frequency-count",
+		INTERVAL_UNIT: "frequency-unit",
+		RECURRENCE_COUNT: "frequency-count",
+		RECURRENCE_CONN: "text",
+		PERIOD: "frequency-unit",
+		OFFSET_MAG: "frequency-count",
+		OFFSET_UNIT: "frequency-unit",
+		OFFSET_DIR: "frequency-direction",
+		ANCHOR: "frequency-anchor",
+		PRN_TRIGGER: "text",
+		CONDITION: "text",
+	};
+	const templateTokenSpecs: Readonly<
+		Record<FrequencyToken, TemplateTokenSpec>
+	> = {
+		INTERVAL_PREFIX: {
+			pattern: buildAliasAlternation(config.intervalPrefixes),
+		},
+		INTERVAL_MAG: { pattern: buildNumericPatternString(config.numericConfig) },
+		INTERVAL_HIGH: { pattern: buildNumericPatternString(config.numericConfig) },
+		INTERVAL_UNIT: {
+			pattern: buildAliasAlternation(aliasValues(config.timeUnitAliases)),
+		},
+		RECURRENCE_COUNT: {
+			pattern: buildNumericPatternString(config.numericConfig),
+		},
+		RECURRENCE_CONN: {
+			pattern: buildAliasAlternation(config.recurrenceConnectors),
+		},
+		PERIOD: {
+			pattern: buildAliasAlternation(aliasValues(config.timeUnitAliases)),
+		},
+		OFFSET_MAG: { pattern: buildNumericPatternString(config.numericConfig) },
+		OFFSET_UNIT: {
+			pattern: buildAliasAlternation(aliasValues(config.timeUnitAliases)),
+		},
+		OFFSET_DIR: {
+			pattern: buildAliasAlternation(
+				aliasValues(config.relativeOffsetConnectors),
+			),
+		},
+		ANCHOR: {
+			pattern: buildAliasAlternation(aliasValues(config.eventAnchorAliases)),
+		},
+		PRN_TRIGGER: { pattern: buildAliasAlternation(config.conditionalAliases) },
+		CONDITION: { pattern: ".+?" },
+	};
+	for (const [index, template] of (config.templates ?? []).entries()) {
+		const format =
+			typeof template === "string"
+				? parseFormatTemplate(template, FREQUENCY_TOKENS)
+				: template;
+		if (format.tokens.length === 0) continue;
+		const id = `frequency.template.${format.id ?? index}`;
+		groups.push(
+			createFundamentalFromAuthoredFormat(id, format, templateTokenSpecs),
+		);
+		recipes.push({
+			id,
+			root: {
+				kind: "fundamental",
+				groupId: id,
+				children: format.tokens.map((token) => ({
+					kind: "terminal" as const,
+					consumerId: templateTokenConsumers[token],
+				})),
+			},
+			outputBuilderId: "frequency.template",
+		});
+	}
 
 	const intervalPrefixes = config.intervalPrefixes ?? [];
 	const units = aliasValues(config.timeUnitAliases);
@@ -296,6 +483,83 @@ export function createFrequencyRecipeSet(
 		});
 	}
 	const builders: Record<string, RecipeOutputBuilder> = {
+		"frequency.template": ({ evaluation, input, policy }) => {
+			if (evaluation.kind !== "fundamental") return { valid: false };
+			const count =
+				slotValue(evaluation, "INTERVAL_MAG") ??
+				slotValue(evaluation, "RECURRENCE_COUNT");
+			const unit =
+				slotValue(evaluation, "INTERVAL_UNIT") ??
+				slotValue(evaluation, "PERIOD");
+			const anchor = slotValue(evaluation, "ANCHOR");
+			const direction = slotValue(evaluation, "OFFSET_DIR");
+			const offsetMagnitude = slotValue(evaluation, "OFFSET_MAG");
+			const offsetUnit = slotValue(evaluation, "OFFSET_UNIT");
+			const condition = slotValue(evaluation, "CONDITION");
+			const frequencyPolicy = policy?.frequencyConsumerPolicy;
+			let value: CadenceSchedule | undefined;
+			if (typeof anchor === "string") {
+				if (
+					frequencyPolicy?.allowedCadenceTypes &&
+					!frequencyPolicy.allowedCadenceTypes.includes("event_anchored")
+				)
+					return { valid: false };
+				value = {
+					cadenceType: "event_anchored",
+					eventAnchor: anchor,
+					...(typeof direction === "string"
+						? {
+								relativeOffset: {
+									direction: direction as "before" | "after" | "at" | "with",
+									...(typeof offsetMagnitude === "number" &&
+									typeof offsetUnit === "string"
+										? {
+												duration: {
+													magnitude: offsetMagnitude,
+													unit: offsetUnit,
+												},
+											}
+										: {}),
+								},
+							}
+						: {}),
+					rawText: input.trim(),
+				};
+			} else if (typeof count === "number" && typeof unit === "string") {
+				const recurrence =
+					slotValue(evaluation, "RECURRENCE_COUNT") !== undefined;
+				if (
+					frequencyPolicy?.allowedCadenceTypes &&
+					!frequencyPolicy.allowedCadenceTypes.includes(
+						recurrence ? "recurrence" : "interval",
+					)
+				)
+					return { valid: false };
+				value = recurrence
+					? {
+							cadenceType: "recurrence",
+							recurrence: { count, period: unit },
+							rawText: input.trim(),
+						}
+					: {
+							cadenceType: "interval",
+							interval: { multiplier: count, unit },
+							rawText: input.trim(),
+						};
+			} else if (typeof condition === "string") {
+				if (frequencyPolicy?.allowConditional === false)
+					return { valid: false };
+				value = {
+					cadenceType: "one_time",
+					isConditional: true,
+					condition,
+					rawText: input.trim(),
+				};
+			}
+			return value
+				? { valid: true, value, displayValue: input.trim() }
+				: { valid: false };
+		},
 		"frequency.interval": ({ evaluation, input, policy }) => {
 			if (evaluation.kind !== "fundamental") return { valid: false };
 			const count = slotValue(evaluation, "count");
